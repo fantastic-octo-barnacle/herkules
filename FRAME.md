@@ -206,3 +206,32 @@ dpop_signing_alg_values_supported, scopes_supported? }`). Canonical
 - Remaining unverified: that Claude Code and VS Code try the path-inserted AS
   metadata URL for an issuer with a path (spec-mandated since 2025-06-18).
   Covered by done-predicate check 1; still part of the kill criterion.
+
+## Status — 2026-08-28
+
+v1 code complete: five deliverables, one commit each (`661e176` auth +
+middleware + contract, `d73712b` mcp-directory, `b07ad7d` web, `581c5df`
+deploy). Design records: each package's `DESIGN.md`, `tools/deploy/README.md`.
+
+Done predicate:
+
+| #   | check                                                               | state                                                                                                              |
+| --- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 1   | Claude Code + VS Code: add → login → consent → whoami               | **Claude Code passed** against the local stack (`http://localhost:3000`). VS Code and the deployed origin pending. |
+| 2   | Non-member refused at login, audited                                | Proven by `services/auth/tests/flow.test.ts` (fake GitHub). Real second account not yet tried.                     |
+| 3   | ~30-line Python verifier from `docs/tokens.md`                      | **Passed** — `docs/verify_token.py`, 16/16 vectors, and against tokens the real service minted.                    |
+| 4   | Admin actions each audited                                          | **Passed** — API in tests; pages used locally (members, allowlist, audit, disconnect).                             |
+| 5   | GHCR image → `compose pull && up -d` on the box, nightly dump in R2 | Pending: prod OAuth app, `.env` on the box, repo secrets, first push. Stack verified locally on Postgres.          |
+
+Decision amendment: **CIMD is not advertised.** Better Auth's redirect matcher
+grants RFC 8252 port variance to loopback IPs only; Claude Code's metadata
+document registers `http://localhost/callback` and requests a random port, so
+every CIMD authorize failed. Claude Code falls back to DCR, which works. Not
+the kill criterion (no library patch); revisit when the matcher accepts
+`localhost`.
+
+Kill criterion: not fired. Remains open only for VS Code and the path-inserted
+metadata URL on the real origin.
+
+New features get their own frame at the feature root (e.g.
+`services/mcp-lark/FRAME.md`); this file stays the auth layer's record.
