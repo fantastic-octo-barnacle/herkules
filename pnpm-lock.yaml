@@ -315,6 +315,9 @@ importers:
       '@herkules/oauth-client':
         specifier: workspace:*
         version: link:../../packages/oauth-client
+      '@herkules/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.1.1(hono@4.13.5)
@@ -364,9 +367,6 @@ importers:
       '@herkules/auth':
         specifier: workspace:*
         version: link:../../services/auth
-      '@herkules/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
         version: 2.0.0
@@ -551,6 +551,12 @@ importers:
 
   services/web:
     dependencies:
+      '@herkules/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@tanstack/react-query':
+        specifier: 'catalog:'
+        version: 5.102.6(react@19.2.8)
       react:
         specifier: 'catalog:'
         version: 19.2.8
@@ -564,9 +570,6 @@ importers:
       '@herkules/auth':
         specifier: workspace:*
         version: link:../auth
-      '@herkules/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@tailwindcss/vite':
         specifier: 'catalog:'
         version: 4.3.3(@voidzero-dev/vite-plus-core@0.3.0(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.0))

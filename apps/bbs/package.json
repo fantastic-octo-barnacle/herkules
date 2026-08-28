@@ -26,6 +26,7 @@
   "dependencies": {
     "@herkules/auth-middleware": "workspace:*",
     "@herkules/oauth-client": "workspace:*",
+    "@herkules/ui": "workspace:*",
     "@hono/node-server": "catalog:",
     "@hono/zod-validator": "catalog:",
     "@modelcontextprotocol/server": "catalog:",

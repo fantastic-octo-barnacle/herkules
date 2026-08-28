@@ -12,13 +12,14 @@
     "check": "vp check"
   },
   "dependencies": {
+    "@herkules/ui": "workspace:*",
+    "@tanstack/react-query": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-router": "^7.9.0"
   },
   "devDependencies": {
     "@herkules/auth": "workspace:*",
-    "@herkules/ui": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
