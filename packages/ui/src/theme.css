@@ -4,10 +4,13 @@
  * block maps them onto Tailwind's namespace so `bg-paper`, `text-ink`,
  * `border-line`, `font-display` and the shadcn names (`bg-background`,
  * `text-muted-foreground`, …) resolve to the same variables and follow the
- * same dark switch. Preflight is on; app sheets are unlayered so anything they
- * still style wins over it.
+ * same dark switch. Also here: the element defaults both apps share (preflight
+ * is on) and the typographic roles every screen repeats, as named utilities
+ * so a role is one word in JSX. App sheets are unlayered, so anything an app
+ * still styles wins over all of it.
  */
 @import "tailwindcss";
+@import "tw-animate-css";
 @source "./";
 
 :root {
@@ -139,4 +142,122 @@
   --color-border: var(--line);
   --color-input: var(--line);
   --color-ring: var(--accent);
+}
+
+/* ── element defaults ──────────────────────────────────────────────────── */
+@layer base {
+  html {
+    font-size: 16px;
+  }
+  body {
+    font-family: var(--body);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  a {
+    color: var(--accent);
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 0.875em;
+  }
+  pre {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.7;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+  }
+  pre code {
+    font-size: inherit;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--display);
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  h2 {
+    font-size: 1.35rem;
+    margin: 2rem 0 0.6rem;
+  }
+  h3 {
+    font-size: 1.05rem;
+    margin: 1.4rem 0 0.4rem;
+  }
+  mark {
+    background: var(--accent-soft);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 0.1em;
+  }
+  hr {
+    border-top: 1px solid var(--line-2);
+    margin: 2rem 0;
+  }
+}
+
+/* ── typographic roles ─────────────────────────────────────────────────── */
+/* A page column. Screens that need a wider one set `[--measure:1240px]` beside it. */
+@utility page {
+  width: min(100% - 2.5rem, var(--measure));
+  margin-inline: auto;
+  padding: 2rem 0 4rem;
+}
+@utility page-title {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 2rem;
+  line-height: 1.15;
+  margin: 0 0 0.5rem;
+}
+@utility eyebrow {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+@utility meta {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.7;
+}
+@utility lede {
+  color: var(--ink-2);
+  margin: 0 0 1.5rem;
+  max-width: 48rem;
+}
+/* A small mono label above a block (sidebar sections, resource lists). */
+@utility label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+/* A tiny mono tag beside text: link kinds, sources, relations. */
+@utility tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 4px;
+  white-space: nowrap;
 }

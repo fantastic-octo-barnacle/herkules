@@ -19,7 +19,8 @@
     "lucide-react": "catalog:",
     "radix-ui": "catalog:",
     "tailwind-merge": "catalog:",
-    "tailwindcss": "catalog:"
+    "tailwindcss": "catalog:",
+    "tw-animate-css": "catalog:"
   },
   "devDependencies": {
     "@types/react": "catalog:",
