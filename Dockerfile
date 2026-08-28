@@ -54,8 +54,11 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD wget -qO- http://127.0.0.1/healthz || exit 1
 
 # ── backup (nightly pg_dump -> Cloudflare R2 via rclone) ────────────────────
-FROM postgres:17-alpine AS backup
-RUN apk add --no-cache rclone
+FROM rclone/rclone:1.72 AS rclone
+
+FROM alpine:3.23 AS backup
+RUN apk add --no-cache postgresql17-client
+COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
 COPY tools/deploy/backup/backup.sh /usr/local/bin/backup
 COPY tools/deploy/backup/crontab /etc/crontabs/root
 RUN chmod +x /usr/local/bin/backup
