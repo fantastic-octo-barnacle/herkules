@@ -118,3 +118,27 @@ Alternatives considered:
 - Screenshots of `/`, `/settings`, `/admin`, bbs `/`, an article, and a KB
   page reviewed in light and dark: nothing unreadable, overlapping, or unstyled.
 - `docs/FRAME-ui.md` carries the TanStack Router verdict, either way.
+
+## TanStack Router verdict — 2026-08-29
+
+**ADOPTED** (commit "web: port routing from react-router 7 to TanStack Router"
+on `feat/ui`). Time-boxed prototype in an isolated worktree; the kill criterion
+did not fire.
+
+- Guards ported without a new abstraction: `RequireAuth` is `beforeLoad` on a
+  pathless `authed` layout route — `ensureQueryData(sessionQuery(api))` then
+  `throw redirect({ to: "/login", search: { next } })`, the same idiom as bbs's
+  `searchRoute.beforeLoad`. `RequireAdmin` is the `/admin` layout's component.
+  `sessionQuery(api)` is a `queryOptions` factory like bbs's `q.viewer()`.
+- Files: `package.json` (`react-router` → `@tanstack/react-router`),
+  `main.tsx` 127 → 24 lines (bootstrap only), `routes.tsx` new (154, the route
+  table), `shell.tsx` new (63), `session.tsx` 89 → 60, three pages' imports.
+  Net `src/` +98 lines — the explicit route table, which is why bbs keeps one.
+- `vp check` clean; `vp test` 7/7 including the real-auth flow test; build ✓.
+- Bundle: JS 134.75 → 146.85 kB gzipped (+12 kB). CSS unchanged.
+- Harder: search params are typed/parsed, so the OAuth query that `/consent`
+  and `/login` forward verbatim is read from `useLocation().searchStr`;
+  `<Navigate>` needs `to`, so the consent → login bounce uses the existing
+  `HardRedirect`; the 404 is a `$` splat under the layout. Easier: typed
+  `to=`, guards live on the layout so a new route cannot forget them, one
+  router idiom across both SPAs, `react-router` leaves the catalog.
