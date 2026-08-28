@@ -1,49 +1,5 @@
 /* herkules web — tokens, primitives, pages. One sheet; specificity kept flat (single-class selectors). */
-:root {
-  color-scheme: light dark;
-  --paper: #eef1f4;
-  --surface: #ffffff;
-  --surface-2: #f5f7f9;
-  --ink: #14181d;
-  --ink-2: #4b5563;
-  --muted: #6b7480;
-  --line: #d7dce2;
-  --line-2: #e6eaee;
-  --accent: #1d6b5a;
-  --accent-ink: #f2f5f3;
-  --accent-soft: #e2efeb;
-  --danger: #b3261e;
-  --danger-soft: #f7e3e1;
-  --warn-soft: #f6ecd6;
-  --warn: #7a5a12;
-  --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  --body:
-    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC",
-    "Noto Sans CJK SC", sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  --radius: 6px;
-  --measure: 64rem;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #14181d;
-    --surface: #1c2128;
-    --surface-2: #232a32;
-    --ink: #e9edf1;
-    --ink-2: #b9c1cb;
-    --muted: #8b95a1;
-    --line: #333c46;
-    --line-2: #2a323b;
-    --accent: #5fb89f;
-    --accent-ink: #0f1a16;
-    --accent-soft: #1e3a32;
-    --danger: #f08c85;
-    --danger-soft: #3d1f1d;
-    --warn-soft: #3a2f16;
-    --warn: #e2c07a;
-  }
-}
-
+@import "@herkules/ui/theme.css";
 * {
   box-sizing: border-box;
 }

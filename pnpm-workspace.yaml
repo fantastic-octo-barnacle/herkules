@@ -14,6 +14,7 @@ catalog:
   "@modelcontextprotocol/server": 2.0.0
   "@tanstack/react-query": ^5.102.6
   "@tanstack/react-router": ^1.170.32
+  "@tailwindcss/vite": ^4.3.3
   "@types/node": ^24
   "@types/react": ^19.2.18
   "@types/react-dom": ^19.2.5
@@ -25,6 +26,7 @@ catalog:
   postgres: ^3.4.9
   react: ^19.2.8
   react-dom: ^19.2.8
+  tailwindcss: ^4.3.3
   typescript: ^7.0.2
   vite: npm:@voidzero-dev/vite-plus-core@0.3.0
   vite-plus: 0.3.0

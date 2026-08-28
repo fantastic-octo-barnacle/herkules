@@ -1,3 +1,4 @@
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 
@@ -10,7 +11,7 @@ const AUTH = "http://localhost:3001";
 const BBS = "http://localhost:3103"; // apps/bbs's Hono process; its SPA dev server on :3003 is a separate origin
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     port: 3000,
     strictPort: true,
