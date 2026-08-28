@@ -265,8 +265,13 @@ a test in `tests/`.
   ids"** (Better Auth inserts `DEFAULT`), so it was dropped; Better Auth's own
   32-character ids are used. Our own tables keep their own id strategy (audit:
   UUID v7 for keyset paging).
-- **The first-party client is a direct row insert**: `adminCreateOAuthClient`
-  generates its own `client_id`, and the SPA needs the stable `herkules-web`.
+- **First-party clients are direct row inserts**: `adminCreateOAuthClient`
+  generates its own `client_id`, and the apps need stable ids (`herkules-web`,
+  `bbs`). `FIRST_PARTY_CLIENTS` is a public/confidential union; a confidential
+  entry's secret comes from config (`BBS_CLIENT_SECRET`, with `BBS_ORIGIN`) and
+  is stored hashed by `secrets.ts`, which is also the plugin's
+  `storeClientSecret`. Seeding reconciles every field on every boot
+  (2026-08-28; probes in tests/first-party.test.ts).
 - **A stale allow keeps the OLD `gateCheckedAt`**, so refreshing during a
   GitHub outage cannot extend the `GATE_STALE_MAX` window, and the next grant
   after GitHub returns re-asks immediately.

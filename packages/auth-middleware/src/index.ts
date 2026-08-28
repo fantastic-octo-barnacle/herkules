@@ -105,6 +105,12 @@ export interface ResourceAuth<S extends string = never> {
     permission(reason: string): Response;
     /** Valid token, too narrow. 403 with an insufficient_scope challenge. Uncallable while `S` is `never`. */
     scope(first: S, ...rest: readonly S[]): Response;
+    /**
+     * The verdict cannot be reached right now (the issuer, its JWKS or a token endpoint is down).
+     * 503 + Retry-After, no challenge — never a 401, which would send every client back through
+     * consent during an outage. Same wire format as the verifier's own `jwks_unavailable`.
+     */
+    unavailable(cause?: unknown): Response;
   };
 }
 
@@ -190,6 +196,7 @@ function createResourceAuth<S extends string>(
       permission: (reason) => renderFailure({ kind: "forbidden", reason }, ctx),
       scope: (first, ...rest) =>
         renderFailure({ kind: "insufficient_scope", missing: [first, ...rest] }, ctx),
+      unavailable: (cause) => renderFailure({ kind: "jwks_unavailable", cause }, ctx),
     },
   };
 }

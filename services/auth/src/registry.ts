@@ -42,6 +42,8 @@ export interface ResourceSpec {
 /** THE registry. */
 export const RESOURCE_SPECS: readonly ResourceSpec[] = [
   { name: "directory", kind: "mcp", title: "herkules directory (MCP)", canonical: true },
+  { name: "bbs", kind: "api", title: "RM 文库" },
+  { name: "bbs", kind: "mcp", title: "RM 文库 (MCP)" },
 ];
 
 /**

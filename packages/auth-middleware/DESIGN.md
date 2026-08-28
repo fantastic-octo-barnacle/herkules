@@ -188,7 +188,9 @@ offer a body-format option.
 Base: candidate 2 (opus) — `authenticate(request, require?)`, the
 `mcpResource`/`apiResource` split, the closed `AuthFailure` union with
 `jwks_unavailable → 503`, `deny.permission`/`deny.scope` with `S = never`, the
-`fetch` seam, principal-in-`extra`.
+`fetch` seam, principal-in-`extra`. (`deny.unavailable` was added 2026-08-28
+for `@herkules/oauth-client`: same 12.5 rendering, for a caller whose own
+upstream — the token endpoint — is down.)
 Grafted from candidate 1 (fable): fail-closed rejection of a missing `role`
 (c2 collapsed it to `member`, which still grants authority to an unknown token
 kind); the richer test issuer (`rotate`, `retireOldKeys`, `jwksFetches`,

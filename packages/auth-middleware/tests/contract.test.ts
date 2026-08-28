@@ -250,6 +250,19 @@ describe("§12 end to end through a resource server", () => {
     });
   });
 
+  test("deny.unavailable renders 12.5 for a caller whose upstream is down", async () => {
+    const { auth } = await setup();
+    const r = auth.deny.unavailable(new Error("token endpoint ECONNREFUSED"));
+    expect(r.status).toBe(503);
+    expect(r.headers.get("retry-after")).toBe("5");
+    expect(r.headers.has("www-authenticate")).toBe(false);
+    expect(await r.json()).toEqual({
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "authorization keys unavailable, retry" },
+      id: null,
+    });
+  });
+
   test("issuer down before any key was cached -> 12.5, never 401", async () => {
     const { issuer, auth } = await setup();
     const token = await issuer.mint({ audience: RESOURCE });

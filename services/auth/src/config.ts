@@ -60,7 +60,19 @@ export const configSchema = z.object({
     .positive()
     .default(30 * DAY),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  /**
+   * apps/bbs's public origin, e.g. https://bbs.herkules.dev (dev: http://localhost:3003).
+   * Set: the confidential first-party `bbs` client is seeded with `${BBS_ORIGIN}/callback`.
+   * Unset (or empty): not seeded. Both BBS_* variables or neither.
+   */
+  BBS_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  /** The `bbs` client's secret (>= 32 chars), stored hashed; the same value goes in apps/bbs's env. */
+  BBS_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
 });
+
+function emptyToUndefined(value: unknown): unknown {
+  return value === "" ? undefined : value;
+}
 
 export type Config = z.infer<typeof configSchema> & {
   /** `${PUBLIC_ORIGIN}/auth` — the `iss`, the Better Auth baseURL, the JWKS origin. Derived, never configured. */
@@ -75,9 +87,13 @@ export type Config = z.infer<typeof configSchema> & {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = configSchema.parse(env);
   const origin = new URL(parsed.PUBLIC_ORIGIN).origin;
+  if ((parsed.BBS_ORIGIN === undefined) !== (parsed.BBS_CLIENT_SECRET === undefined)) {
+    throw new TypeError("BBS_ORIGIN and BBS_CLIENT_SECRET must be set together or not at all");
+  }
   return Object.freeze({
     ...parsed,
     PUBLIC_ORIGIN: origin,
+    BBS_ORIGIN: parsed.BBS_ORIGIN === undefined ? undefined : new URL(parsed.BBS_ORIGIN).origin,
     issuer: `${origin}/auth`,
     isProduction: parsed.NODE_ENV === "production",
   });

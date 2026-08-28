@@ -61,6 +61,30 @@ export interface AuditRowRaw extends AuditInsert {
   readonly event: unknown;
 }
 
+/** The oauthClient columns first-party seeding reads back and reconciles (clients.ts). */
+export interface ClientRow {
+  readonly clientId: string;
+  readonly name: string | null;
+  readonly clientSecret: string | null;
+  readonly redirectUris: readonly string[];
+  readonly skipConsent: boolean;
+  readonly tokenEndpointAuthMethod: string | null;
+  readonly applicationType: string | null;
+  readonly grantTypes: readonly string[];
+  readonly metadata: Record<string, unknown> | null;
+}
+
+export type ClientPatch = {
+  readonly name?: string;
+  readonly clientSecret?: string | null;
+  readonly redirectUris?: readonly string[];
+  readonly skipConsent?: boolean;
+  readonly tokenEndpointAuthMethod?: string;
+  readonly applicationType?: string;
+  readonly grantTypes?: readonly string[];
+  readonly metadata?: Record<string, unknown> | undefined;
+};
+
 /** Named queries over Better Auth's tables that other modules need. Keeps column names out of gate.ts/users.ts. */
 export interface AuthQueries {
   readonly users: {
@@ -119,22 +143,10 @@ export interface AuthQueries {
     deleteFor(userId: string, clientId: string): Promise<number>;
   };
   readonly clients: {
-    byId(clientId: string): Promise<
-      | {
-          readonly clientId: string;
-          readonly redirectUris: readonly string[];
-          readonly metadata: Record<string, unknown> | null;
-        }
-      | undefined
-    >;
+    byId(clientId: string): Promise<ClientRow | undefined>;
     insert(row: typeof schema.oauthClient.$inferInsert): Promise<void>;
-    update(
-      clientId: string,
-      patch: {
-        readonly redirectUris?: readonly string[];
-        readonly metadata?: Record<string, unknown> | undefined;
-      },
-    ): Promise<void>;
+    /** Every field first-party seeding reconciles. Absent keys are left alone; `metadata`/`clientSecret` may be set to null. */
+    update(clientId: string, patch: ClientPatch): Promise<void>;
     /** Delete clients created before `olderThan` that own no consent and no live refresh token; never the `keep` ids or user-owned rows. */
     deleteIdle(olderThan: Date, keep: readonly string[]): Promise<readonly string[]>;
   };
@@ -382,7 +394,13 @@ function queries(d: Drizzle): AuthQueries {
           await d
             .select({
               clientId: oauthClient.clientId,
+              name: oauthClient.name,
+              clientSecret: oauthClient.clientSecret,
               redirectUris: oauthClient.redirectUris,
+              skipConsent: oauthClient.skipConsent,
+              tokenEndpointAuthMethod: oauthClient.tokenEndpointAuthMethod,
+              applicationType: oauthClient.applicationType,
+              grantTypes: oauthClient.grantTypes,
               metadata: oauthClient.metadata,
             })
             .from(oauthClient)
@@ -392,7 +410,13 @@ function queries(d: Drizzle): AuthQueries {
         return r
           ? {
               clientId: r.clientId,
+              name: r.name,
+              clientSecret: r.clientSecret,
               redirectUris: r.redirectUris ?? [],
+              skipConsent: r.skipConsent === true,
+              tokenEndpointAuthMethod: r.tokenEndpointAuthMethod,
+              applicationType: r.applicationType,
+              grantTypes: r.grantTypes ?? [],
               metadata: (r.metadata as Record<string, unknown> | null) ?? null,
             }
           : undefined;
@@ -404,7 +428,17 @@ function queries(d: Drizzle): AuthQueries {
         await d
           .update(oauthClient)
           .set({
+            ...(patch.name !== undefined ? { name: patch.name } : {}),
+            ...("clientSecret" in patch ? { clientSecret: patch.clientSecret ?? null } : {}),
             ...(patch.redirectUris ? { redirectUris: [...patch.redirectUris] } : {}),
+            ...(patch.skipConsent !== undefined ? { skipConsent: patch.skipConsent } : {}),
+            ...(patch.tokenEndpointAuthMethod !== undefined
+              ? { tokenEndpointAuthMethod: patch.tokenEndpointAuthMethod }
+              : {}),
+            ...(patch.applicationType !== undefined
+              ? { applicationType: patch.applicationType }
+              : {}),
+            ...(patch.grantTypes ? { grantTypes: [...patch.grantTypes] } : {}),
             ...("metadata" in patch ? { metadata: patch.metadata ?? null } : {}),
             updatedAt: new Date(),
           })

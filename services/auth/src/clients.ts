@@ -11,7 +11,8 @@ import { APIError } from "better-auth/api";
 
 import type { Actor, Audit } from "./audit.ts";
 import type { Config } from "./config.ts";
-import type { AuthDb } from "./db/index.ts";
+import type { AuthDb, ClientRow } from "./db/index.ts";
+import { hashClientSecret } from "./secrets.ts";
 
 /** The RFC 7591 fields we inspect. Everything else passes through untouched. */
 export interface RegistrationRequest {
@@ -102,15 +103,40 @@ export function registerBeforeHook(ctx: {
 }
 
 /**
- * First-party clients, created idempotently at boot. `herkules-web` is the
- * SPA's dev-token client: public, PKCE, skipConsent (first party), native
- * (accepts the http://localhost dev redirect and the https prod one).
+ * First-party clients, created idempotently at boot. Two kinds:
+ *  - public: PKCE only, no secret (`herkules-web`, the SPA's dev-token client).
+ *  - confidential: `client_secret_basic`, refresh tokens, a secret from config
+ *    (`bbs`, the BFF of apps/bbs on its own origin — packages/oauth-client).
+ * Both skip consent (first party) and are `native` so the http://localhost dev
+ * redirect and the https prod redirect are both registrable (the stored
+ * applicationType only gates DCR validation; authorize matches redirect URIs
+ * exactly — tests/first-party.test.ts). `redirectUris(config)` returning []
+ * (origin not configured) skips the entry with a log line, as does a
+ * confidential entry whose `secret(config)` is unset.
  */
+interface FirstPartyClientBase {
+  readonly clientId: string;
+  readonly name: string;
+  readonly redirectUris: (config: Config) => readonly string[];
+  readonly skipConsent: boolean;
+  readonly applicationType: "web" | "native";
+  readonly grantTypes: readonly ("authorization_code" | "refresh_token")[];
+  readonly metadata?: Record<string, unknown>;
+}
+
+export type FirstPartyClient =
+  | (FirstPartyClientBase & { readonly tokenEndpointAuthMethod: "none" })
+  | (FirstPartyClientBase & {
+      readonly tokenEndpointAuthMethod: "client_secret_basic";
+      /** Undefined = not configured for this deployment: the entry is skipped. */
+      readonly secret: (config: Config) => string | undefined;
+    });
+
 export const FIRST_PARTY_CLIENTS = [
   {
     clientId: "herkules-web",
     name: "herkules web",
-    redirectPath: "/dev-token/callback",
+    redirectUris: (c) => [`${c.PUBLIC_ORIGIN}/dev-token/callback`],
     skipConsent: true,
     tokenEndpointAuthMethod: "none",
     applicationType: "native",
@@ -123,7 +149,17 @@ export const FIRST_PARTY_CLIENTS = [
      */
     metadata: { herkules: { devToken: true } },
   },
-] as const;
+  {
+    clientId: "bbs",
+    name: "RM 文库",
+    redirectUris: (c) => (c.BBS_ORIGIN ? [`${c.BBS_ORIGIN}/callback`] : []),
+    skipConsent: true,
+    tokenEndpointAuthMethod: "client_secret_basic",
+    applicationType: "native",
+    grantTypes: ["authorization_code", "refresh_token"],
+    secret: (c) => c.BBS_CLIENT_SECRET,
+  },
+] as const satisfies readonly FirstPartyClient[];
 
 /** True for the first-party dev-token client, read from the oauthClient.metadata the token callbacks receive. */
 export function isDevTokenClient(metadata: Record<string, unknown> | undefined): boolean {
@@ -153,39 +189,96 @@ export function ownedClientIds(): readonly string[] {
   return [...FIRST_PARTY_CLIENTS.map((c) => c.clientId), ...STATIC_CLIENTS.map((c) => c.clientId)];
 }
 
-/**
- * Idempotent: looks each FIRST_PARTY_CLIENTS + STATIC_CLIENTS row up by clientId,
- * inserts the row when absent (a direct insert: Better Auth's admin endpoint
- * generates its own client_id, and the SPA needs a stable one), updates
- * redirect URIs when the origin changed.
- */
-export async function ensureFirstPartyClients(
-  db: AuthDb,
+/** The row a first-party entry must be, as a projection comparable to `ClientRow`. */
+interface WantedClient {
+  readonly clientId: string;
+  readonly name: string;
+  readonly clientSecret: string | null;
+  readonly redirectUris: readonly string[];
+  readonly skipConsent: boolean;
+  readonly tokenEndpointAuthMethod: string;
+  readonly applicationType: string;
+  readonly grantTypes: readonly string[];
+  readonly metadata: Record<string, unknown> | null;
+}
+
+/** Resolves the checked-in entries against config; entries this deployment does not configure are dropped (with a reason). */
+export async function wantedFirstPartyClients(
   config: Config,
-  now: () => Date,
-): Promise<void> {
-  const wanted = [
-    ...FIRST_PARTY_CLIENTS.map((c) => ({
+): Promise<{ readonly wanted: readonly WantedClient[]; readonly skipped: readonly string[] }> {
+  const wanted: WantedClient[] = [];
+  const skipped: string[] = [];
+  for (const c of FIRST_PARTY_CLIENTS as readonly FirstPartyClient[]) {
+    const redirectUris = c.redirectUris(config);
+    if (redirectUris.length === 0) {
+      skipped.push(`${c.clientId}: origin not configured`);
+      continue;
+    }
+    let clientSecret: string | null = null;
+    if (c.tokenEndpointAuthMethod === "client_secret_basic") {
+      const secret = c.secret(config);
+      if (secret === undefined) {
+        skipped.push(`${c.clientId}: secret not configured`);
+        continue;
+      }
+      clientSecret = await hashClientSecret(secret);
+    }
+    wanted.push({
       clientId: c.clientId,
       name: c.name,
-      redirectUris: [`${config.PUBLIC_ORIGIN}${c.redirectPath}`],
+      clientSecret,
+      redirectUris,
       skipConsent: c.skipConsent,
       tokenEndpointAuthMethod: c.tokenEndpointAuthMethod,
       applicationType: c.applicationType,
       grantTypes: [...c.grantTypes],
-      metadata: c.metadata as Record<string, unknown>,
-    })),
-    ...STATIC_CLIENTS.map((c) => ({
+      metadata: c.metadata ?? null,
+    });
+  }
+  for (const c of STATIC_CLIENTS) {
+    wanted.push({
       clientId: c.clientId,
       name: c.name,
+      clientSecret: null,
       redirectUris: [...c.redirectUris],
       skipConsent: false,
       tokenEndpointAuthMethod: "none",
       applicationType: "native",
       grantTypes: ["authorization_code", "refresh_token"],
-      metadata: undefined as Record<string, unknown> | undefined,
-    })),
-  ];
+      metadata: null,
+    });
+  }
+  return { wanted, skipped };
+}
+
+function sameClient(existing: ClientRow, w: WantedClient): boolean {
+  return (
+    existing.name === w.name &&
+    existing.clientSecret === w.clientSecret &&
+    existing.redirectUris.join(" ") === w.redirectUris.join(" ") &&
+    existing.skipConsent === w.skipConsent &&
+    existing.tokenEndpointAuthMethod === w.tokenEndpointAuthMethod &&
+    existing.applicationType === w.applicationType &&
+    existing.grantTypes.join(" ") === w.grantTypes.join(" ") &&
+    JSON.stringify(existing.metadata) === JSON.stringify(w.metadata)
+  );
+}
+
+/**
+ * Idempotent: looks each wanted row up by clientId, inserts it when absent (a
+ * direct insert: Better Auth's admin endpoint generates its own client_id, and
+ * the apps need stable ones), and rewrites EVERY reconciled field when any
+ * differs — a half-deployed row with the wrong auth method or a stale secret
+ * hash would 401 forever otherwise. Secrets are stored hashed (secrets.ts).
+ */
+export async function ensureFirstPartyClients(
+  db: AuthDb,
+  config: Config,
+  now: () => Date,
+  log: (line: string) => void = (line) => console.log(line),
+): Promise<void> {
+  const { wanted, skipped } = await wantedFirstPartyClients(config);
+  for (const reason of skipped) log(`first-party client skipped — ${reason}`);
   for (const w of wanted) {
     const existing = await db.clients.byId(w.clientId);
     if (!existing) {
@@ -193,12 +286,13 @@ export async function ensureFirstPartyClients(
       await db.clients.insert({
         id: crypto.randomUUID(),
         clientId: w.clientId,
+        clientSecret: w.clientSecret,
         name: w.name,
-        redirectUris: w.redirectUris,
+        redirectUris: [...w.redirectUris],
         skipConsent: w.skipConsent,
         tokenEndpointAuthMethod: w.tokenEndpointAuthMethod,
         applicationType: w.applicationType,
-        grantTypes: w.grantTypes,
+        grantTypes: [...w.grantTypes],
         responseTypes: ["code"],
         requirePKCE: true,
         disabled: false,
@@ -206,11 +300,17 @@ export async function ensureFirstPartyClients(
         createdAt: at,
         updatedAt: at,
       });
-    } else if (
-      existing.redirectUris.join(" ") !== w.redirectUris.join(" ") ||
-      JSON.stringify(existing.metadata ?? null) !== JSON.stringify(w.metadata ?? null)
-    ) {
-      await db.clients.update(w.clientId, { redirectUris: w.redirectUris, metadata: w.metadata });
+    } else if (!sameClient(existing, w)) {
+      await db.clients.update(w.clientId, {
+        name: w.name,
+        clientSecret: w.clientSecret,
+        redirectUris: w.redirectUris,
+        skipConsent: w.skipConsent,
+        tokenEndpointAuthMethod: w.tokenEndpointAuthMethod,
+        applicationType: w.applicationType,
+        grantTypes: w.grantTypes,
+        metadata: w.metadata ?? undefined,
+      });
     }
   }
 }

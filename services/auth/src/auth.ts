@@ -24,6 +24,7 @@ import { jwt } from "better-auth/plugins/jwt";
 import type { Audit } from "./audit.ts";
 import { auditAfterHook } from "./audit.ts";
 import { isDevTokenClient, registerBeforeHook } from "./clients.ts";
+import { clientSecretStore } from "./secrets.ts";
 import type { Config } from "./config.ts";
 import type { AuthDb } from "./db/index.ts";
 import * as schema from "./db/schema.ts";
@@ -239,6 +240,7 @@ export function authOptions(deps: AuthDeps) {
         allowUnauthenticatedClientRegistration: true, // Claude Code registers with no credentials
         clientRegistrationRequirePKCE: true,
         storeTokens: "hashed",
+        storeClientSecret: clientSecretStore, // secrets.ts owns the format; clients.ts seeds rows with the same function
         rateLimit: { register: { window: 3600, max: 20 } }, // IDEs re-register per session; 5/min default is too tight for a team behind one NAT
         /**
          * The grant re-check, for EVERY grant type. Runs before any token is
