@@ -2,7 +2,7 @@
 
 `@herkules/bbs` is the archive and search application at `https://bbs.herkules.dev`. One Hono process serves the API, the MCP endpoint, browser OAuth routes, the built TanStack SPA, and page metadata. It stores the corpus in its own Postgres database. The crawler runs from the same image as a separate `bbs-worker` command.
 
-The web UI has its own design record, owned separately: [`web/DESIGN.md`](web/DESIGN.md).
+The web UI has its own README, owned separately: [`web/README.md`](web/README.md).
 
 ## Run and test
 
