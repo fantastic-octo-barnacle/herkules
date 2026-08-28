@@ -25,7 +25,7 @@ Development accepts `pglite://` database URLs. Production uses Postgres and appl
 - `ADMIN_GITHUB_LOGINS` seeds administrators but never demotes a user. `src/users.ts` owns role changes, disabling, session and client revocation, the last-admin guard, and their transactions.
 - Every authority-changing write must produce an awaited audit row. Add plugin events to the exhaustive table in `src/audit.ts`; add administrative changes through `src/users.ts`. Do not add an unaudited Better Auth admin route.
 - Browser sessions do not use Better Auth's cookie cache. Disabling a user must take effect on the next request.
-- `src/clients.ts` owns first-party clients and native-client redirect quirks. DCR is enabled for IDE clients. CIMD is not advertised because `localhost` callback port variance does not pass the current matcher.
+- `src/clients.ts` owns first-party clients and native-client redirect quirks. DCR is enabled for IDE clients. CIMD stays unmounted — the deployed host cannot fetch client metadata documents — and Claude Code's CIMD path is broken regardless: its `localhost` callback registers without the port the authorize request carries, and the matcher grants port variance to `127.0.0.1`/`[::1]` only. [`../../docs/auth.md`](../../docs/auth.md) owns the full record.
 - User-info accepts a session or a JWT for any registered audience. Callers key data by the opaque `sub`; GitHub IDs, names, and avatars are display data.
 - The service owns every RFC 9728 protected-resource metadata document. Resource servers emit its URL in challenges but do not serve competing copies.
 
@@ -37,6 +37,7 @@ Development accepts `pglite://` database URLs. Production uses Postgres and appl
 - `src/users.ts`, `src/bearer.ts`: administrative writes and caller identification
 - `src/audit.ts`: audit event vocabulary and plugin hooks
 - `src/clients.ts`, `src/secrets.ts`: first-party client registration and secret hashing
+- `src/avatars.ts`: the GitHub-avatar cache served at `/auth/avatars/:userId` — stored on a volume, refreshed at login and on miss, `ETag`/`If-None-Match`; a stale entry is never a 5xx
 - `src/app.ts`: Hono routes, metadata, user-info, avatars, and health
 - `src/config.ts`: environment boundary
-- `tests/flow.test.ts`, `tests/first-party.test.ts`: end-to-end issuer and confidential-client behavior
+- `tests/`: end-to-end issuer, client, gate, and audit behavior

@@ -19,7 +19,7 @@ vp run vectors
 
 - [`../../docs/tokens.md`](../../docs/tokens.md) is authoritative. This package implements that contract and must not add a TypeScript-only authentication policy.
 - `src/principal.ts` owns the identity passed to handlers. `subject` from `sub` is the only per-user storage key. Roles are the closed set `admin | member`; missing or unknown roles fail closed.
-- `src/verify.ts` pins `alg` to EdDSA, `typ` to `at+jwt`, the exact issuer and resource audience, required claims, and a 60-second default clock tolerance capped at 300 seconds. It caches JWKS for five minutes, rate-limits unknown-key refreshes to 30 seconds, and times fetches out after five seconds.
+- `src/verify.ts` pins `alg` to EdDSA, `typ` to `at+jwt`, the exact issuer and resource audience, and the required claims. Clock tolerance, JWKS caching, unknown-key refresh rate limiting, and fetch timeouts follow the normative limits in [`../../docs/tokens.md`](../../docs/tokens.md) §8–§9 — this package implements, never restates, those numbers.
 - A JWKS outage is 503 when no usable key set exists. It is never 401. A permission failure is 403 without a challenge. `src/challenge.ts` is the only writer of `WWW-Authenticate`.
 - `mcpResource()` and `apiResource()` are separate constructors because their error bodies differ. The framework-neutral verifier is the core; Hono and MCP are adapters.
 - Bearer tokens carrying `cnf` and the `DPoP` authorization scheme are rejected until the contract changes.

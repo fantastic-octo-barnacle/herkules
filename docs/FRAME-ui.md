@@ -37,10 +37,10 @@ target; hand-written CSS is deleted wherever a component or utility replaces
 it, area sheets included. Tailwind preflight is on. `lucide-react` stays
 because the shadcn select/dialog/sheet output uses it.
 
-- `packages/ui` exports source (like `packages/utils`): `src/theme.css` (the
+- `packages/ui` exports source (like `packages/utils`, since deleted): `src/theme.css` (the
   existing tokens as a Tailwind `@theme` block, the guarded two-way dark
   blocks, `@custom-variant dark` keyed on `data-theme`), `src/components/*`
-  (shadcn output), `src/lib/cn.ts`. Both apps import `@herkules/ui/theme.css`
+  (shadcn output), `src/lib/utils.ts`. Both apps import `@herkules/ui/theme.css`
   and drop their own token blocks.
 - shadcn components are installed by the user running the CLI interactively
   (`shadcn init` / `shadcn add …` targeted at `packages/ui`), not by hand-copied
@@ -54,7 +54,8 @@ because the shadcn select/dialog/sheet output uses it.
   article HTML) stays a stylesheet — utilities cannot reach markup the
   sanitizer emits.
 - `services/web` pages move to `useQuery` / `useMutation`; `session.tsx`
-  becomes a query. react-router stays.
+  becomes a query. react-router stays. _(Superseded 2026-08-29 — the TanStack
+  Router verdict at the end adopts it.)_
 - **TanStack Router unification is evaluated, not decided.** After Query lands,
   a time-boxed (≤ half a day) prototype ports `services/web` routing on a
   branch; it is adopted only if the session guards (`Navigate` to `/login`

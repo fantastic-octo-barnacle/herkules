@@ -13,19 +13,16 @@ Herkules is the team's self-hosted identity layer and internal application monor
 | [`packages/oauth-client`](packages/oauth-client/README.md)       | Stateless first-party browser OAuth sessions for Hono apps                         |
 | [`tools/deploy`](tools/deploy/README.md)                         | Production and local-stack runbook                                                 |
 
-Cross-cutting contracts live in [`docs`](docs/README.md):
-
-- [`docs/auth.md`](docs/auth.md) maps identity, ownership, and request flows.
-- [`docs/tokens.md`](docs/tokens.md) is the language-neutral resource-server contract.
-- [`docs/deploy.md`](docs/deploy.md) points to the operational runbook.
+Cross-cutting contracts — identity flows, the resource-server token contract, the deploy runbook pointer, and UI decision records — are indexed in [`docs/README.md`](docs/README.md).
 
 ## Development
 
-The repository uses Vite+. Run commands through the direnv environment on nix-darwin if `vp` is not already on `PATH`.
+The repository uses Vite+. Install the global `vp` CLI once; it manages Node and pnpm itself, per the root `package.json` `devEngines`.
 
 ```sh
-direnv exec . vp install
-direnv exec . vp run ready
+curl -fsSL https://vite.plus | bash
+vp install
+vp run ready
 ```
 
 Common commands:

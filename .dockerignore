@@ -6,7 +6,6 @@
 !**/.env.example
 **/data
 **/.data
-.direnv
 tools/deploy/.env
 docs
 *.md

@@ -16,9 +16,9 @@ vp check
 vp run build
 ```
 
-The config default is port 3003. The checked-in `.env.example` sets Hono to 3103 so the SPA dev server can own port 3003 and proxy through `web/vite.config.ts`. Deployment, worker startup, import, cutover, and backup commands live in [`../../tools/deploy/README.md`](../../tools/deploy/README.md).
+The config default is port 3003. The checked-in `.env.example` sets Hono to 3103 so the SPA dev server can own port 3003 and proxy through `web/vite.config.ts`. One image, four commands, dispatched in `src/main.ts`: serve (the default), `migrate`, `work [--once]` for the worker, and `import`, the deprecated cutover tool and dev loader. Deployment, worker startup, import, cutover, and backup commands live in [`../../tools/deploy/README.md`](../../tools/deploy/README.md).
 
-## Ownership and identity
+## Decisions that bind
 
 - BBS owns its database, corpus, API, MCP tools, crawl state, and search behavior. `services/auth` owns users and resource registration.
 - `PUBLIC_ORIGIN` is the platform origin. It determines issuer and API/MCP audiences. `APP_ORIGIN` is the browser origin. It determines the OAuth callback, cookie, canonical URLs, and page metadata. `src/config.ts` is the boundary.
@@ -38,6 +38,21 @@ The config default is port 3003. The checked-in `.env.example` sets Hono to 3103
 - **GitHub Copilot CLI.** Run `/mcp add` and enter the name, HTTP transport, URL, headers, and tools `*`. The equivalent `~/.copilot/mcp-config.json` entry is `{ "mcpServers": { "rm-wenku": { "type": "http", "url": "https://herkules.dev/mcp/bbs", "tools": ["*"] } } }`. There is no auth path.
 
 Copilot CLI is not supported: it has no OAuth flow for remote servers and can only send static headers, while this platform issues no long-lived tokens. The only stopgap is a 15-minute JWT from [`/dev-token`](https://herkules.dev/dev-token) for the `mcp/bbs` audience, passed as `"headers": { "Authorization": "Bearer <token>" }`. It is enough for one test, not for daily use. The Copilot coding agent on github.com does not support remote OAuth MCP at all.
+
+## MCP tools
+
+All ten tools are read-only and served by the same library layer as the REST API (`src/mcp/server.ts`):
+
+- `search_articles`: ranked substring search over titles, authors, tags, introductions and bodies (`scope=all`), titles only, or the knowledge-base entries (`scope=kb`); every whitespace-separated term must occur; returns snippets with `[term]` markers.
+- `list_articles`: the date-ordered feed (newest first), optionally filtered by tag or group.
+- `get_article`: one article as text or markdown, in selectable parts (`content`, `overview`, `kb`, `links`, `images`).
+- `get_overview`: the model-written overview (tldr, summary, key points, FAQ) of one article; status pending when none exists.
+- `get_kb`: the structured knowledge-base entry (problem, approach, components, parameters, decisions, pitfalls, entities) plus image captions of one article.
+- `search_kb`: knowledge-base cards filtered by a substring query and/or domain, robot type, genre; returns the cards and the facet counts.
+- `list_entities`: named entities (parts, boards, algorithms, teams) with article counts, most-cited first; `query` filters by name substring.
+- `get_entity`: one entity by name or key with every article that mentions it (newest first).
+- `list_tags`: every `group/name` tag with its article count, the group counts, and the fetched total.
+- `library_status`: counts of the archive, when the corpus was imported, and who is asking.
 
 ## Corpus and search
 
