@@ -7,8 +7,6 @@
  * and saying so plainly is more useful than a config block that fails at the
  * first request.
  */
-import "./account.css";
-
 export const MCP_URL = `${__PUBLIC_ORIGIN__}/mcp/bbs`;
 export const MCP_ADD = `claude mcp add --transport http rm-wenku ${MCP_URL}`;
 
@@ -51,7 +49,7 @@ const COPILOT_JSON = `{
 
 export function McpGuide() {
   return (
-    <section className="card account-panel account-guide">
+    <section className="mt-4 rounded-lg border border-line bg-surface px-[1.4rem] py-5 [&_h3]:mt-[1.6rem] [&_h3]:border-t [&_h3]:border-line-2 [&_h3]:pt-4 [&_pre]:mt-[0.6rem]">
       <h2>接入 AI 助手（MCP）</h2>
       <p>
         本站提供只读的 MCP 服务器：<code>{MCP_URL}</code>

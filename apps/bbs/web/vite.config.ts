@@ -1,3 +1,4 @@
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 
@@ -12,7 +13,7 @@ const HONO = "http://localhost:3103";
 
 export default defineConfig({
   root: import.meta.dirname,
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     port: 3003,
     strictPort: true,

@@ -3,6 +3,14 @@
  * takes a `renderArticle` prop instead of importing `<Link>`, so the table and
  * the empty-section rule can be smoke-rendered without a router.
  */
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@herkules/ui/components/table";
 import type { ReactNode } from "react";
 
 import type { EntitySections } from "./model.ts";
@@ -15,6 +23,16 @@ export interface ArticleRef {
 /** How a row points back at the article it came from. */
 export type RenderArticle = (ref: ArticleRef) => ReactNode;
 
+export const PANEL = "mt-7 border-t border-line-2 pt-[18px]";
+export const PANEL_TITLE = "m-0 mb-3 font-body text-[15px] font-semibold";
+const LIST = "flex flex-col gap-3.5 text-sm leading-[1.7]";
+const FINE = "text-[13px] leading-relaxed text-muted-foreground";
+const REF =
+  "mt-0.5 block font-mono text-[11.5px] text-muted-foreground [&_a]:text-inherit [&_a:hover]:text-accent";
+/** Datasheet cells: mono numbers never wrap; the article column does (forum titles are long). */
+const NUM = "font-mono whitespace-nowrap";
+const HEAD = "font-mono text-xs font-medium text-muted-foreground";
+
 export function EntitySectionsView({
   sections,
   renderArticle,
@@ -26,63 +44,65 @@ export function EntitySectionsView({
   return (
     <>
       {comparison.length > 0 && (
-        <section className="kb-panel">
-          <h2 className="kb-panel-title">参数对比</h2>
-          <div className="kb-table-wrap">
-            <table className="kb-table">
-              <thead>
-                <tr>
-                  <th>参数</th>
-                  <th className="kb-num">值</th>
-                  <th>条件</th>
-                  <th>文章</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparison.map((row, i) => (
-                  <tr key={i}>
-                    <td>{row.name}</td>
-                    <td className="kb-num">{row.unit ? `${row.value} ${row.unit}` : row.value}</td>
-                    <td>{row.context}</td>
-                    <td>{renderArticle(row)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <section className={PANEL}>
+          <h2 className={PANEL_TITLE}>参数对比</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className={HEAD}>参数</TableHead>
+                <TableHead className={`${HEAD} ${NUM}`}>值</TableHead>
+                <TableHead className={HEAD}>条件</TableHead>
+                <TableHead className={HEAD}>文章</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {comparison.map((row, i) => (
+                <TableRow key={i}>
+                  <TableCell className="min-w-[8em] align-top">{row.name}</TableCell>
+                  <TableCell className={`${NUM} align-top`}>
+                    {row.unit ? `${row.value} ${row.unit}` : row.value}
+                  </TableCell>
+                  <TableCell className="align-top">{row.context}</TableCell>
+                  <TableCell className="min-w-[14em] align-top whitespace-normal">
+                    {renderArticle(row)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </section>
       )}
 
       {otherParameters.length > 0 && (
-        <section className="kb-panel">
-          <h2 className="kb-panel-title">其他参数</h2>
-          <div className="kb-table-wrap">
-            <table className="kb-table">
-              <tbody>
-                {otherParameters.map((row, i) => (
-                  <tr key={i}>
-                    <td>{row.name}</td>
-                    <td className="kb-num">{row.unit ? `${row.value} ${row.unit}` : row.value}</td>
-                    <td>{renderArticle(row)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <section className={PANEL}>
+          <h2 className={PANEL_TITLE}>其他参数</h2>
+          <Table>
+            <TableBody>
+              {otherParameters.map((row, i) => (
+                <TableRow key={i}>
+                  <TableCell className="min-w-[8em] align-top">{row.name}</TableCell>
+                  <TableCell className={`${NUM} align-top`}>
+                    {row.unit ? `${row.value} ${row.unit}` : row.value}
+                  </TableCell>
+                  <TableCell className="min-w-[14em] align-top whitespace-normal">
+                    {renderArticle(row)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </section>
       )}
 
       {asComponent.length > 0 && (
-        <section className="kb-panel">
-          <h2 className="kb-panel-title">作为组件</h2>
-          <ul className="kb-list">
+        <section className={PANEL}>
+          <h2 className={PANEL_TITLE}>作为组件</h2>
+          <ul className={LIST}>
             {asComponent.map((row, i) => (
               <li key={i}>
                 {row.spec && <b>{row.spec}</b>}
-                {row.role && (
-                  <span className="kb-fine">{row.spec ? ` — ${row.role}` : row.role}</span>
-                )}
-                <span className="kb-ref">{renderArticle(row)}</span>
+                {row.role && <span className={FINE}>{row.spec ? ` — ${row.role}` : row.role}</span>}
+                <span className={REF}>{renderArticle(row)}</span>
               </li>
             ))}
           </ul>
@@ -90,14 +110,14 @@ export function EntitySectionsView({
       )}
 
       {decisions.length > 0 && (
-        <section className="kb-panel">
-          <h2 className="kb-panel-title">相关取舍</h2>
-          <ul className="kb-list">
+        <section className={PANEL}>
+          <h2 className={PANEL_TITLE}>相关取舍</h2>
+          <ul className={LIST}>
             {decisions.map((row, i) => (
               <li key={i}>
                 <b>{row.decision}</b>
-                {row.rationale && <div className="kb-fine">{row.rationale}</div>}
-                <span className="kb-ref">{renderArticle(row)}</span>
+                {row.rationale && <div className={FINE}>{row.rationale}</div>}
+                <span className={REF}>{renderArticle(row)}</span>
               </li>
             ))}
           </ul>
@@ -105,13 +125,13 @@ export function EntitySectionsView({
       )}
 
       {pitfalls.length > 0 && (
-        <section className="kb-panel">
-          <h2 className="kb-panel-title">相关踩坑</h2>
-          <ul className="kb-list kb-list-pitfalls">
+        <section className={PANEL}>
+          <h2 className={PANEL_TITLE}>相关踩坑</h2>
+          <ul className={LIST}>
             {pitfalls.map((row, i) => (
-              <li key={i}>
+              <li className="border-l-2 border-warn pl-3" key={i}>
                 {row.pitfall}
-                <span className="kb-ref">{renderArticle(row)}</span>
+                <span className={REF}>{renderArticle(row)}</span>
               </li>
             ))}
           </ul>

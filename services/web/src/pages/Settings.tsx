@@ -1,100 +1,110 @@
 /** / — you, and every client connected to your account, each with its disconnect. */
-import { useCallback, useEffect, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@herkules/ui/components/avatar";
+import { Badge } from "@herkules/ui/components/badge";
+import { Button } from "@herkules/ui/components/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@herkules/ui/components/table";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ConnectedClient } from "../api.ts";
 import { formatDate, relative, resourceName, shortId } from "../format.ts";
+import { Empty, Eyebrow, Lede, Loading, PageTitle, SectionTitle, Sub } from "../layout.tsx";
+import { ErrorNotice } from "../notices.tsx";
 import { useSession } from "../session.tsx";
-import { Avatar, Badge, ErrorNotice, Spinner } from "../ui.tsx";
+
+const KEY = ["me", "clients"] as const;
 
 export function SettingsPage() {
   const { api, session } = useSession();
-  const [clients, setClients] = useState<readonly ConnectedClient[] | undefined>();
-  const [error, setError] = useState<unknown>();
-  const [busy, setBusy] = useState<string | undefined>();
+  const queryClient = useQueryClient();
+  const clients = useQuery({ queryKey: KEY, queryFn: () => api.myClients() });
+  const disconnect = useMutation({
+    mutationFn: (clientId: string) => api.disconnectClient(clientId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
 
-  const load = useCallback(() => api.myClients().then(setClients, setError), [api]);
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function disconnect(clientId: string, name: string) {
-    if (!confirm(`Disconnect ${name}? It will have to ask for access again.`)) return;
-    setBusy(clientId);
-    try {
-      await api.disconnectClient(clientId);
-      await load();
-    } catch (err) {
-      setError(err);
-    } finally {
-      setBusy(undefined);
-    }
-  }
-
-  if (!session) return <Spinner />;
+  if (!session) return <Loading />;
   const u = session.user;
+  const error = clients.error ?? disconnect.error;
   return (
     <>
-      <p className="eyebrow">Settings</p>
-      <h1>
-        <span className="person" style={{ display: "inline-flex" }}>
-          <Avatar src={u.image} name={u.name} large /> {u.name}
+      <Eyebrow>Settings</Eyebrow>
+      <PageTitle>
+        <span className="inline-flex items-center gap-3">
+          <Avatar size="lg">
+            <AvatarImage src={u.image ?? undefined} alt="" />
+            <AvatarFallback />
+          </Avatar>
+          {u.name}
         </span>
-      </h1>
-      <p className="lede">
+      </PageTitle>
+      <Lede>
         GitHub <code>{u.githubLogin}</code> ·{" "}
-        {u.role === "admin" ? <Badge kind="admin">admin</Badge> : <Badge>member</Badge>}
+        {u.role === "admin" ? <Badge>admin</Badge> : <Badge variant="outline">member</Badge>}
         {" · "}member since {formatDate(u.createdAt)}
-      </p>
+      </Lede>
 
-      <h2>Connected clients</h2>
-      <p className="lede">
+      <SectionTitle>Connected clients</SectionTitle>
+      <Lede>
         Applications you allowed to act as you, and what they may reach. Disconnecting revokes their
         access immediately; a token already issued expires within 15 minutes.
-      </p>
+      </Lede>
       <ErrorNotice error={error} />
-      {clients === undefined ? (
-        <Spinner />
-      ) : clients.length === 0 ? (
-        <p className="empty">
+      {clients.data === undefined ? (
+        clients.isError ? null : (
+          <Loading />
+        )
+      ) : clients.data.length === 0 ? (
+        <Empty>
           Nothing is connected. Add an MCP server in your editor and it will ask for access here.
-        </p>
+        </Empty>
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Client</th>
-                <th>May reach</th>
-                <th>Allowed</th>
-                <th>Last token</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {clients.map((c) => (
-                <tr key={c.clientId}>
-                  <td>
+        <div className="rounded-md border border-line bg-surface">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client</TableHead>
+                <TableHead>May reach</TableHead>
+                <TableHead>Allowed</TableHead>
+                <TableHead>Last token</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {clients.data.map((c) => (
+                <TableRow key={c.clientId}>
+                  <TableCell>
                     <div>{c.name ?? "Unnamed client"}</div>
-                    <div className="sub mono" title={c.clientId}>
+                    <Sub className="font-mono" title={c.clientId}>
                       {shortId(c.clientId)}
-                    </div>
-                  </td>
-                  <td>{c.resources.map(resourceName).join(", ") || "—"}</td>
-                  <td title={formatDate(c.consentedAt)}>{relative(c.consentedAt)}</td>
-                  <td title={formatDate(c.lastTokenAt)}>{relative(c.lastTokenAt)}</td>
-                  <td className="actions-cell">
-                    <button
-                      className="btn danger row-action"
-                      disabled={busy === c.clientId}
-                      onClick={() => disconnect(c.clientId, c.name ?? shortId(c.clientId))}
+                    </Sub>
+                  </TableCell>
+                  <TableCell>{c.resources.map(resourceName).join(", ") || "—"}</TableCell>
+                  <TableCell title={formatDate(c.consentedAt)}>{relative(c.consentedAt)}</TableCell>
+                  <TableCell title={formatDate(c.lastTokenAt)}>{relative(c.lastTokenAt)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={disconnect.isPending && disconnect.variables === c.clientId}
+                      onClick={() => {
+                        const name = c.name ?? shortId(c.clientId);
+                        if (confirm(`Disconnect ${name}? It will have to ask for access again.`))
+                          disconnect.mutate(c.clientId);
+                      }}
                     >
                       Disconnect
-                    </button>
-                  </td>
-                </tr>
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </>

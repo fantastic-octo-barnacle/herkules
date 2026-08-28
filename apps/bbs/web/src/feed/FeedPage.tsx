@@ -8,7 +8,6 @@ import { ArticleRow } from "./ArticleRow.tsx";
 import { CategoryTabs } from "./CategoryTabs.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { ScopeLinks, SearchBar } from "./SearchBar.tsx";
-import "./feed.css";
 
 /** `/` — the date-ordered feed. The loader already ensured both queries; no pending or error branch. */
 export function FeedPage() {
@@ -24,14 +23,14 @@ export function FeedPage() {
   const onMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
 
   return (
-    <div className="page feed-page">
-      <div className="feed-head">
+    <div className="page">
+      <div className="flex flex-wrap items-center gap-2.5 pt-2">
         <SearchBar value={search.q ?? ""} scope={search.scope} to="/search" />
         <ScopeLinks scope={search.scope} on="/" />
       </div>
       <CategoryTabs tags={tags} search={search} />
       {search.q && (
-        <p className="meta feed-filter">
+        <p className="meta flex items-baseline gap-2 pt-3">
           筛选：「{search.q}」
           <Link to="/" search={(s) => ({ ...s, q: undefined })} aria-label="清除关键词">
             ×
@@ -39,9 +38,9 @@ export function FeedPage() {
         </p>
       )}
       {items.length === 0 ? (
-        <p className="empty">没有匹配的文章</p>
+        <p className="py-6 text-muted-foreground">没有匹配的文章</p>
       ) : (
-        <div className="feed-rows">
+        <div className="mt-4">
           {items.map((article) => (
             <ArticleRow key={article.id} article={article} />
           ))}

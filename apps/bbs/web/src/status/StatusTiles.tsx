@@ -5,7 +5,6 @@
  */
 import type { LibraryStatusDTO } from "../../../src/api/dto.ts";
 import { formatDate } from "../lib/format.ts";
-import "./status.css";
 
 /** The import stamp is the one place a day is too coarse: it answers "how fresh is this?". */
 const STAMP = new Intl.DateTimeFormat("sv-SE", {
@@ -20,15 +19,20 @@ export function stampText(iso: string | null): string {
   return Number.isNaN(ms) ? "未知时间" : STAMP.format(ms);
 }
 
+const TILE =
+  "flex min-w-0 flex-col gap-[0.4rem] rounded-lg border border-line bg-surface px-[1.1rem] py-4";
+const BIG =
+  "flex flex-wrap items-baseline gap-2 text-[1.75rem] leading-[1.15] font-semibold tracking-[-0.02em] tabular-nums";
+
 export function StatusTiles({ status }: { status: LibraryStatusDTO }) {
   const { articles, ai, crawler } = status;
   return (
-    <div className="status-tiles" aria-label="进度概览">
-      <section className="card status-tile">
+    <div className="my-5 mb-4 grid grid-cols-1 gap-3 md:grid-cols-3" aria-label="进度概览">
+      <section className={TILE}>
         <span className="eyebrow">文库</span>
-        <span className="status-big">
+        <span className={BIG}>
           {articles.fetched}
-          <small>篇正文</small>
+          <small className="text-[0.8rem] font-normal text-muted-foreground">篇正文</small>
         </span>
         <span className="meta">
           共 {articles.total} 篇 · 跳过 {articles.skipped}
@@ -36,11 +40,11 @@ export function StatusTiles({ status }: { status: LibraryStatusDTO }) {
           标签 {articles.tags} · 图 {articles.images} · 链接 {articles.links}
         </span>
       </section>
-      <section className="card status-tile">
+      <section className={TILE}>
         <span className="eyebrow">AI 概览</span>
-        <span className="status-big">
+        <span className={BIG}>
           {ai.ready}
-          <small>篇已生成</small>
+          <small className="text-[0.8rem] font-normal text-muted-foreground">篇已生成</small>
         </span>
         <span className="meta">
           待生成 {ai.missing}
@@ -48,11 +52,11 @@ export function StatusTiles({ status }: { status: LibraryStatusDTO }) {
           知识库条目 {ai.entities}
         </span>
       </section>
-      <section className="card status-tile">
+      <section className={TILE}>
         <span className="eyebrow">抓取</span>
-        <span className="status-big">
+        <span className={BIG}>
           {formatDate(crawler.lastCheckedAt)}
-          <small>最近检查</small>
+          <small className="text-[0.8rem] font-normal text-muted-foreground">最近检查</small>
         </span>
         <span className="meta">
           历史回填{" "}

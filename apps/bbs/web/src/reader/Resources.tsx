@@ -27,6 +27,9 @@ function label(link: ArticleLink): string {
  * lightbox: the lightbox belongs to the body, and a sidebar thumbnail grid at
  * ≤ 960 px would push the sheet's real content off screen.
  */
+const LINK =
+  "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-ink-2 hover:text-accent";
+
 export function Resources({
   links,
   images,
@@ -43,16 +46,27 @@ export function Resources({
   return (
     <>
       {shown.length > 0 && (
-        <div className="reader-res-list">
+        <div className="flex flex-col">
           {shown.map((link) => (
-            <div className="reader-res" key={link.url}>
-              <span className="k">{link.articleId ? "本站" : linkKindText(link.kind)}</span>
+            <div
+              className="flex items-start gap-2.5 border-t border-line-2 py-2.5 text-sm last:border-b"
+              key={link.url}
+            >
+              <span className="mt-0.5 rounded-[3px] border border-line px-1.5 py-px font-mono text-[11px] whitespace-nowrap text-muted-foreground">
+                {link.articleId ? "本站" : linkKindText(link.kind)}
+              </span>
               {link.articleId ? (
-                <Link to="/articles/$id" params={{ id: link.articleId }} title={link.url}>
+                <Link
+                  className={LINK}
+                  to="/articles/$id"
+                  params={{ id: link.articleId }}
+                  title={link.url}
+                >
                   {label(link)}
                 </Link>
               ) : (
                 <a
+                  className={LINK}
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
@@ -66,14 +80,18 @@ export function Resources({
         </div>
       )}
       {hidden > 0 && (
-        <button className="reader-res-more" type="button" onClick={() => setExpanded(true)}>
+        <button
+          className="cursor-pointer pt-2.5 text-left text-[13px] text-muted-foreground hover:text-accent"
+          type="button"
+          onClick={() => setExpanded(true)}
+        >
           还有 {hidden} 个链接
         </button>
       )}
       {images.length > 0 && (
-        <div className="reader-res-images">
+        <div className="mt-3 flex flex-col gap-1.5">
           <span className="label">原文图片 {images.length}</span>
-          <ol>
+          <ol className="m-0 list-decimal pl-5 text-[13px] leading-[1.7] text-ink-2 [&_a]:text-ink-2 [&_a:hover]:text-accent">
             {images.map((image, index) => (
               <li key={image.url}>
                 <a href={image.url} target="_blank" rel="noopener noreferrer">

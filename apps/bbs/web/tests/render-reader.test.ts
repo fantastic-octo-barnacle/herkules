@@ -168,10 +168,10 @@ describe("Toc", () => {
 });
 
 describe("Lightbox", () => {
-  it("is a closed <dialog> with no image until one is picked", () => {
+  it("renders nothing until an image is picked", () => {
+    // A closed Radix dialog mounts no content at all (the open one lives in a portal).
     const html = renderToString(createElement(Lightbox, { src: null, alt: "", onClose: () => {} }));
-    expect(html).toContain("<dialog");
-    expect(html).not.toContain("open");
     expect(html).not.toContain("<img");
+    expect(html).not.toContain("图片");
   });
 });
