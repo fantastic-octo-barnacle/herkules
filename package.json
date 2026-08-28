@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "ready": "vp run -r build && vp check && vp run -r test",
-    "dev": "vp run @herkules/web#dev",
     "prepare": "vp config"
   },
   "devDependencies": {

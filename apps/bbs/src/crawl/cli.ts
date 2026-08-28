@@ -9,7 +9,7 @@
  *
  * Config comes from loadConfig(env) — the same env as `bbs` (Frame 2). Nothing
  * in crawl/ reads the environment; this file passes values down. `work` never
- * migrates (bbs-migrate ran first); it fails fast when the schema is behind.
+ * migrates (the serving container does, at boot); it fails fast when the schema is behind.
  */
 import { parseArgs } from "node:util";
 import { sql } from "drizzle-orm";

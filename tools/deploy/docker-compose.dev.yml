@@ -1,8 +1,12 @@
 # Laptop overlay: build the images from this checkout, serve http://localhost:3000, no backup job.
-#   cp .env.example .env   # fill the dev GitHub OAuth app
+#   .env.example documents the three files the stack needs: .env, .env.auth, .env.backup.
+#   .env.backup can stay empty here — the backup service is scaled to 0.
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 services:
   caddy:
+    build:
+      context: ../..
+      target: caddy
     ports: !override
       - "3000:3000"
       - "3003:3003"
@@ -10,10 +14,6 @@ services:
     build:
       context: ../..
       target: auth
-  web:
-    build:
-      context: ../..
-      target: web
   bbs:
     build:
       context: ../..

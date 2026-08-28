@@ -1,23 +1,45 @@
 name: Images
-# main -> build the four images -> push to GHCR -> ssh to the box: compose pull && up -d.
+# Build the four images, push to GHCR, then ssh to the box: compose pull && up -d.
+#
+# Triggers, and why:
+#   workflow_run "CI"  — main is built only after ci.yml's `ready` job went green on that commit.
+#                        A push to main no longer builds directly; a red CI can no longer reach
+#                        the box. workflow_run also fires for failure and cancelled, hence the
+#                        conclusion check on the build job.
+#   push tags v*       — ci.yml does not run on tags, so a release tag builds on its own. No deploy.
+#   workflow_dispatch  — manual rebuild.
+#
+# Under workflow_run, github.sha and github.ref describe the DEFAULT BRANCH TIP, not the commit CI
+# tested; two quick pushes to main would make them disagree. Everything below therefore pins
+# github.event.workflow_run.head_sha (falling back to github.sha for the other two triggers),
+# including the image tags — `type=sha` would have used the unpinned github.sha.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
+  push:
     tags: ["v*"]
   workflow_dispatch:
 permissions:
   contents: read
   packages: write
+env:
+  BUILD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [auth, bbs, web, backup]
+        target: [auth, bbs, caddy, backup]
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ env.BUILD_SHA }}
           persist-credentials: false
+      - id: rev
+        run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -29,9 +51,9 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.target }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.event_name == 'workflow_run' || github.ref == 'refs/heads/main' }}
             type=ref,event=tag
-            type=sha
+            type=raw,value=sha-${{ steps.rev.outputs.short }}
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -40,11 +62,22 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.target }}
-          cache-to: type=gha,scope=${{ matrix.target }},mode=max
+          # Two scopes each (cache-from/cache-to take a list). `build` is the byte-identical
+          # install+build stage all four targets share, so the first job to finish warms the
+          # other three instead of each rebuilding the workspace; the per-target scope keeps
+          # the runtime layers apart. The four jobs race to write `build`, and last writer wins
+          # — harmless, the content is identical.
+          cache-from: |
+            type=gha,scope=build
+            type=gha,scope=${{ matrix.target }}
+          cache-to: |
+            type=gha,scope=build,mode=max
+            type=gha,scope=${{ matrix.target }},mode=max
 
   deploy:
     needs: build
+    # Tag builds do not deploy. Under workflow_run github.ref is the default branch, which is
+    # what the branches filter above already restricted to.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
@@ -52,6 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ env.BUILD_SHA }}
           persist-credentials: false
       - name: SSH key
         env:
@@ -69,6 +103,7 @@ jobs:
           # It expires with the run, so a later manual `docker compose pull` on the box needs its own read:packages login.
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # ~/herkules/import stays: `bbs import` is still the cutover tool and compose mounts ./import.
           ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/caddy/services ~/herkules/import'
           ssh -i ~/.ssh/deploy "$TARGET" 'unlink ~/herkules/caddy/services/directory.caddy 2>/dev/null || true'
           scp -i ~/.ssh/deploy -r tools/deploy/docker-compose.yml tools/deploy/Caddyfile tools/deploy/caddy/services "$TARGET":~/herkules/

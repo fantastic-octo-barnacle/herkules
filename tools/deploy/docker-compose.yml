@@ -1,12 +1,16 @@
 # Production stack on the HK VPS. Lives at ~/herkules on the box together with
-# Caddyfile, caddy/services/*.caddy and the .env (never committed).
+# Caddyfile, caddy/services/*.caddy and the three env files (never committed):
+# .env (compose interpolation), .env.auth and .env.backup (per-container secrets).
 #   docker compose pull && docker compose up -d --remove-orphans
 # Dev on a laptop: add -f docker-compose.dev.yml (builds locally, http://localhost:3000).
 name: herkules
 
 services:
+  # The edge: TLS, routing, and services/web's SPA from /srv. Built by CI (Dockerfile, `caddy`
+  # stage) rather than pulled from Docker Hub, because the SPA ships inside it; the Caddyfile
+  # itself stays bind-mounted, so routing changes need no rebuild.
   caddy:
-    image: caddy:2.10-alpine
+    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX in .env, e.g. ghcr.io/<owner>/herkules}/caddy:${IMAGE_TAG:-latest}
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env, e.g. herkules.dev}
       BBS_SITE_ADDRESS: ${BBS_SITE_ADDRESS:?set BBS_SITE_ADDRESS in .env, e.g. bbs.herkules.dev}
@@ -22,16 +26,16 @@ services:
     depends_on:
       auth:
         condition: service_healthy
-      web:
-        condition: service_started
       bbs:
         condition: service_started
     mem_limit: 128m
     restart: unless-stopped
 
+  # env_file is .env.auth, not .env: auth has no business reading the R2 credentials or
+  # BBS_COOKIE_SECRET. Compose-level ${VAR} interpolation still comes from .env.
   auth:
-    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX in .env, e.g. ghcr.io/<owner>/herkules}/auth:${IMAGE_TAG:-latest}
-    env_file: .env
+    image: ${IMAGE_PREFIX}/auth:${IMAGE_TAG:-latest}
+    env_file: .env.auth
     environment:
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in .env, e.g. https://herkules.dev}
       DATABASE_URL: postgres://herkules:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/herkules
@@ -45,17 +49,16 @@ services:
     mem_limit: 512m
     restart: unless-stopped
 
-  web:
-    image: ${IMAGE_PREFIX}/web:${IMAGE_TAG:-latest}
-    mem_limit: 64m
-    restart: unless-stopped
-
-  # apps/bbs: one image, three commands (apps/bbs/FRAME.md Frame 2).
-  # bbs-migrate is a one-shot: applies apps/bbs/drizzle and rederives when corpus_versions differs;
-  # both long-running bbs containers wait for it. Re-runs on every `up`.
-  bbs-migrate:
+  # apps/bbs: one image, three commands (apps/bbs/FRAME.md Frame 2). API + MCP + SPA.
+  # It applies apps/bbs/drizzle and rederives derived columns at boot (src/main.ts) before it
+  # listens, so the image HEALTHCHECK on :3003 is also the "migrations are in" signal.
+  # Trade-off, accepted 2026-08-28: a failed migration now crash-loops `bbs` instead of blocking
+  # the rollout with the old container still serving. Run one by hand with
+  #   docker compose run --rm bbs migrate
+  # `bbs import` is deprecated but remains the cutover tool:
+  #   docker compose run --rm bbs import /import/app.db
+  bbs:
     image: ${IMAGE_PREFIX}/bbs:${IMAGE_TAG:-latest}
-    command: ["migrate"]
     environment: &bbs-env
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
       APP_ORIGIN: ${BBS_ORIGIN:?set BBS_ORIGIN in .env, e.g. https://bbs.herkules.dev}
@@ -66,24 +69,11 @@ services:
       WEB_DIR: /app/dist/client
       PORT: "3003"
       NODE_ENV: production
-    healthcheck:
-      disable: true # the image HEALTHCHECK probes :3003; nothing listens here
-    depends_on:
-      postgres:
-        condition: service_healthy
-    mem_limit: 256m
-    restart: "no"
-
-  # API + MCP + SPA. `bbs import` is deprecated but remains the cutover tool:
-  # docker compose run --rm bbs import /import/app.db
-  bbs:
-    image: ${IMAGE_PREFIX}/bbs:${IMAGE_TAG:-latest}
-    environment: *bbs-env
     volumes:
       - ./import:/import:ro
     depends_on:
-      bbs-migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       auth:
         condition: service_healthy
     mem_limit: 384m
@@ -99,8 +89,9 @@ services:
     healthcheck:
       disable: true # no port; liveness is max(poll_runs.started_at) on /api/status
     depends_on:
-      bbs-migrate:
-        condition: service_completed_successfully
+      # Healthy means bbs finished migrating: the worker fails fast on a schema it does not know.
+      bbs:
+        condition: service_healthy
     deploy:
       replicas: 1 # cutover done 2026-08-28; set 0 (or `--scale bbs-worker=0`) to pause crawling
     mem_limit: 256m
@@ -125,9 +116,10 @@ services:
     restart: unless-stopped
 
   # Nightly pg_dump to R2 (tools/deploy/backup). Manual run: docker compose run --rm backup backup
+  # env_file is .env.backup: the R2 credentials live there and nowhere else.
   backup:
     image: ${IMAGE_PREFIX}/backup:${IMAGE_TAG:-latest}
-    env_file: .env
+    env_file: .env.backup
     environment:
       PGHOST: postgres
       PGUSER: herkules

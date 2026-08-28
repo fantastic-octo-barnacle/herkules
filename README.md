@@ -11,7 +11,6 @@ Herkules is the team's self-hosted identity layer and internal application monor
 | [`apps/bbs`](apps/bbs/README.md)                                 | RM 文库 API, MCP server, SPA host, corpus, search, and crawler                     |
 | [`packages/auth-middleware`](packages/auth-middleware/README.md) | Resource-server JWT verification and OAuth challenge helpers                       |
 | [`packages/oauth-client`](packages/oauth-client/README.md)       | Stateless first-party browser OAuth sessions for Hono apps                         |
-| [`packages/utils`](packages/utils/README.md)                     | Small shared utilities                                                             |
 | [`tools/deploy`](tools/deploy/README.md)                         | Production and local-stack runbook                                                 |
 
 Cross-cutting contracts live in [`docs`](docs/README.md):
@@ -32,7 +31,7 @@ direnv exec . vp run ready
 Common commands:
 
 ```sh
-vp run dev       # platform web development task
+vp run dev       # the whole local stack: auth :3001, web :3000, bbs :3103 + :3003
 vp check         # format, lint, and type-check the workspace
 vp test          # run tests from the current workspace
 vp run -r test   # run package test scripts recursively

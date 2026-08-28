@@ -3,7 +3,7 @@
  * here has logic (services/auth/src/main.ts states the rule).
  *
  *   node dist/main.mjs                     serve: ensureDatabase, migrate (idempotent), rederive if stale, listen
- *   node dist/main.mjs migrate             one-shot compose service both long-running containers depend on
+ *   node dist/main.mjs migrate             manual one-shot (docker compose run --rm bbs migrate); serve migrates at boot anyway
  *   node dist/main.mjs work [--once]       the bbs-worker container / the manual check   (crawl/cli.ts)
  *   node dist/main.mjs rederive [--force]  recompute derived columns                     (crawl/cli.ts)
  *   node dist/main.mjs import <app.db>     DEPRECATED: the cutover tool and dev loader    (import/cli.ts)
@@ -59,7 +59,7 @@ export async function createService(deps: ServiceDeps = {}) {
   const now = deps.now ?? (() => new Date());
   if (config.createDatabase) await ensureDatabase(config.databaseUrl);
   const db = await createDb(config.databaseUrl);
-  // Kept although bbs-migrate runs first in compose: idempotent, and every test boots a fresh pglite://memory.
+  // The serving container is what migrates (compose has no one-shot since 2026-08-28); idempotent, and every test boots a fresh pglite://memory.
   await migrate(db);
   await rederive(db, { now, log: (l) => console.log("[bbs]", l) }); // one SELECT when corpus_versions matches
 

@@ -1,16 +1,24 @@
 # tools/deploy — running herkules
 
 One HK VPS (2 vCPU / 4 GB), Docker Compose, one container per service, one
-platform origin plus the bbs subdomain. Images are built by GitHub Actions and
-pulled by the box; the box holds only `~/herkules/{docker-compose.yml, Caddyfile,
-caddy/services/, .env, import/}` and three volumes (`pgdata`, `avatars`, `caddy_data`).
+platform origin plus the bbs subdomain. Four containers serve traffic: `caddy`,
+`auth`, `bbs` and `postgres`, plus `bbs-worker` (scaled to 0) and `backup`.
+Images are built by GitHub Actions and pulled by the box; the box holds only
+`~/herkules/{docker-compose.yml, Caddyfile, caddy/services/, .env, .env.auth,
+.env.backup, import/}` and four volumes (`pgdata`, `avatars`, `caddy_data`,
+`caddy_config`).
+
+The edge Caddy is **our image**, not the stock one: `services/web`'s SPA is baked
+into it at `/srv` and served straight off disk, so there is no separate web
+container. The Caddyfile is still bind-mounted, so a routing change is `scp` +
+`up -d`; a Caddy version bump is a Dockerfile edit plus a deploy.
 
 ```
-                 :443  ┌──────── caddy (edge, TLS) ────────────┐
+                 :443  ┌──────── caddy (edge, TLS + SPA) ──────┐
   browsers, IDEs ─────►│ herkules.dev                           │
                        │   /auth/*, /.well-known/*  → auth      │
                        │   /mcp/bbs*                → bbs       │
-                       │   /*                       → web       │
+                       │   /*                       → /srv      │
                        │ bbs.herkules.dev/*         → bbs       │
                        └────────────────────────────────────────┘
                    auth, bbs ──► postgres (herkules, bbs) ◄── backup (03:00 HKT pg_dump → R2)
@@ -33,8 +41,15 @@ caddy/services/, .env, import/}` and three volumes (`pgdata`, `avatars`, `caddy_
    the Actions public key in `~/.ssh/authorized_keys`.
    ```sh
    mkdir -p ~/herkules && cd ~/herkules
-   # copy tools/deploy/.env.example here as .env and fill every blank
    ```
+   Then create **three** env files from the blocks documented in
+   `tools/deploy/.env.example`: `.env` (compose interpolation only), `.env.auth`
+   (the auth container's `env_file`) and `.env.backup` (the R2 credentials). Only
+   `.env` is read by compose itself, so a missing `.env.auth` or `.env.backup`
+   fails at `up`, not at `config`. The split keeps the R2 keys and
+   `BBS_COOKIE_SECRET` out of the auth container; `BBS_ORIGIN` and
+   `BBS_CLIENT_SECRET` are deliberately in two files with the same value.
+   The deploy job never touches these files — the box owns them.
 5. **Repository secrets** (environment `production`): `DEPLOY_HOST`,
    `DEPLOY_USER`, `DEPLOY_SSH_KEY` (private key, PEM), `DEPLOY_KNOWN_HOSTS`
    (`ssh-keyscan -H <host>` output). The images are private: the deploy job
@@ -44,10 +59,14 @@ caddy/services/, .env, import/}` and three volumes (`pgdata`, `avatars`, `caddy_
 
 ## Deploy
 
-Push to `main`. `.github/workflows/images.yml` builds `auth`, `bbs`, `web`, and
-`backup` for `linux/amd64`, pushes `ghcr.io/<owner>/herkules/<name>:latest`
-(+ `sha-…`, + tags for `v*`), then over SSH copies the compose files and runs
+Push to `main` and wait for CI. `.github/workflows/images.yml` no longer runs on
+the push itself: it triggers on `ci.yml` completing successfully for that commit
+(`workflow_run`), so a red build never reaches the box. It then builds `auth`,
+`bbs`, `caddy`, and `backup` for `linux/amd64`, pushes
+`ghcr.io/<owner>/herkules/<name>:latest` (+ `sha-…`, + tags for `v*`), and over
+SSH copies the compose files and runs
 `docker compose pull && docker compose up -d --remove-orphans`.
+A `v*` tag builds directly (CI does not run on tags) and does not deploy.
 
 By hand on the box:
 
@@ -70,12 +89,21 @@ curl -fsS https://herkules.dev/ | head -c 200                     # the SPA
 
 ## bbs (RM 文库)
 
-One image, three commands (see `apps/bbs/README.md`): `bbs-migrate` (one-shot: creates the
-database with `ensureDatabase` — set `BBS_CREATE_DATABASE=false` and `createdb -U herkules bbs`
-yourself if the role ever loses CREATEDB — applies migrations, rederives derived columns when
-`corpus_versions` differs), `bbs` (API + MCP + SPA) and `bbs-worker` (the crawler, `replicas: 1`
-since the 2026-08-28 cutover; `--scale bbs-worker=0` pauses it). The crawl policy is constants in the code, not env: 2 s spacing, 20/min,
-2 000/day (UTC), 200 kept for reader-triggered refreshes, cooldown ladder on 429/403/5xx.
+One image, three commands (see `apps/bbs/README.md`), two long-running containers: `bbs`
+(API + MCP + SPA) and `bbs-worker` (the crawler, `replicas: 1` since the 2026-08-28 cutover;
+`--scale bbs-worker=0` pauses it). The crawl policy is constants in the code, not env: 2 s
+spacing, 20/min, 2 000/day (UTC), 200 kept for reader-triggered refreshes, cooldown ladder on
+429/403/5xx.
+
+**Migrations run inside `bbs` at boot.** Before it listens it creates the database with
+`ensureDatabase` (set `BBS_CREATE_DATABASE=false` and `createdb -U herkules bbs` yourself if the
+role ever loses CREATEDB), applies `apps/bbs/drizzle`, and rederives derived columns when
+`corpus_versions` differs. The image HEALTHCHECK on `:3003` therefore doubles as the "schema is
+in" signal, which is what `bbs-worker` waits for. There is no `bbs-migrate` one-shot any more.
+Accepted trade-off, 2026-08-28: a failed migration now crash-loops `bbs` instead of blocking the
+rollout with the old container still serving. Run one by hand with
+`docker compose run --rm bbs migrate` (idempotent; also the way to see the migration log without
+starting a server).
 
 **Self-host from an empty database** — nothing to import; the worker discovers page 1 every
 10 min and backfills one page per ladder step until the forum is exhausted:
@@ -138,21 +166,38 @@ user's next sign-in.
 
 ```sh
 cd tools/deploy
-cp .env.example .env    # SITE_ADDRESS=http://localhost:3000, PUBLIC_ORIGIN=http://localhost:3000,
-                        # BBS_SITE_ADDRESS=http://localhost:3003, BBS_ORIGIN=http://localhost:3003,
-                        # the dev GitHub app, any POSTGRES_PASSWORD; IMAGE_PREFIX can stay
+# .env, .env.auth and .env.backup, from the blocks in .env.example.
+#   .env:       SITE_ADDRESS=http://localhost:3000, PUBLIC_ORIGIN=http://localhost:3000,
+#               BBS_SITE_ADDRESS=http://localhost:3003, BBS_ORIGIN=http://localhost:3003,
+#               any POSTGRES_PASSWORD; IMAGE_PREFIX can stay (the overlay builds locally)
+#   .env.auth:  the dev GitHub app
+#   .env.backup: may be empty — the backup service is scaled to 0 in the overlay
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
-Day-to-day development does not need Docker: `vp run dev` in `services/auth`
-(PGlite), `services/web` and `apps/bbs` — the Vite
-server on `:3000` is the public origin and proxies the others (`/mcp/bbs` to
-bbs's Hono process on `:3103`); bbs's own Vite server on `:3003` is its app origin.
+Day-to-day development does not need Docker: `vp run dev` at the repository root
+is one task (root `vite.config.ts`) that starts all four processes — `services/auth`
+on `:3001` (PGlite), `services/web` on `:3000`, apps/bbs's Hono process on `:3103`
+and apps/bbs's Vite SPA on `:3003`. The `:3000` server is the public origin and
+proxies the others (`/mcp/bbs` to `:3103`); bbs's `:3003` server is its app origin.
+Each package needs its own `.env` first; see that task's comment.
 
 ## Adding an MCP server
 
+For a server that lives in this repository:
+
 1. One line in `services/auth/src/registry.ts` (`RESOURCE_SPECS`).
-2. A service in `docker-compose.yml` (its image comes from its own repo).
-3. `caddy/services/<name>.caddy`: `handle /mcp/<name>* { reverse_proxy <service>:<port> }`.
-4. Deploy. Its 401 challenge points at
+2. A stage in the root `Dockerfile` — the `build` stage already installs and builds the whole
+   workspace, so it is a runtime stage `FROM runtime AS <name>` plus its `COPY --from=build`.
+3. `<name>` in the `target` matrix of `.github/workflows/images.yml`.
+4. A service in `docker-compose.yml` using `${IMAGE_PREFIX}/<name>:${IMAGE_TAG:-latest}`, with
+   `depends_on: postgres: service_healthy` and a `mem_limit` (the box has 4 GB).
+5. `caddy/services/<name>.caddy`: `handle /mcp/<name>* { reverse_proxy <service>:<port> }`.
+6. If it owns a database: add it to `DATABASES` on the `backup` service, and give it a
+   `DATABASE_URL` built from `POSTGRES_PASSWORD`.
+7. Its own env: compose-interpolated values go in `.env`; anything secret and container-specific
+   gets its own `env_file` (`.env.<name>`), documented in `.env.example`.
+8. Deploy. Its 401 challenge points at
    `/.well-known/oauth-protected-resource/mcp/<name>`, which auth now serves.
+
+A server hosted in another repository skips steps 2 and 3 and points `image:` at its own registry.
