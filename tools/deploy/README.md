@@ -34,9 +34,14 @@ container. The Caddyfile is still bind-mounted, so a routing change is `scp` +
    OAuth Apps). Callback URL `https://herkules.dev/auth/callback/github`
    (prod) / `http://localhost:3000/auth/callback/github` (dev). The auth
    service asks for `read:org` itself.
-2. **DNS** — A/AAAA records for `herkules.dev`, `bbs.herkules.dev`,
-   `status.herkules.dev` and `ops.herkules.dev` to the box, DNS-only (Caddy issues the certificates; a proxy in front would break
-   TLS-ALPN/HTTP challenges and the IDE flows' `Origin` checks).
+2. **DNS** — A records for `herkules.dev`, `bbs.herkules.dev`,
+   `status.herkules.dev` and `ops.herkules.dev` to the box, DNS-only (Caddy
+   issues the certificates; a proxy in front would break TLS-ALPN/HTTP
+   challenges and the IDE flows' `Origin` checks). `dns.sh` upserts all four
+   idempotently with a token scoped to _Edit zone DNS_ on the one zone:
+   ```sh
+   CLOUDFLARE_API_TOKEN=… tools/deploy/dns.sh 124.156.183.221
+   ```
 3. **R2** — a bucket and an API token with object read/write; the endpoint is
    `https://<account-id>.r2.cloudflarestorage.com`.
 4. **The box** — Docker Engine with Compose v2.24+ (`!override` in the dev
