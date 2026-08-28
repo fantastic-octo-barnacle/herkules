@@ -2,13 +2,13 @@
  * `/tags` — the whole vocabulary on one page, which the old SPA only ever showed
  * as tabs above the feed. Every chip is a typed link back into the feed's filters.
  */
+import { Badge } from "@herkules/ui/components/badge";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
 import { usePageTitle } from "../shell/usePageTitle.ts";
 import { tagsRoute } from "../routes.tsx";
 import { groupOf, leafOf } from "../url.ts";
-import "./tags.css";
 
 export function TagsPage() {
   usePageTitle("标签");
@@ -34,26 +34,28 @@ export function TagsPage() {
         个标签。群组的篇数按文章去重，因此不等于其下标签之和。
       </p>
       {groups.map((group) => (
-        <section className="tags-group" key={group.name}>
-          <div className="tags-head">
-            <h2>
+        <section className="border-t border-line-2 py-[1.1rem]" key={group.name}>
+          <div className="mb-[0.6rem] flex flex-wrap items-baseline gap-[0.6rem]">
+            <h2 className="m-0 text-[1.15rem]">
               <Link to="/" search={{ scope: "all", group: group.name }}>
                 {group.name}
               </Link>
             </h2>
             <span className="meta">{group.count} 篇</span>
           </div>
-          <div className="tags-chips">
+          <div className="flex flex-wrap gap-[0.4rem]">
             {(byGroup.get(group.name) ?? []).map((tag) => (
-              <Link className="chip" key={tag.name} to="/" search={{ scope: "all", tag: tag.name }}>
-                {leafOf(tag.name)}
-                <span className="meta">{tag.count}</span>
-              </Link>
+              <Badge variant="outline" className="font-mono" key={tag.name} asChild>
+                <Link to="/" search={{ scope: "all", tag: tag.name }}>
+                  {leafOf(tag.name)}
+                  <span className="text-muted-foreground">{tag.count}</span>
+                </Link>
+              </Badge>
             ))}
           </div>
         </section>
       ))}
-      {groups.length === 0 ? <p className="empty">还没有标签。</p> : null}
+      {groups.length === 0 ? <p className="py-6 text-muted-foreground">还没有标签。</p> : null}
     </div>
   );
 }

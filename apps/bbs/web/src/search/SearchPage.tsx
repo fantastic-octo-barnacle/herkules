@@ -1,3 +1,4 @@
+import { Badge } from "@herkules/ui/components/badge";
 import { Link } from "@tanstack/react-router";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
@@ -8,8 +9,6 @@ import { ScopeLinks, SearchBar } from "../feed/SearchBar.tsx";
 import { searchRoute } from "../routes.tsx";
 import { usePageTitle } from "../shell/usePageTitle.ts";
 import { trimSegments } from "./snippet.ts";
-import "../feed/feed.css";
-import "./search.css";
 
 /** `/search` — ranked hits. A blank `q` never reaches here (the route redirects to `/`). */
 export function SearchPage() {
@@ -26,20 +25,20 @@ export function SearchPage() {
   const terms = pages[0]?.terms ?? [];
 
   return (
-    <div className="page feed-page">
-      <div className="feed-head">
+    <div className="page">
+      <div className="flex flex-wrap items-center gap-2.5 pt-2">
         <SearchBar value={search.q ?? ""} scope={search.scope} to="/search" />
         <ScopeLinks scope={search.scope} on="/search" />
       </div>
-      <p className="meta search-terms">
+      <p className="meta flex flex-wrap items-center gap-1.5 pt-3.5">
         <span>已搜索：</span>
         {terms.map((term) => (
-          <span className="chip" key={term}>
+          <Badge variant="outline" className="font-mono" key={term}>
             {term}
-          </span>
+          </Badge>
         ))}
         <Link
-          className="search-by-date"
+          className="ml-auto"
           to="/"
           search={{ q: search.q, scope: search.scope, tag: search.tag, group: search.group }}
         >
@@ -47,9 +46,9 @@ export function SearchPage() {
         </Link>
       </p>
       {items.length === 0 ? (
-        <p className="empty">没有匹配的文章</p>
+        <p className="py-6 text-muted-foreground">没有匹配的文章</p>
       ) : (
-        <div className="feed-rows">
+        <div className="mt-4">
           {items.map((hit) => (
             <ArticleRow
               key={hit.id}

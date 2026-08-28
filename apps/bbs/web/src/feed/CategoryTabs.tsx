@@ -1,3 +1,4 @@
+import { Badge } from "@herkules/ui/components/badge";
 import { Link } from "@tanstack/react-router";
 
 import type { TagIndexDTO } from "../../../src/api/dto.ts";
@@ -10,59 +11,69 @@ import { EXACT } from "./SearchBar.tsx";
  * count is COUNT(DISTINCT article), not the sum of its tags'. `q` and `scope`
  * ride along (the updater keeps them) so filtering never drops the query.
  */
+const TAB =
+  "relative flex items-baseline gap-[7px] px-0.5 py-2.5 text-[15px] whitespace-nowrap text-muted-foreground hover:text-ink hover:no-underline aria-[current]:font-medium aria-[current]:text-ink aria-[current]:after:absolute aria-[current]:after:inset-x-0 aria-[current]:after:-bottom-px aria-[current]:after:h-0.5 aria-[current]:after:bg-accent aria-[current]:after:content-['']";
+const N = "font-mono text-xs text-muted-foreground";
+
 export function CategoryTabs({ tags, search }: { tags: TagIndexDTO; search: FeedSearch }) {
   const { group, tag } = search;
   const subTags = group ? tags.items.filter((t) => t.name.startsWith(`${group}/`)) : [];
 
   return (
-    <section className="feed-cats" aria-label="分类">
-      <div className="feed-tabs">
+    <section className="mt-[22px]" aria-label="分类">
+      <div className="flex gap-[26px] overflow-x-auto border-b border-line [scrollbar-width:none]">
         <Link
-          className="feed-tab"
+          className={TAB}
           to="/"
           activeOptions={EXACT}
           search={(s) => ({ ...s, group: undefined, tag: undefined })}
           aria-current={group === undefined ? "true" : undefined}
         >
-          全部 <span className="feed-n">{tags.total}</span>
+          全部 <span className={N}>{tags.total}</span>
         </Link>
         {tags.groups.map((g) => (
           <Link
             key={g.name}
-            className="feed-tab"
+            className={TAB}
             to="/"
             activeOptions={EXACT}
             search={(s) => ({ ...s, group: g.name, tag: undefined })}
             aria-current={group === g.name ? "true" : undefined}
           >
-            {g.name} <span className="feed-n">{g.count}</span>
+            {g.name} <span className={N}>{g.count}</span>
           </Link>
         ))}
       </div>
       {group !== undefined && subTags.length > 0 && (
-        <div className="feed-chips">
+        <div className="flex flex-wrap items-center gap-2 pt-3">
           <span className="eyebrow">{group} /</span>
-          <Link
-            className={tag === undefined ? "chip is-active" : "chip"}
-            to="/"
-            activeOptions={EXACT}
-            search={(s) => ({ ...s, group, tag: undefined })}
-            aria-current={tag === undefined ? "true" : undefined}
-          >
-            全部
-          </Link>
-          {subTags.map((t) => (
+          <Badge variant={tag === undefined ? "default" : "outline"} className="font-mono" asChild>
             <Link
-              key={t.name}
-              className={tag === t.name ? "chip is-active" : "chip"}
               to="/"
               activeOptions={EXACT}
-              search={(s) => ({ ...s, group, tag: t.name })}
-              aria-current={tag === t.name ? "true" : undefined}
-              title={`${t.count} 篇`}
+              search={(s) => ({ ...s, group, tag: undefined })}
+              aria-current={tag === undefined ? "true" : undefined}
             >
-              {leafOf(t.name)} <span className="feed-n">{t.count}</span>
+              全部
             </Link>
+          </Badge>
+          {subTags.map((t) => (
+            <Badge
+              key={t.name}
+              variant={tag === t.name ? "default" : "outline"}
+              className="font-mono"
+              asChild
+            >
+              <Link
+                to="/"
+                activeOptions={EXACT}
+                search={(s) => ({ ...s, group, tag: t.name })}
+                aria-current={tag === t.name ? "true" : undefined}
+                title={`${t.count} 篇`}
+              >
+                {leafOf(t.name)} <span className="opacity-70">{t.count}</span>
+              </Link>
+            </Badge>
           ))}
         </div>
       )}

@@ -48,9 +48,12 @@ export function Toc({
   activeId: string | null;
 }) {
   return (
-    <nav className="reader-toc" aria-label="目录">
+    <nav className="flex flex-col overflow-auto lg:max-h-[38vh]" aria-label="目录">
       {headings.map((h) => (
+        // `flex-none`: `overflow: hidden` (for the ellipsis) would otherwise let
+        // the column squeeze every entry to fit `max-height`.
         <a
+          className="flex-none overflow-hidden border-l-2 border-transparent py-1 pl-3 text-sm leading-normal text-ellipsis whitespace-nowrap text-ink-2 hover:text-accent hover:no-underline data-[level=3]:pl-6 data-[level=3]:text-[13px] aria-[current=true]:border-accent aria-[current=true]:text-ink"
           key={h.id}
           href={`#${h.id}`}
           data-level={h.level}

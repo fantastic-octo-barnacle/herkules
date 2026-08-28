@@ -15,14 +15,16 @@ export function KbCardBody({ card }: { card: KbCardDTO }) {
   const maturity = maturityClass(card.maturity);
   return (
     <>
-      <div className="kb-card-top">
+      <div className="flex items-baseline justify-between gap-3 max-md:flex-col max-md:gap-0.5">
         <span className="meta">{meta}</span>
         {maturity && <span className={maturity}>{card.maturity}</span>}
       </div>
-      {card.tldr && <p className="kb-card-tldr">{card.tldr}</p>}
+      {card.tldr && <p className="m-0 text-[14.5px] leading-[1.7] text-ink-2">{card.tldr}</p>}
       {/* The model often repeats the tldr as the problem; showing it twice reads as a bug. */}
       {card.problem && card.problem !== card.tldr && (
-        <p className="kb-card-problem">问题：{card.problem}</p>
+        <p className="m-0 text-[13px] leading-relaxed text-muted-foreground">
+          问题：{card.problem}
+        </p>
       )}
     </>
   );

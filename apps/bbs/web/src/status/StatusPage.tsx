@@ -21,7 +21,7 @@ export function StatusPage() {
         概览逐篇生成。下面是这一份副本的规模。
       </p>
       <StatusTiles status={status} />
-      <p className="meta status-import">本库导入于 {stampText(status.importedAt)}（北京时间）</p>
+      <p className="meta mt-2">本库导入于 {stampText(status.importedAt)}（北京时间）</p>
     </div>
   );
 }

@@ -1,10 +1,10 @@
-import { useEffect, useRef } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@herkules/ui/components/dialog";
 
 /**
- * Viewport-sized `<dialog>` for an inline article image. The element is always
- * mounted (a `<dialog>` that is never in the tree cannot animate its own close),
- * and `src` drives `showModal()` / `close()`; Esc and the backdrop both reach
- * `onClose` through the platform's own `close` event.
+ * Viewport-sized dialog for an inline article image. `src` drives it open;
+ * Esc, the close button and anything that is not the picture itself close it —
+ * the figure fills the viewport, so that is the backdrop click as far as the
+ * reader cares.
  */
 export function Lightbox({
   src,
@@ -15,36 +15,37 @@ export function Lightbox({
   alt: string;
   onClose: () => void;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (src && !dialog.open) dialog.showModal();
-    else if (!src && dialog.open) dialog.close();
-  }, [src]);
-
   return (
-    <dialog
-      ref={ref}
-      className="reader-lightbox"
-      aria-label={alt || "图片"}
-      onClose={onClose}
-      // Anything that is not the picture itself closes it — the figure fills
-      // the viewport, so this is the backdrop click as far as the reader cares.
-      onClick={(event) => {
-        if ((event.target as Element).tagName !== "IMG") event.currentTarget.close();
+    <Dialog
+      open={src !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
       }}
     >
-      <button className="reader-lightbox-close" type="button" aria-label="关闭" onClick={onClose}>
-        ×
-      </button>
-      {src && (
-        <figure>
-          <img src={src} alt={alt} referrerPolicy="no-referrer" />
-          {alt && <figcaption>{alt}</figcaption>}
-        </figure>
-      )}
-    </dialog>
+      <DialogContent
+        className="h-dvh w-screen max-w-none rounded-none border-0 bg-paper p-0 text-ink shadow-none sm:max-w-none"
+        aria-label={alt || "图片"}
+        onClick={(event) => {
+          if ((event.target as Element).tagName !== "IMG") onClose();
+        }}
+      >
+        <DialogTitle className="sr-only">{alt || "图片"}</DialogTitle>
+        {src && (
+          <figure className="m-0 flex size-full cursor-zoom-out flex-col items-center justify-center gap-3.5 p-6">
+            <img
+              className="max-h-[calc(100dvh-100px)] max-w-full cursor-default object-contain"
+              src={src}
+              alt={alt}
+              referrerPolicy="no-referrer"
+            />
+            {alt && (
+              <figcaption className="max-w-[72ch] text-center font-mono text-[12.5px] leading-normal text-muted-foreground">
+                {alt}
+              </figcaption>
+            )}
+          </figure>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

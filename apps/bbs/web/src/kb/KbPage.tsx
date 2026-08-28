@@ -3,6 +3,9 @@
  * column (pitfall teaser + entity tallies) derived from the SAME cards the grid
  * shows, so the tallies always agree with the current filter (`kb/model.ts`).
  */
+import { Badge } from "@herkules/ui/components/badge";
+import { Button } from "@herkules/ui/components/button";
+import { Input } from "@herkules/ui/components/input";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { FormEvent } from "react";
@@ -13,12 +16,13 @@ import { usePageTitle } from "../shell/usePageTitle.ts";
 import type { KbSearch } from "../url.ts";
 import { KbCardBody } from "./KbCard.tsx";
 import type { KbCardDTO } from "./KbCard.tsx";
-import "./kb.css";
 import { PITFALL_LIMIT, countEntities, roundRobin, splitEntities } from "./model.ts";
 
 type FacetCount = KbBrowseDTO["genres"][number];
 /** A `<Link search>` updater: the current URL state in, the next one out. */
 type Patch = (value: string | undefined) => (s: KbSearch) => KbSearch;
+
+const CHIP = "font-mono [&_small]:ml-[5px] [&_small]:text-[11px] [&_small]:opacity-70";
 
 export function KbPage() {
   usePageTitle("知识库");
@@ -47,29 +51,32 @@ export function KbPage() {
   const { common, rest } = splitEntities(tallies);
 
   return (
-    <div className="page kb-page">
+    <div className="page [--measure:1120px]">
       <h1 className="page-title">知识库</h1>
-      <p className="kb-lede">
+      <p className="max-w-[64rem] leading-[1.75] text-ink-2">
         每篇文章的 AI
         概览同时提取一份结构化条目：结论、成熟度、用到的型号与库、带单位的参数、作者做过的取舍和踩过的坑。
         这里按体裁、领域和兵种筛选；下面汇总当前这些文章的踩坑与出现最多的条目，点开一个条目可跨队伍对比。
       </p>
 
-      <form className="kb-search" onSubmit={onSearch} role="search">
-        <input
+      <form
+        className="mt-4 mb-1 flex max-w-[560px] gap-2 max-md:max-w-none"
+        onSubmit={onSearch}
+        role="search"
+      >
+        <Input
           type="search"
           name="q"
+          className="bg-surface"
           defaultValue={search.q ?? ""}
           placeholder="搜知识库：EtherCAT、卡弹、CAN FD、减速比…"
           aria-label="搜索知识库"
           autoComplete="off"
         />
-        <button className="btn btn-primary" type="submit">
-          搜索
-        </button>
+        <Button type="submit">搜索</Button>
       </form>
 
-      <div className="kb-facets">
+      <div className="mt-5 mb-1 flex flex-col gap-2">
         <FacetRow
           lead="体裁"
           items={data.genres}
@@ -90,18 +97,27 @@ export function KbPage() {
         />
       </div>
 
-      <p className="meta kb-total">当前筛选：{data.total} 篇文章</p>
+      <p className="meta mt-2.5">当前筛选：{data.total} 篇文章</p>
 
-      <div className="kb-grid">
-        <aside className="kb-side" aria-label="汇总">
+      <div className="mt-3.5 grid grid-cols-1 items-start gap-7 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-12">
+        {/* First in the DOM (it is the page's teaser), right rail on wide screens:
+            grid placement, not `order`, so a narrow screen reads in DOM order. */}
+        <aside
+          className="flex flex-col gap-6 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto lg:[scrollbar-width:thin]"
+          aria-label="汇总"
+        >
           {pitfalls.length > 0 && (
             <section>
-              <h2 className="eyebrow">踩坑速览</h2>
-              <ul className="kb-pitfalls">
+              <h2 className="eyebrow m-0 mb-2.5">踩坑速览</h2>
+              <ul className="flex flex-col gap-3 text-[13.5px] leading-relaxed text-ink-2">
                 {pitfalls.map(({ card, text }, i) => (
-                  <li key={`${card.articleId}-${i}`}>
+                  <li className="border-l-2 border-warn pl-3" key={`${card.articleId}-${i}`}>
                     {text}
-                    <Link className="kb-ref" to="/articles/$id" params={{ id: card.articleId }}>
+                    <Link
+                      className="mt-0.5 block font-mono text-[11.5px] text-muted-foreground hover:text-accent"
+                      to="/articles/$id"
+                      params={{ id: card.articleId }}
+                    >
                       {card.title}
                     </Link>
                   </li>
@@ -111,35 +127,39 @@ export function KbPage() {
           )}
           {common.length > 0 && (
             <section>
-              <h2 className="eyebrow">常见条目</h2>
-              <div className="kb-cloud">
+              <h2 className="eyebrow m-0 mb-2.5">常见条目</h2>
+              <div className="flex flex-wrap gap-1.5">
                 {common.map((e) => (
-                  <Link className="chip" key={e.name} to="/kb/$name" params={{ name: e.name }}>
-                    {e.name}
-                    <small>{e.count}</small>
-                  </Link>
+                  <Badge variant="outline" className={CHIP} key={e.name} asChild>
+                    <Link to="/kb/$name" params={{ name: e.name }}>
+                      {e.name}
+                      <small>{e.count}</small>
+                    </Link>
+                  </Badge>
                 ))}
               </div>
             </section>
           )}
           {rest.length > 0 && (
-            <details className="kb-rest">
-              <summary>
-                全部条目<small>{tallies.length}</small>
+            <details>
+              <summary className="mb-2.5 cursor-pointer font-mono text-xs text-muted-foreground">
+                全部条目<small className="ml-[5px] text-[11px]">{tallies.length}</small>
               </summary>
-              <div className="kb-cloud">
+              <div className="flex flex-wrap gap-1.5">
                 {rest.map((e) => (
-                  <Link className="chip" key={e.name} to="/kb/$name" params={{ name: e.name }}>
-                    {e.name}
-                  </Link>
+                  <Badge variant="outline" className={CHIP} key={e.name} asChild>
+                    <Link to="/kb/$name" params={{ name: e.name }}>
+                      {e.name}
+                    </Link>
+                  </Badge>
                 ))}
               </div>
             </details>
           )}
         </aside>
 
-        <ol className="kb-cards">
-          {cards.length === 0 && <li className="empty">没有匹配的条目</li>}
+        <ol className="flex flex-col lg:col-start-1 lg:row-start-1">
+          {cards.length === 0 && <li className="py-6 text-muted-foreground">没有匹配的条目</li>}
           {cards.map((card) => (
             <Card key={card.articleId} card={card} />
           ))}
@@ -163,22 +183,27 @@ function FacetRow({
   // A stale filter with no cards left still needs its chip, or it cannot be cleared.
   if (items.length === 0 && !current) return null;
   return (
-    <div className="kb-facet">
-      <span className="eyebrow kb-facet-lead">{lead}</span>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="eyebrow min-w-[3em]">{lead}</span>
       {items.map((item) => {
         const active = current === item.name;
         return (
-          <Link
-            className={active ? "chip is-active" : "chip"}
+          <Badge
+            variant={active ? "default" : "outline"}
+            className={`${CHIP} px-2.5 py-1 text-[13px]`}
             key={item.name}
-            to="/kb"
-            // Clicking the active chip clears the axis: the chip is the toggle.
-            search={patch(active ? undefined : item.name)}
-            aria-current={active ? "true" : undefined}
+            asChild
           >
-            {item.name}
-            <small>{item.count}</small>
-          </Link>
+            <Link
+              to="/kb"
+              // Clicking the active chip clears the axis: the chip is the toggle.
+              search={patch(active ? undefined : item.name)}
+              aria-current={active ? "true" : undefined}
+            >
+              {item.name}
+              <small>{item.count}</small>
+            </Link>
+          </Badge>
         );
       })}
     </div>
@@ -189,34 +214,42 @@ function Card({ card }: { card: KbCardDTO }) {
   // Cards carry the raw forum title (no `titleParts` on the KB wire), so it is shown as-is.
   const entities = card.entities.slice(0, 6);
   return (
-    <li className="card kb-card">
-      <h2 className="kb-card-title">
+    <li className="grid gap-1.5 border-t border-line-2 py-[18px]">
+      <h2 className="m-0 font-body text-base leading-[1.4] font-semibold [&_a]:text-ink [&_a:hover]:text-accent">
         <Link to="/articles/$id" params={{ id: card.articleId }}>
           {card.title}
         </Link>
       </h2>
       <KbCardBody card={card} />
-      <div className="kb-card-foot">
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
         {card.genre && (
-          <Link className="chip" to="/kb" search={(s) => ({ ...s, genre: card.genre })}>
-            {card.genre}
-          </Link>
+          <Badge variant="outline" className={CHIP} asChild>
+            <Link to="/kb" search={(s) => ({ ...s, genre: card.genre })}>
+              {card.genre}
+            </Link>
+          </Badge>
         )}
         {card.domain.map((d) => (
-          <Link className="chip" key={`d-${d}`} to="/kb" search={(s) => ({ ...s, domain: d })}>
-            {d}
-          </Link>
+          <Badge variant="outline" className={CHIP} key={`d-${d}`} asChild>
+            <Link to="/kb" search={(s) => ({ ...s, domain: d })}>
+              {d}
+            </Link>
+          </Badge>
         ))}
         {card.robotTypes.map((r) => (
-          <Link className="chip" key={`r-${r}`} to="/kb" search={(s) => ({ ...s, robot: r })}>
-            {r}
-          </Link>
+          <Badge variant="outline" className={CHIP} key={`r-${r}`} asChild>
+            <Link to="/kb" search={(s) => ({ ...s, robot: r })}>
+              {r}
+            </Link>
+          </Badge>
         ))}
-        {entities.length > 0 && <span className="kb-card-sep" aria-hidden="true" />}
+        {entities.length > 0 && <span className="h-3.5 w-px bg-line" aria-hidden="true" />}
         {entities.map((e) => (
-          <Link className="chip" key={`e-${e}`} to="/kb/$name" params={{ name: e }}>
-            {e}
-          </Link>
+          <Badge variant="outline" className={CHIP} key={`e-${e}`} asChild>
+            <Link to="/kb/$name" params={{ name: e }}>
+              {e}
+            </Link>
+          </Badge>
         ))}
       </div>
     </li>

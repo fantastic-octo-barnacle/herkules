@@ -1,3 +1,5 @@
+import { Button } from "@herkules/ui/components/button";
+import { Input } from "@herkules/ui/components/input";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
@@ -29,9 +31,14 @@ const SCOPES: readonly { value: Scope; label: string; title: string }[] = [
  */
 export function ScopeLinks({ scope, on }: { scope: Scope; on: "/" | "/search" }) {
   return (
-    <div className="feed-scope" role="group" aria-label="搜索范围">
+    <div
+      className="flex flex-none overflow-hidden rounded-md border border-line bg-surface max-md:flex-auto"
+      role="group"
+      aria-label="搜索范围"
+    >
       {SCOPES.map((item) => (
         <Link
+          className="px-4 text-sm leading-[42px] text-muted-foreground hover:text-ink hover:no-underline aria-[current]:bg-accent aria-[current]:text-accent-ink max-md:flex-1 max-md:text-center [&+a]:border-l [&+a]:border-line"
           key={item.value}
           to={on}
           activeOptions={EXACT}
@@ -77,21 +84,20 @@ export function SearchBar({
   }
 
   return (
-    <form className="feed-search" role="search" onSubmit={submit}>
-      <label className="feed-search-field">
-        <span className="sr-only">搜索文章</span>
-        <input
-          type="search"
-          name="q"
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder="搜索：自瞄、飞镖、成本控制、TensorRT…"
-          autoComplete="off"
-        />
-      </label>
-      <button className="btn btn-primary" type="submit">
+    <form className="flex min-w-0 flex-[1_1_420px] gap-2" role="search" onSubmit={submit}>
+      <Input
+        type="search"
+        name="q"
+        className="h-11 bg-surface px-3.5"
+        aria-label="搜索文章"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        placeholder="搜索：自瞄、飞镖、成本控制、TensorRT…"
+        autoComplete="off"
+      />
+      <Button type="submit" className="h-11">
         搜索
-      </button>
+      </Button>
     </form>
   );
 }
