@@ -65,7 +65,11 @@ jobs:
       - name: Sync compose files and roll the stack
         env:
           TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+          # The images are private (private repo): log the box in with this run's token before pulling.
+          # It expires with the run, so a later manual `docker compose pull` on the box needs its own read:packages login.
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/caddy/services ~/herkules/import'
           scp -i ~/.ssh/deploy -r tools/deploy/docker-compose.yml tools/deploy/Caddyfile tools/deploy/caddy/services "$TARGET":~/herkules/
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" 'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
           ssh -i ~/.ssh/deploy "$TARGET" 'cd ~/herkules && docker compose pull --quiet && docker compose up -d --remove-orphans && docker image prune -f >/dev/null && docker compose ps'

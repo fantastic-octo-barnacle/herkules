@@ -38,8 +38,10 @@ caddy/services/, .env, import/}` and three volumes (`pgdata`, `avatars`, `caddy_
    ```
 5. **Repository secrets** (environment `production`): `DEPLOY_HOST`,
    `DEPLOY_USER`, `DEPLOY_SSH_KEY` (private key, PEM), `DEPLOY_KNOWN_HOSTS`
-   (`ssh-keyscan -H <host>` output). Images are public or the box must
-   `docker login ghcr.io` once with a read token.
+   (`ssh-keyscan -H <host>` output). The images are private: the deploy job
+   logs the box into ghcr.io with its run token before pulling. For a manual
+   `docker compose pull` on the box, `docker login ghcr.io` with a
+   `read:packages` token first.
 
 ## Deploy
 
