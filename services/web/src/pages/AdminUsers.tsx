@@ -1,10 +1,24 @@
 /** /admin — members: role, disable/enable, sign out everywhere. Every action is one audited call. */
-import { useCallback, useEffect, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@herkules/ui/components/avatar";
+import { Badge } from "@herkules/ui/components/badge";
+import { Button } from "@herkules/ui/components/button";
+import { Input } from "@herkules/ui/components/input";
+import { Label } from "@herkules/ui/components/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@herkules/ui/components/table";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
-import type { AdminUserRow } from "../api.ts";
 import { formatDate, relative } from "../format.ts";
+import { Empty, Eyebrow, Lede, Loading, PageTitle, Sub } from "../layout.tsx";
+import { ErrorNotice } from "../notices.tsx";
 import { useSession } from "../session.tsx";
-import { Avatar, Badge, ErrorNotice, Spinner } from "../ui.tsx";
 
 const ADMITTED: Record<string, string> = {
   admin: "seed admin",
@@ -12,174 +26,176 @@ const ADMITTED: Record<string, string> = {
   org: "organization",
   "org-stale": "organization (unconfirmed)",
 };
+const KEY = ["admin", "users"] as const;
 
 export function AdminUsersPage() {
   const { api, session } = useSession();
-  const [rows, setRows] = useState<readonly AdminUserRow[]>([]);
-  const [next, setNext] = useState<string | undefined>();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<string | undefined>();
-  const [error, setError] = useState<unknown>();
 
-  const load = useCallback(
-    async (cursor?: string) => {
-      setLoading(true);
-      try {
-        const page = await api.admin.users({ search: query || undefined, cursor });
-        setRows((prev) => (cursor ? [...prev, ...page.rows] : page.rows));
-        setNext(page.next);
-      } catch (err) {
-        setError(err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [api, query],
-  );
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const users = useInfiniteQuery({
+    queryKey: [...KEY, query],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => api.admin.users({ search: query || undefined, cursor: pageParam }),
+    getNextPageParam: (last) => last.next,
+  });
+  /** One audited call, then the list reloads. `variables.id` marks the busy row. */
+  const act = useMutation({
+    mutationFn: ({ run }: { id: string; run: () => Promise<unknown> }) => run(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+  const busyId = act.isPending ? act.variables.id : undefined;
 
-  async function act(id: string, fn: () => Promise<unknown>) {
-    setBusy(id);
-    setError(undefined);
-    try {
-      await fn();
-      await load();
-    } catch (err) {
-      setError(err);
-    } finally {
-      setBusy(undefined);
-    }
-  }
-
+  const rows = users.data?.pages.flatMap((p) => p.rows) ?? [];
   const me = session?.user.id;
   return (
     <>
-      <p className="eyebrow">Admin</p>
-      <h1>Members</h1>
-      <p className="lede">
+      <Eyebrow>Admin</Eyebrow>
+      <PageTitle>Members</PageTitle>
+      <Lede>
         Everyone who has signed in. Disabling ends every session and connected client at once;
         tokens already issued expire within 15 minutes.
-      </p>
+      </Lede>
       <form
-        className="toolbar"
+        className="mb-4 flex flex-wrap items-end gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           setQuery(search.trim());
         }}
       >
-        <label className="field grow">
-          <span>Search by GitHub login or name</span>
-          <input className="input" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </label>
-        <button className="btn" type="submit">
+        <div className="grid min-w-48 flex-1 gap-1.5">
+          <Label htmlFor="member-search">Search by GitHub login or name</Label>
+          <Input id="member-search" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <Button variant="outline" type="submit">
           Search
-        </button>
+        </Button>
       </form>
-      <ErrorNotice error={error} />
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Member</th>
-              <th>Role</th>
-              <th>Admitted via</th>
-              <th>Last sign-in</th>
-              <th className="num">Clients</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
+      <ErrorNotice error={users.error ?? act.error} />
+      <div className="rounded-md border border-line bg-surface">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Member</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Admitted via</TableHead>
+              <TableHead>Last sign-in</TableHead>
+              <TableHead className="text-right">Clients</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((u) => (
-              <tr key={u.id}>
-                <td>
-                  <div className="person">
-                    <Avatar src={u.avatarUrl} name={u.displayName} />
+              <TableRow key={u.id}>
+                <TableCell>
+                  <div className="flex min-w-48 items-center gap-2.5">
+                    <Avatar size="sm">
+                      <AvatarImage src={u.avatarUrl || undefined} alt="" />
+                      <AvatarFallback />
+                    </Avatar>
                     <div>
                       <div>
-                        {u.displayName} {u.disabled ? <Badge kind="off">disabled</Badge> : null}
+                        {u.displayName}{" "}
+                        {u.disabled ? <Badge variant="destructive">disabled</Badge> : null}
                       </div>
-                      <div className="sub">
+                      <Sub>
                         <code>{u.githubLogin}</code> · joined {formatDate(u.createdAt)}
-                      </div>
+                      </Sub>
                     </div>
                   </div>
-                </td>
-                <td>
-                  {u.role === "admin" ? <Badge kind="admin">admin</Badge> : <Badge>member</Badge>}
-                </td>
-                <td>{u.admittedVia ? ADMITTED[u.admittedVia] : "—"}</td>
-                <td title={formatDate(u.lastLoginAt)}>{relative(u.lastLoginAt)}</td>
-                <td className="num">{u.connectedClients}</td>
-                <td className="actions-cell">
-                  <button
-                    className="btn row-action"
-                    disabled={busy === u.id}
+                </TableCell>
+                <TableCell>
+                  {u.role === "admin" ? (
+                    <Badge>admin</Badge>
+                  ) : (
+                    <Badge variant="outline">member</Badge>
+                  )}
+                </TableCell>
+                <TableCell>{u.admittedVia ? ADMITTED[u.admittedVia] : "—"}</TableCell>
+                <TableCell title={formatDate(u.lastLoginAt)}>{relative(u.lastLoginAt)}</TableCell>
+                <TableCell className="text-right tabular-nums">{u.connectedClients}</TableCell>
+                <TableCell className="space-x-1 text-right whitespace-nowrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busyId === u.id}
                     onClick={() =>
-                      act(u.id, () =>
-                        api.admin.setRole(u.id, u.role === "admin" ? "member" : "admin"),
-                      )
+                      act.mutate({
+                        id: u.id,
+                        run: () => api.admin.setRole(u.id, u.role === "admin" ? "member" : "admin"),
+                      })
                     }
                   >
                     {u.role === "admin" ? "Make member" : "Make admin"}
-                  </button>{" "}
-                  <button
-                    className="btn row-action"
-                    disabled={busy === u.id}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busyId === u.id}
                     onClick={() =>
-                      act(u.id, async () => {
-                        const r = await api.admin.revokeSessions(u.id);
-                        alert(`${u.displayName}: ${r.count} browser session(s) ended.`);
+                      act.mutate({
+                        id: u.id,
+                        run: async () => {
+                          const r = await api.admin.revokeSessions(u.id);
+                          alert(`${u.displayName}: ${r.count} browser session(s) ended.`);
+                        },
                       })
                     }
                   >
                     Sign out everywhere
-                  </button>{" "}
+                  </Button>
                   {u.disabled ? (
-                    <button
-                      className="btn row-action"
-                      disabled={busy === u.id}
-                      onClick={() => act(u.id, () => api.admin.setDisabled(u.id, false))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={busyId === u.id}
+                      onClick={() =>
+                        act.mutate({ id: u.id, run: () => api.admin.setDisabled(u.id, false) })
+                      }
                     >
                       Enable
-                    </button>
+                    </Button>
                   ) : (
-                    <button
-                      className="btn danger row-action"
-                      disabled={busy === u.id || u.id === me}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={busyId === u.id || u.id === me}
                       title={u.id === me ? "You cannot disable yourself" : undefined}
                       onClick={() => {
                         const reason = prompt(`Disable ${u.displayName}? Reason (optional):`);
                         if (reason === null) return;
-                        void act(u.id, () =>
-                          api.admin.setDisabled(u.id, true, reason || undefined),
-                        );
+                        act.mutate({
+                          id: u.id,
+                          run: () => api.admin.setDisabled(u.id, true, reason || undefined),
+                        });
                       }}
                     >
                       Disable
-                    </button>
+                    </Button>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       {rows.length === 0 ? (
-        loading ? (
-          <Spinner />
-        ) : (
-          <p className="empty">No members match.</p>
+        users.isPending ? (
+          <Loading />
+        ) : users.isError ? null : (
+          <Empty>No members match.</Empty>
         )
       ) : null}
-      {next ? (
-        <div className="more">
-          <button className="btn" onClick={() => load(next)} disabled={loading}>
+      {users.hasNextPage ? (
+        <div className="mt-4">
+          <Button
+            variant="outline"
+            onClick={() => users.fetchNextPage()}
+            disabled={users.isFetching}
+          >
             Show more
-          </button>
+          </Button>
         </div>
       ) : null}
     </>

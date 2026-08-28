@@ -21,7 +21,7 @@ The development server runs on `http://localhost:3000` and proxies auth, metadat
 - Consent posts the signed query from Better Auth. It fetches client and resource display names from the auth service and does not trust unsigned URL fields as authority.
 - The developer-token page runs a real authorization-code and PKCE flow through the `herkules-web` client. It requests `offline_access` so the token keeps a single resource audience; the issuer refuses refresh for this public client.
 - `src/session.tsx` owns the one session load, safe return paths, and admin routing. Admin mutations remain server-enforced and audited.
-- The app downloads no fonts and uses no motion. Color and typography tokens live in `src/styles.css`.
+- The app downloads no fonts. Tokens and primitives come from `@herkules/ui` (see `docs/FRAME-ui.md`); `src/main.tsx` imports its theme; `src/layout.tsx` is the page furniture.
 
 ## Code map
 

@@ -3,87 +3,78 @@
  * public client, so what you paste into curl is exactly what an IDE gets:
  * a 15-minute JWT for one audience. /dev-token/callback finishes it.
  */
-import { useEffect, useState } from "react";
+import { Button } from "@herkules/ui/components/button";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useLocation } from "react-router";
 
-import type { Registry } from "../api.ts";
-import {
-  beginDevToken,
-  decodeJwtPayload,
-  finishDevToken,
-  type CallbackOutcome,
-} from "../devtoken.ts";
+import { beginDevToken, decodeJwtPayload, finishDevToken } from "../devtoken.ts";
 import { resourceName } from "../format.ts";
+import { Actions, Eyebrow, Lede, Loading, PageTitle, SectionTitle } from "../layout.tsx";
+import { ErrorNotice, Notice } from "../notices.tsx";
 import { useSession } from "../session.tsx";
-import { ErrorNotice, Notice, Spinner } from "../ui.tsx";
 
 export function DevTokenPage() {
   const { api } = useSession();
-  const [registry, setRegistry] = useState<Registry | undefined>();
-  const [audience, setAudience] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>();
-
-  useEffect(() => {
-    api.registry().then((r) => {
-      setRegistry(r);
-      setAudience(r.resources[0]?.audience ?? "");
-    }, setError);
-  }, [api]);
-
-  async function start() {
-    if (!registry) return;
-    setBusy(true);
-    try {
-      location.href = await beginDevToken(sessionStorage, {
+  const registry = useQuery({ queryKey: ["registry"], queryFn: () => api.registry() });
+  const [chosen, setChosen] = useState<string | undefined>();
+  const audience = chosen ?? registry.data?.resources[0]?.audience ?? "";
+  const start = useMutation({
+    mutationFn: () =>
+      beginDevToken(sessionStorage, {
         origin: location.origin,
-        clientId: registry.devTokenClientId,
+        clientId: registry.data!.devTokenClientId,
         audience,
-      });
-    } catch (err) {
-      setError(err);
-      setBusy(false);
-    }
-  }
+      }),
+    onSuccess: (url) => {
+      location.href = url;
+    },
+  });
+  const busy = start.isPending || start.isSuccess;
 
   return (
     <>
-      <p className="eyebrow">Developer</p>
-      <h1>Dev token</h1>
-      <p className="lede">
+      <Eyebrow>Developer</Eyebrow>
+      <PageTitle>Dev token</PageTitle>
+      <Lede>
         Mint a 15-minute access token for one service, issued the same way an IDE gets one, for curl
         and scripts. It cannot be refreshed; come back for another.
-      </p>
-      <ErrorNotice error={error} />
-      {!registry ? (
-        <Spinner />
+      </Lede>
+      <ErrorNotice error={registry.error ?? start.error} />
+      {!registry.data ? (
+        registry.isError ? null : (
+          <Loading />
+        )
       ) : (
         <>
-          <div className="choices" role="radiogroup" aria-label="Audience">
-            {registry.resources.map((r) => (
-              <label key={r.audience} className="choice">
+          <div className="my-4 grid gap-2" role="radiogroup" aria-label="Audience">
+            {registry.data.resources.map((r) => (
+              <label
+                key={r.audience}
+                className="flex cursor-pointer items-start gap-3 rounded-md border border-line bg-surface px-4 py-3 has-checked:border-accent"
+              >
                 <input
                   type="radio"
                   name="audience"
                   value={r.audience}
+                  className="mt-1.5 accent-accent"
                   checked={audience === r.audience}
-                  onChange={() => setAudience(r.audience)}
+                  onChange={() => setChosen(r.audience)}
                 />
                 <span>
                   <span>{r.title}</span>
-                  <span className="sub">
-                    <br />
+                  <span className="block text-[0.85rem] text-muted-foreground">
                     <code>{r.audience}</code>
                   </span>
                 </span>
               </label>
             ))}
           </div>
-          <div className="actions">
-            <button className="btn primary" onClick={start} disabled={busy || !audience}>
+          <Actions>
+            <Button onClick={() => start.mutate()} disabled={busy || !audience}>
               {busy ? "Redirecting…" : `Mint token for ${resourceName(audience)}`}
-            </button>
-          </div>
+            </Button>
+          </Actions>
         </>
       )}
     </>
@@ -92,24 +83,22 @@ export function DevTokenPage() {
 
 export function DevTokenCallbackPage() {
   const { api } = useSession();
-  const location_ = useLocation();
-  const [outcome, setOutcome] = useState<CallbackOutcome | undefined>();
-  const [error, setError] = useState<unknown>();
+  const { search } = useLocation();
   const [copied, setCopied] = useState(false);
+  // The code is single-use: one query per callback URL, never refetched.
+  const exchange = useQuery({
+    queryKey: ["dev-token", search],
+    queryFn: () => finishDevToken(sessionStorage, api, { origin: location.origin, search }),
+    staleTime: Infinity,
+  });
 
-  useEffect(() => {
-    finishDevToken(sessionStorage, api, {
-      origin: location.origin,
-      search: location_.search,
-    }).then(setOutcome, setError);
-  }, [api, location_.search]);
-
-  if (error) return <ErrorNotice error={error} />;
-  if (!outcome) return <Spinner label="Exchanging the code" />;
+  if (exchange.error) return <ErrorNotice error={exchange.error} />;
+  const outcome = exchange.data;
+  if (!outcome) return <Loading label="Exchanging the code" />;
   if (!outcome.ok)
     return (
       <>
-        <h1>No token</h1>
+        <PageTitle>No token</PageTitle>
         <Notice kind="error" title={outcome.error}>
           {outcome.description}
         </Notice>
@@ -124,16 +113,17 @@ export function DevTokenCallbackPage() {
 
   return (
     <>
-      <p className="eyebrow">Developer</p>
-      <h1>Token for {resourceName(outcome.audience)}</h1>
-      <p className="lede">
+      <Eyebrow>Developer</Eyebrow>
+      <PageTitle>Token for {resourceName(outcome.audience)}</PageTitle>
+      <Lede>
         Valid until {exp ? exp.toLocaleTimeString() : "it expires"}. Treat it like a password; it is
         not stored anywhere but this page.
-      </p>
-      <pre className="token">{token}</pre>
-      <div className="actions">
-        <button
-          className="btn primary"
+      </Lede>
+      <pre className="m-0 rounded-md border border-line bg-surface-2 p-3.5 font-mono text-[0.8rem] whitespace-pre-wrap wrap-anywhere">
+        {token}
+      </pre>
+      <Actions>
+        <Button
           onClick={() =>
             navigator.clipboard.writeText(token).then(
               () => setCopied(true),
@@ -142,21 +132,21 @@ export function DevTokenCallbackPage() {
           }
         >
           {copied ? "Copied" : "Copy token"}
-        </button>
-        <button className="btn" onClick={() => navigator.clipboard.writeText(curl)}>
+        </Button>
+        <Button variant="outline" onClick={() => navigator.clipboard.writeText(curl)}>
           Copy curl
-        </button>
-        <span className="spacer" />
-        <Link className="btn" to="/dev-token">
-          Mint another
-        </Link>
-      </div>
-      <h2>Claims</h2>
-      <dl className="claims">
+        </Button>
+        <span className="flex-1" />
+        <Button variant="outline" asChild>
+          <Link to="/dev-token">Mint another</Link>
+        </Button>
+      </Actions>
+      <SectionTitle>Claims</SectionTitle>
+      <dl className="my-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[0.9rem]">
         {Object.entries(claims).map(([k, v]) => (
-          <div key={k} style={{ display: "contents" }}>
-            <dt>{k}</dt>
-            <dd>{typeof v === "string" ? v : JSON.stringify(v)}</dd>
+          <div key={k} className="contents">
+            <dt className="font-mono text-muted-foreground">{k}</dt>
+            <dd className="m-0 wrap-anywhere">{typeof v === "string" ? v : JSON.stringify(v)}</dd>
           </div>
         ))}
       </dl>
