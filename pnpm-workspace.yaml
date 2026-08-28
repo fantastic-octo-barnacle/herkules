@@ -31,6 +31,11 @@ catalog:
   vite: npm:@voidzero-dev/vite-plus-core@0.3.0
   vite-plus: 0.3.0
   zod: ^4.4.3
+  radix-ui: ^1.6.7
+  class-variance-authority: ^0.7.1
+  clsx: ^2.1.1
+  tailwind-merge: ^3.6.0
+  lucide-react: ^1.35.0
 overrides:
   vite@*: "catalog:"
 peerDependencyRules:
@@ -41,3 +46,5 @@ peerDependencyRules:
 # pnpm 11 (strictDepBuilds): every dependency with a build script must be listed here or `vp install` fails.
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - lucide-react@1.35.0
