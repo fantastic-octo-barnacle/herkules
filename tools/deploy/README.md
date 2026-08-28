@@ -212,7 +212,9 @@ No alerting channel is configured (the team has not picked one). The external
 
 1. `.env`: `STATUS_HOST`, `OPS_HOST`, `GATUS_BACKUP_TOKEN`; `.env.auth`:
    `OPS_ORIGIN=https://ops.herkules.dev` and a `BESZEL_CLIENT_SECRET`. Deploy
-   (auth re-seeds its clients at boot and logs `beszel` as seeded).
+   (auth re-seeds its clients at boot; an unauthenticated
+   `/auth/oauth2/authorize?client_id=beszel&…` then redirects to `/login`
+   instead of answering `invalid_client`).
 2. Create the PocketBase superuser (break-glass account, password manager) and
    open `/_/` through a tunnel — it is blocked at the edge, never over the internet:
    ```sh
@@ -232,10 +234,16 @@ No alerting channel is configured (the team has not picked one). The external
      teammate from deleting one.
 4. Sign in yourself at `https://ops.herkules.dev` (this creates your account),
    then promote it to `admin` in `/_/` → users.
-5. This box's agent: copy the hub's public key (Add system dialog, or
-   `docker compose exec beszel cat /beszel_data/id_ed25519.pub`) into `.env`
-   as `BESZEL_KEY`, `docker compose up -d beszel-agent`, then **Add system** in
-   the hub with host `/beszel_socket/beszel.sock`, name `herkules-hk`.
+5. This box's agent: put the hub's public key into `.env` as `BESZEL_KEY` (the
+   Add system dialog shows it; from the shell, derive it — the hub image is
+   distroless and keeps only the private key):
+   ```sh
+   docker run --rm -v herkules_beszel_data:/d:ro alpine:3.23 sh -c \
+     'apk add -q openssh-keygen && cp /d/id_ed25519 /tmp/k && chmod 600 /tmp/k && ssh-keygen -y -f /tmp/k'
+   ```
+   then `docker compose up -d beszel-agent` (it restart-loops harmlessly while
+   the key is empty), then **Add system** in the hub with host
+   `/beszel_socket/beszel.sock`, name `herkules-hk`.
 6. Settings → Tokens: enable the **universal token** and put it in the team
    password manager. Every fleet agent registers itself with it.
 7. Optional dead-man switch: in Better Stack (free) create an HTTP monitor on

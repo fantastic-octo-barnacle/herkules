@@ -42,7 +42,7 @@ endpoints:
   # 2. Sign-in: a real answer from the authorization server, not a healthz.
   - name: Sign-in
     group: platform
-    url: "https://${SITE_ADDRESS}/.well-known/oauth-authorization-server"
+    url: "https://${SITE_ADDRESS}/.well-known/oauth-authorization-server/auth"
     interval: 1m
     conditions:
       - "[STATUS] == 200"
@@ -75,8 +75,10 @@ endpoints:
       - "[STATUS] == 200"
       - "[BODY].crawler.lastCheckedAgeSeconds < 1800"
 
-  # 6. MCP: the resource answers an unauthenticated initialize with the RFC 9728 challenge,
-  # which proves the MCP surface and the auth wiring without holding a token.
+  # 6. MCP: the resource refuses an unauthenticated initialize the RFC 9728 way (401 +
+  # WWW-Authenticate resource_metadata, JSON-RPC error body), which proves the MCP surface
+  # and the auth wiring without holding a token. Gatus cannot match on the header value, so
+  # the body carries the assertion.
   - name: MCP
     group: RM 文库
     url: "https://${SITE_ADDRESS}/mcp/bbs"
@@ -88,7 +90,7 @@ endpoints:
     interval: 1m
     conditions:
       - "[STATUS] == 401"
-      - "[HEADERS].WWW-Authenticate == pat(*resource_metadata*)"
+      - "[BODY].error.message == missing bearer token"
 
   # 8. The Beszel hub answers (its sign-in is the auth service; this only proves the process).
   - name: Monitoring
