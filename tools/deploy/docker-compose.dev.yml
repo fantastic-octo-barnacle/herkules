@@ -1,0 +1,25 @@
+# Laptop overlay: build the images from this checkout, serve http://localhost:3000, no backup job.
+#   cp .env.example .env   # fill the dev GitHub OAuth app
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+services:
+  caddy:
+    ports: !override
+      - "3000:3000"
+  auth:
+    build:
+      context: ../..
+      target: auth
+  web:
+    build:
+      context: ../..
+      target: web
+  mcp-directory:
+    build:
+      context: ../..
+      target: mcp-directory
+  backup:
+    build:
+      context: ../..
+      target: backup
+    deploy:
+      replicas: 0

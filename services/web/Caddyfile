@@ -1,0 +1,11 @@
+# The web image: static SPA with history fallback. TLS and path routing live in the edge Caddy.
+:80 {
+	root * /srv
+	encode zstd gzip
+	respond /healthz 200
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "no-cache"
+	try_files {path} /index.html
+	file_server
+}

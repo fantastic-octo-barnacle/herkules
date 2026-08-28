@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "description": "herkules directory: the self-test MCP server at https://herkules.dev/mcp/directory (whoami, list_members, get_member) verifying tokens with @herkules/auth-middleware and reading the auth service's user-info API.",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "scripts": {
     "dev": "node --watch --env-file=.env --experimental-strip-types src/main.ts",

@@ -1,0 +1,2 @@
+# 03:00 Hong Kong = 19:00 UTC
+0 19 * * * /usr/local/bin/backup >> /proc/1/fd/1 2>&1

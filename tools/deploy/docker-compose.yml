@@ -1,0 +1,103 @@
+# Production stack on the HK VPS. Lives at ~/herkules on the box together with
+# Caddyfile, caddy/services/*.caddy and the .env (never committed).
+#   docker compose pull && docker compose up -d --remove-orphans
+# Dev on a laptop: add -f docker-compose.dev.yml (builds locally, http://localhost:3000).
+name: herkules
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env, e.g. herkules.dev}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/services:/etc/caddy/services:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    depends_on:
+      auth:
+        condition: service_healthy
+      web:
+        condition: service_started
+      mcp-directory:
+        condition: service_started
+    mem_limit: 128m
+    restart: unless-stopped
+
+  auth:
+    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX in .env, e.g. ghcr.io/<owner>/herkules}/auth:${IMAGE_TAG:-latest}
+    env_file: .env
+    environment:
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in .env, e.g. https://herkules.dev}
+      DATABASE_URL: postgres://herkules:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/herkules
+      TRUSTED_PROXIES: 172.28.0.0/24
+      PORT: "3001"
+    volumes:
+      - avatars:/data/avatars
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    restart: unless-stopped
+
+  web:
+    image: ${IMAGE_PREFIX}/web:${IMAGE_TAG:-latest}
+    mem_limit: 64m
+    restart: unless-stopped
+
+  mcp-directory:
+    image: ${IMAGE_PREFIX}/mcp-directory:${IMAGE_TAG:-latest}
+    environment:
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+      AUTH_INTERNAL_URL: http://auth:3001
+      PORT: "3002"
+    depends_on:
+      auth:
+        condition: service_healthy
+    mem_limit: 256m
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: herkules
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: herkules
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U herkules -d herkules"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    mem_limit: 512m
+    shm_size: 128m
+    restart: unless-stopped
+
+  # Nightly pg_dump to R2 (tools/deploy/backup). Manual run: docker compose run --rm backup backup
+  backup:
+    image: ${IMAGE_PREFIX}/backup:${IMAGE_TAG:-latest}
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://herkules:${POSTGRES_PASSWORD}@postgres:5432/herkules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 128m
+    restart: unless-stopped
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+volumes:
+  pgdata:
+  avatars:
+  caddy_data:
+  caddy_config:

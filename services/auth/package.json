@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "description": "herkules authorization server: Hono + Better Auth 1.7 issuer at https://herkules.dev/auth (GitHub gate, roles, OAuth 2.1 for MCP clients, registry PRM, user-info, audit).",
+  "files": [
+    "dist",
+    "drizzle"
+  ],
   "type": "module",
   "exports": {
     "./testing": "./src/testing.ts"

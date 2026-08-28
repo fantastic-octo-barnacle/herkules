@@ -1,0 +1,23 @@
+# Edge Caddy for the single origin. TLS is automatic for a real hostname
+# (DNS-only record pointing at the box); `http://localhost:3000` in dev.
+# Each MCP server adds one file under caddy/services/ (see directory.caddy).
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+	# Caddy orders `handle` blocks by path specificity, so the catch-all below always loses to these.
+	handle /auth/* {
+		reverse_proxy auth:3001
+	}
+	handle /.well-known/* {
+		reverse_proxy auth:3001
+	}
+	import services/*.caddy
+	handle {
+		reverse_proxy web:80
+	}
+}

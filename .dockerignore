@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/data
+.direnv
+tools/deploy/.env
+docs
+*.md
+!README.md

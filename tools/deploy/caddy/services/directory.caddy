@@ -1,0 +1,4 @@
+# services/mcp-directory — resource https://<host>/mcp/directory
+handle /mcp/directory* {
+	reverse_proxy mcp-directory:3002
+}
