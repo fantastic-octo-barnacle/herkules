@@ -1,7 +1,7 @@
 /**
  * Query string -> terms. Pure.
  *
- * DELIBERATE DEVIATION FROM FTS5 (stated in DESIGN.md, flagged to the user):
+ * DELIBERATE DEVIATION FROM FTS5 (stated in DESIGN.md, approved by the user):
  * rm-wenku dropped every term shorter than 3 characters (trigram floor) and, if
  * nothing survived, fell back to a date-ordered title LIKE with no score and no
  * snippet (`articles.rs:1338`). Two-character words — 步兵, 电机, 云台, 底盘 — are
@@ -13,6 +13,7 @@
  * differ from ours. There is no `mode` field because there is no mode.
  */
 import type { NormalizedText } from "./normalize.ts";
+import { normalize } from "./normalize.ts";
 
 /** A pathological query must not build an 8-way index intersection with 40 LIKE rechecks per row. */
 export const MAX_TERMS = 8;
@@ -29,14 +30,20 @@ export interface Term {
 
 /** Whitespace-split, `"` stripped, folded, de-duplicated, capped at MAX_TERMS. Empty for a blank query. */
 export function parseTerms(query: string): readonly Term[] {
-  void query;
-  // TODO query.replaceAll('"', " ").trim().split(/\s+/).filter(Boolean)
-  //        .map(toTerm) -> dedupe on .text -> .slice(0, MAX_TERMS)
-  throw new Error("not implemented");
+  const seen = new Set<string>();
+  const out: Term[] = [];
+  for (const raw of query.replaceAll('"', " ").trim().split(/\s+/)) {
+    if (!raw) continue;
+    const term = toTerm(raw);
+    if (seen.has(term.text)) continue;
+    seen.add(term.text);
+    out.push(term);
+    if (out.length === MAX_TERMS) break;
+  }
+  return out;
 }
 
 export function toTerm(raw: string): Term {
-  void raw;
-  // TODO text = normalize(raw); pattern = text.replace(/[\\%_]/g, (m) => "\\" + m)
-  throw new Error("not implemented");
+  const text = normalize(raw);
+  return { raw, text, pattern: text.replace(/[\\%_]/g, (m) => `\\${m}`) };
 }

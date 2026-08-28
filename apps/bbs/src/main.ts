@@ -22,7 +22,7 @@ import { selectSearchIndex } from "./db/search/index.ts";
 import { runImportCli } from "./import/cli.ts";
 import { createLibrary } from "./library/index.ts";
 import { createSpaHandler } from "./spa/static.ts";
-import { createUserInfo } from "./userinfo.ts";
+import { createUserInfo } from "@herkules/auth-middleware/userinfo";
 
 export interface ServiceDeps {
   readonly env?: NodeJS.ProcessEnv;

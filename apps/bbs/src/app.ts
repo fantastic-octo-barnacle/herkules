@@ -33,7 +33,7 @@ import { RESOURCE_NAME } from "./config.ts";
 import type { Library } from "./library/index.ts";
 import { createBbsServer } from "./mcp/server.ts";
 import type { SpaHandler } from "./spa/static.ts";
-import type { UserInfo } from "./userinfo.ts";
+import type { UserInfo } from "@herkules/auth-middleware/userinfo";
 
 export interface AppDeps {
   readonly library: Library;

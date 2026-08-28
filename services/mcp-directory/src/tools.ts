@@ -9,8 +9,8 @@ import { McpServer } from "@modelcontextprotocol/server";
 import type { CallToolResult } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import type { Member, UserInfo } from "./userinfo.ts";
-import { UserInfoError } from "./userinfo.ts";
+import type { Member, UserInfo } from "@herkules/auth-middleware/userinfo";
+import { UserInfoError } from "@herkules/auth-middleware/userinfo";
 
 export const SERVER_INFO = { name: "herkules-directory", version: "1.0.0" } as const;
 

@@ -21,14 +21,12 @@ export type Cursor = string & { readonly __brand: "Cursor" };
 
 /** ULID shape check: 26 Crockford base32 characters. null otherwise. */
 export function articleId(raw: string): ArticleId | null {
-  void raw;
-  throw new Error("not implemented");
+  return /^[0-9A-HJKMNP-TV-Z]{26}$/i.test(raw) ? (raw.toUpperCase() as ArticleId) : null;
 }
 
 /** rm-wenku's `entity_key()`: keep `\p{L}\p{N}`, lower-case. Total, never fails. */
 export function entityKey(nameOrKey: string): EntityKey {
-  void nameOrKey;
-  throw new Error("not implemented");
+  return nameOrKey.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase() as EntityKey;
 }
 
 /** Thrown for caller mistakes the boundary could not see. The API renders 400. */

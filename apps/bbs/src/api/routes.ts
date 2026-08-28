@@ -25,7 +25,7 @@ import { z } from "zod";
 
 import type { ArticleId, Library, Viewer } from "../library/index.ts";
 import { QueryError, entityKey } from "../library/index.ts";
-import type { UserInfo } from "../userinfo.ts";
+import type { UserInfo } from "@herkules/auth-middleware/userinfo";
 import * as s from "./schemas.ts";
 
 export interface ApiDeps {

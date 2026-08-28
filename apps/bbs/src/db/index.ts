@@ -22,25 +22,49 @@ import * as schema from "./schema.ts";
 
 export type Drizzle = PgDatabase<PgQueryResultHKT, typeof schema>;
 
-export type BbsDb = Drizzle & {
+export type BbsDb = Omit<Drizzle, "transaction"> & {
   readonly host: "postgres" | "pglite";
   close(): Promise<void>;
   transaction<T>(fn: (tx: BbsDb) => Promise<T>): Promise<T>;
 };
 
+function attach(d: Drizzle, host: BbsDb["host"], close: () => Promise<void>): BbsDb {
+  const nativeTransaction = d.transaction.bind(d);
+  const db = d as unknown as BbsDb;
+  Object.assign(db, {
+    host,
+    close,
+    transaction: <T>(fn: (tx: BbsDb) => Promise<T>) =>
+      nativeTransaction((tx) => fn(attach(tx as unknown as Drizzle, host, close))),
+  });
+  return db;
+}
+
 /** Boundary: DATABASE_URL -> a connected handle. TypeError on an unknown scheme, at boot. */
 export async function createDb(databaseUrl: string): Promise<BbsDb> {
-  void databaseUrl;
-  // TODO pglite://  -> const { PGlite } = await import("@electric-sql/pglite")
-  //                    const { pg_trgm } = await import("@electric-sql/pglite/contrib/pg_trgm")
-  //                    target === "memory" ? new PGlite({ extensions: { pg_trgm } }) : new PGlite(target, { extensions: { pg_trgm } })
-  //                    + drizzle-orm/pglite; close = client.close()
-  //      postgres:// | postgresql:// -> postgres(url, { max: 5 }) + drizzle-orm/postgres-js; close = sql.end()
-  //      (max 5: the import's batches and the API share one pool; one container in v1)
-  //      anything else -> throw new TypeError(`DATABASE_URL: unsupported scheme in ${databaseUrl}`)
-  //      Both drivers are dynamically imported so the unused one never loads (auth does the same).
-  //      attach(): db.transaction wraps the native one so `tx` is a BbsDb too.
-  throw new Error("not implemented");
+  if (databaseUrl.startsWith("pglite://")) {
+    const { PGlite } = await import("@electric-sql/pglite");
+    const { pg_trgm } = await import("@electric-sql/pglite/contrib/pg_trgm");
+    const { drizzle } = await import("drizzle-orm/pglite");
+    const target = databaseUrl.slice("pglite://".length);
+    const client =
+      target === "memory" || target === ""
+        ? new PGlite({ extensions: { pg_trgm } })
+        : new PGlite(target, { extensions: { pg_trgm } });
+    return attach(drizzle(client, { schema }) as unknown as Drizzle, "pglite", () =>
+      client.close(),
+    );
+  }
+  if (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://")) {
+    const { default: postgres } = await import("postgres");
+    const { drizzle } = await import("drizzle-orm/postgres-js");
+    // max 5: the import's batches and the API share one pool; one container in v1.
+    const client = postgres(databaseUrl, { max: 5 });
+    return attach(drizzle(client, { schema }) as unknown as Drizzle, "postgres", () =>
+      client.end(),
+    );
+  }
+  throw new TypeError(`DATABASE_URL: unsupported scheme in ${databaseUrl}`);
 }
 
 /**
@@ -60,14 +84,29 @@ export async function createDb(databaseUrl: string): Promise<BbsDb> {
 export async function ensureDatabase(
   databaseUrl: string,
 ): Promise<"created" | "exists" | "skipped"> {
-  void databaseUrl;
-  // TODO if (!/^postgres(ql)?:/.test(databaseUrl)) return "skipped"
-  //      url = new URL(databaseUrl); name = decodeURIComponent(url.pathname.slice(1))
-  //      if (!name || name === "postgres") return "skipped"
-  //      admin = postgres({ ...url, pathname: "/postgres" }.href, { max: 1 })
-  //      try { await admin.unsafe(`CREATE DATABASE "${name.replaceAll('"', '""')}"`); return "created" }
-  //      catch (e) { if (e.code === "42P04") return "exists"; throw e } finally { await admin.end() }
-  throw new Error("not implemented");
+  if (!/^postgres(ql)?:\/\//.test(databaseUrl)) return "skipped";
+  const url = new URL(databaseUrl);
+  const name = decodeURIComponent(url.pathname.slice(1));
+  if (!name || name === "postgres") return "skipped";
+  const { default: postgres } = await import("postgres");
+  const adminUrl = new URL(url);
+  adminUrl.pathname = "/postgres";
+  const admin = postgres(adminUrl.href, { max: 1 });
+  try {
+    await admin.unsafe(`CREATE DATABASE "${name.replaceAll('"', '""')}"`);
+    return "created";
+  } catch (err) {
+    if (isPgError(err) && err.code === "42P04") return "exists";
+    throw err;
+  } finally {
+    await admin.end();
+  }
+}
+
+function isPgError(err: unknown): err is { code: string } {
+  return (
+    typeof err === "object" && err !== null && typeof (err as { code?: unknown }).code === "string"
+  );
 }
 
 /**
@@ -81,10 +120,25 @@ export async function migrate(
   migrationsFolder = process.env.MIGRATIONS_DIR ??
     fileURLToPath(new URL("../../drizzle", import.meta.url)),
 ): Promise<void> {
-  void db;
-  void migrationsFolder;
-  // TODO db.host === "pglite" ? drizzle-orm/pglite/migrator : drizzle-orm/postgres-js/migrator, as auth does
-  throw new Error("not implemented");
+  if (db.host === "pglite") {
+    const { migrate: run } = await import("drizzle-orm/pglite/migrator");
+    await run(db as never, { migrationsFolder });
+  } else {
+    const { migrate: run } = await import("drizzle-orm/postgres-js/migrator");
+    await run(db as never, { migrationsFolder });
+  }
+}
+
+/**
+ * `db.execute(sql)` returns an array (postgres.js `RowList`) on one host and
+ * `{ rows }` (PGlite `Results`) on the other. Every raw-SQL reader goes through
+ * this so the difference exists in exactly one place. Prefer the query builder
+ * (`db.select(...)`), which is uniform.
+ */
+export function rowsOf(result: unknown): Record<string, unknown>[] {
+  if (Array.isArray(result)) return result as Record<string, unknown>[];
+  const rows = (result as { rows?: unknown })?.rows;
+  return Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
 }
 
 export { schema };

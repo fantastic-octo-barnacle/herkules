@@ -13,6 +13,8 @@
  * record which code produced what is on disk.
  */
 import type { NormalizedText } from "../db/search/normalize.ts";
+import { normalize } from "../db/search/normalize.ts";
+import { DOCUMENT_SEPARATOR } from "../db/schema.ts";
 
 /**
  * Newline-joins the row's raw text columns in the declared field order
@@ -22,9 +24,7 @@ import type { NormalizedText } from "../db/search/normalize.ts";
  * snippet offsets valid against the raw text.
  */
 export function buildDocument(fields: readonly string[]): NormalizedText {
-  void fields;
-  // TODO normalize(fields.join(DOCUMENT_SEPARATOR))
-  throw new Error("not implemented");
+  return normalize(fields.join(DOCUMENT_SEPARATOR));
 }
 
 /**
@@ -42,8 +42,8 @@ export interface LinkTargetIndex {
 }
 
 export function resolveLinkTarget(index: LinkTargetIndex, url: string): string | null {
-  void index;
-  void url;
-  // TODO index.byCanonicalUrl.get(url) ?? ((m = /\/article\/(\d+)/.exec(url)) ? index.bySourceArticleId.get(m[1]) : null) ?? null
-  throw new Error("not implemented");
+  const direct = index.byCanonicalUrl.get(url);
+  if (direct) return direct;
+  const m = /\/article\/(\d+)/.exec(url);
+  return (m && index.bySourceArticleId.get(m[1]!)) ?? null;
 }

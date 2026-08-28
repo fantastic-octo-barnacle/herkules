@@ -15,6 +15,7 @@
  *   hono.ts       subpath ./hono: honoAuth middleware + AuthEnv. Optional peer: hono.
  *   mcp.ts        subpath ./mcp: Principal <-> MCP SDK AuthInfo (structural type, no SDK import).
  *   testing.ts    subpath ./testing: createTestIssuer, the executable form of docs/tokens.md.
+ *   userinfo.ts   subpath ./userinfo: the auth service's user-info API with the caller's own token.
  * Call chain a reader traces: index -> verify -> { principal, challenge }. Two hops.
  */
 import type { BodyStyle, ChallengeContext } from "./challenge.ts";

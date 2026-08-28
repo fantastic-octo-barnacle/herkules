@@ -8,8 +8,8 @@ import { createTestIssuer, type TestIssuer } from "@herkules/auth-middleware/tes
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { createApp } from "../src/app.ts";
-import type { Member, UserInfo } from "../src/userinfo.ts";
-import { UserInfoError } from "../src/userinfo.ts";
+import type { Member, UserInfo } from "@herkules/auth-middleware/userinfo";
+import { UserInfoError } from "@herkules/auth-middleware/userinfo";
 import { connect, fetchVia, legacyCall, rpcResult } from "./helpers.ts";
 
 const ORIGIN = "http://localhost:3000";

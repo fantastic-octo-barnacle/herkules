@@ -3,7 +3,7 @@ import { mcpResource } from "@herkules/auth-middleware";
 
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
-import { createUserInfo } from "./userinfo.ts";
+import { createUserInfo } from "@herkules/auth-middleware/userinfo";
 
 export interface ServiceDeps {
   readonly env?: NodeJS.ProcessEnv;

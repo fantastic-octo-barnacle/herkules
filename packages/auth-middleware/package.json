@@ -12,6 +12,7 @@
     "./hono": "./dist/hono.mjs",
     "./mcp": "./dist/mcp.mjs",
     "./testing": "./dist/testing.mjs",
+    "./userinfo": "./dist/userinfo.mjs",
     "./package.json": "./package.json"
   },
   "scripts": {

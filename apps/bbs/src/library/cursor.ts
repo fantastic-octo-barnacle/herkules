@@ -14,9 +14,15 @@
  * that triple. Search pages on `(score DESC, id DESC)` instead, because the
  * ranking is the order. Both live in one codec so every route has one opaque
  * `cursor` parameter and one `nextCursor` field.
+ *
+ * The predicates reference the `articles` table UNALIASED (drizzle renders
+ * `"articles"."published_at"`); every statement in src/library keeps `articles`
+ * under its own name and aliases only secondary joins (`aliasedTable`).
  */
 import type { SQL } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
+import { articles } from "../db/schema.ts";
 import type { ArticleId, Cursor } from "./types.ts";
 
 export interface FeedKey {
@@ -38,28 +44,54 @@ export type CursorKey = FeedKey | RankKey;
 
 /** base64url of a compact JSON tuple. Never signed: it addresses public data and forges nothing. */
 export function encodeCursor(key: CursorKey): Cursor {
-  void key;
-  // TODO feed -> ["f", at.toISOString(), position, id]; rank -> ["r", score, id]
-  throw new Error("not implemented");
+  const tuple =
+    key.kind === "feed"
+      ? ["f", key.at.toISOString(), key.position, key.id]
+      : ["r", key.score, key.id];
+  return Buffer.from(JSON.stringify(tuple), "utf8").toString("base64url") as Cursor;
 }
 
 /** Null for anything unparseable or of the wrong kind; the caller throws QueryError("invalid_cursor") -> 400. */
 export function decodeCursor(raw: string, kind: CursorKey["kind"]): CursorKey | null {
-  void raw;
-  void kind;
-  throw new Error("not implemented");
+  let tuple: unknown;
+  try {
+    tuple = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(tuple)) return null;
+  if (kind === "feed") {
+    const [tag, at, position, id] = tuple as unknown[];
+    if (tag !== "f" || typeof at !== "string" || typeof position !== "number" || !isId(id)) {
+      return null;
+    }
+    const date = new Date(at);
+    if (Number.isNaN(date.getTime()) || !Number.isInteger(position)) return null;
+    return { kind: "feed", at: date, position, id: id as ArticleId };
+  }
+  const [tag, score, id] = tuple as unknown[];
+  if (tag !== "r" || typeof score !== "number" || !Number.isFinite(score) || !isId(id)) return null;
+  return { kind: "rank", score, id: id as ArticleId };
 }
+
+function isId(v: unknown): v is string {
+  return typeof v === "string" && /^[0-9A-HJKMNP-TV-Z]{26}$/i.test(v);
+}
+
+/** The feed's sort expression; also what `feedAfter` compares against. */
+export const FEED_AT: SQL = sql`coalesce(${articles.publishedAt}, ${articles.discoveredAt})`;
 
 /**
  * The `WHERE` half of keyset paging over the feed, written as the explicit
  * three-clause chain (always index-served on `articles_feed_idx`):
  *   at < :at OR (at = :at AND (listing_position > :pos OR (listing_position = :pos AND id < :id)))
- * where `at` is the COALESCE expression. TODO: try the row-comparison form
- * `(at, -listing_position, id) < (:at, -:pos, :id)` on real Postgres with EXPLAIN; keep whichever plans.
+ * where `at` is the COALESCE expression. The row-comparison form
+ * `(at, -listing_position, id) < (:at, -:pos, :id)` cannot use the index because the
+ * index key is `listing_position ASC`, not its negation; the chain matches the key exactly.
  */
 export function feedAfter(key: FeedKey): SQL {
-  void key;
-  throw new Error("not implemented");
+  const at = sql`${key.at.toISOString()}::timestamptz`;
+  return sql`(${FEED_AT} < ${at} OR (${FEED_AT} = ${at} AND (${articles.listingPosition} > ${key.position} OR (${articles.listingPosition} = ${key.position} AND ${articles.id} < ${key.id}))))`;
 }
 
 /**
@@ -68,9 +100,7 @@ export function feedAfter(key: FeedKey): SQL {
  * one reason `limit` is capped at 100.
  */
 export function rankAfter(key: RankKey, scoreExpr: SQL): SQL {
-  void key;
-  void scoreExpr;
-  throw new Error("not implemented");
+  return sql`((${scoreExpr}) < ${key.score}::double precision OR ((${scoreExpr}) = ${key.score}::double precision AND ${articles.id} < ${key.id}))`;
 }
 
 export const DEFAULT_LIMIT = 20;
