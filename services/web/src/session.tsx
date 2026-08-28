@@ -20,13 +20,9 @@ interface SessionState {
 
 const Ctx = createContext<SessionState | undefined>(undefined);
 
-export function SessionProvider({
-  api = createApi(),
-  children,
-}: {
-  api?: Api;
-  children: ReactNode;
-}) {
+export function SessionProvider({ api: given, children }: { api?: Api; children: ReactNode }) {
+  // One client for the provider's life: a default parameter would be rebuilt every render and re-fire every effect keyed on `api`.
+  const [api] = useState(() => given ?? createApi());
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const refresh = useCallback(async () => {
     setSession(await api.session().catch(() => null));

@@ -86,8 +86,12 @@ export function AdminAuditPage() {
         </label>
       </div>
       <ErrorNotice error={error} />
-      {rows.length === 0 && !loading ? (
-        <p className="empty">Nothing recorded yet.</p>
+      {rows.length === 0 ? (
+        loading ? (
+          <Spinner />
+        ) : (
+          <p className="empty">Nothing recorded yet.</p>
+        )
       ) : (
         <ol className="audit">
           {rows.map((r) => (
@@ -101,7 +105,6 @@ export function AdminAuditPage() {
           ))}
         </ol>
       )}
-      {loading ? <Spinner /> : null}
       {next ? (
         <div className="more">
           <button className="btn" onClick={() => load(next)} disabled={loading}>

@@ -18,6 +18,7 @@ export function AdminUsersPage() {
   const [rows, setRows] = useState<readonly AdminUserRow[]>([]);
   const [next, setNext] = useState<string | undefined>();
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | undefined>();
   const [error, setError] = useState<unknown>();
@@ -26,7 +27,7 @@ export function AdminUsersPage() {
     async (cursor?: string) => {
       setLoading(true);
       try {
-        const page = await api.admin.users({ search: search || undefined, cursor });
+        const page = await api.admin.users({ search: query || undefined, cursor });
         setRows((prev) => (cursor ? [...prev, ...page.rows] : page.rows));
         setNext(page.next);
       } catch (err) {
@@ -35,7 +36,7 @@ export function AdminUsersPage() {
         setLoading(false);
       }
     },
-    [api, search],
+    [api, query],
   );
   useEffect(() => {
     void load();
@@ -67,7 +68,7 @@ export function AdminUsersPage() {
         className="toolbar"
         onSubmit={(e) => {
           e.preventDefault();
-          void load();
+          setQuery(search.trim());
         }}
       >
         <label className="field grow">
@@ -167,10 +168,12 @@ export function AdminUsersPage() {
           </tbody>
         </table>
       </div>
-      {loading ? (
-        <Spinner />
-      ) : rows.length === 0 ? (
-        <p className="empty">No members match.</p>
+      {rows.length === 0 ? (
+        loading ? (
+          <Spinner />
+        ) : (
+          <p className="empty">No members match.</p>
+        )
       ) : null}
       {next ? (
         <div className="more">
