@@ -1,14 +1,19 @@
-# Edge Caddy for the single origin. TLS is automatic for a real hostname
-# (DNS-only record pointing at the box); `http://localhost:3000` in dev.
+# Edge Caddy for the platform origin plus the bbs subdomain. TLS is automatic
+# for a real hostname (DNS-only records pointing at the box); `http://localhost:3000`
+# and `http://localhost:3003` in dev.
 # Each MCP server adds one file under caddy/services/ (see directory.caddy).
-{$SITE_ADDRESS} {
-	encode zstd gzip
+(common_headers) {
 	header {
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		-Server
 	}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	import common_headers
 	# Caddy orders `handle` blocks by path specificity, so the catch-all below always loses to these.
 	handle /auth/* {
 		reverse_proxy auth:3001
@@ -20,4 +25,14 @@
 	handle {
 		reverse_proxy web:80
 	}
+}
+
+# apps/bbs — its own origin (cookies, OAuth redirect URI); the API, the SPA and
+# head injection are all one container. Its MCP path stays on the platform
+# origin (caddy/services/bbs.caddy). Must be a top-level block: the services
+# glob above is imported inside {$SITE_ADDRESS}.
+{$BBS_SITE_ADDRESS} {
+	encode zstd gzip
+	import common_headers
+	reverse_proxy bbs:3003
 }

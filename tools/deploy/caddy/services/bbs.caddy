@@ -1,0 +1,4 @@
+# apps/bbs — resource https://<host>/mcp/bbs (the web app lives on {$BBS_SITE_ADDRESS})
+handle /mcp/bbs* {
+	reverse_proxy bbs:3003
+}

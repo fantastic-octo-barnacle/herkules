@@ -8,6 +8,7 @@ import { defineConfig } from "vite-plus";
  */
 const AUTH = "http://localhost:3001";
 const DIRECTORY = "http://localhost:3002";
+const BBS = "http://localhost:3103"; // apps/bbs's Hono process; its SPA dev server on :3003 is a separate origin
 
 export default defineConfig({
   plugins: [react()],
@@ -18,6 +19,7 @@ export default defineConfig({
       "/auth": AUTH,
       "/.well-known": AUTH,
       "/mcp/directory": DIRECTORY,
+      "/mcp/bbs": BBS,
     },
   },
   build: { sourcemap: false },

@@ -46,9 +46,10 @@ app.post("/api/notes", oauth.guard({ role: "member" }), h); // c.var.principal: 
 app.on(["GET", "POST", "DELETE"], "/mcp/bbs", honoAuth(mcp), m); // bearer only, same variable
 ```
 
-`/api/me` under `viewer()` returns `null` for anonymous and, for a member,
+`/api/viewer` under `viewer()` returns `null` for anonymous and, for a member,
 `{ id: principal.subject, role, displayName }` with display data fetched from
-the user-info API using `principal.token` (as `services/mcp-directory` does).
+the user-info API using `principal.token` (as `services/mcp-directory` does);
+`/api/me` sits behind `guard({ role: "member" })` and answers 401 to nobody.
 Login is `<a href="/login?next=…">`; logout is a POST form. Tests use
 `createFakeIssuer()` and `issuer.signIn(app, { subject, role })`.
 

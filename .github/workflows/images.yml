@@ -1,5 +1,5 @@
 name: Images
-# main -> build the four images -> push to GHCR -> ssh to the box: compose pull && up -d.
+# main -> build the five images -> push to GHCR -> ssh to the box: compose pull && up -d.
 on:
   push:
     branches: [main]
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [auth, mcp-directory, web, backup]
+        target: [auth, mcp-directory, bbs, web, backup]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -66,6 +66,6 @@ jobs:
         env:
           TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
         run: |
-          ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/caddy/services'
+          ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/caddy/services ~/herkules/import'
           scp -i ~/.ssh/deploy -r tools/deploy/docker-compose.yml tools/deploy/Caddyfile tools/deploy/caddy/services "$TARGET":~/herkules/
           ssh -i ~/.ssh/deploy "$TARGET" 'cd ~/herkules && docker compose pull --quiet && docker compose up -d --remove-orphans && docker image prune -f >/dev/null && docker compose ps'

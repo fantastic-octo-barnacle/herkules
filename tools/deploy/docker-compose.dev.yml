@@ -5,6 +5,7 @@ services:
   caddy:
     ports: !override
       - "3000:3000"
+      - "3003:3003"
   auth:
     build:
       context: ../..
@@ -17,6 +18,10 @@ services:
     build:
       context: ../..
       target: mcp-directory
+  bbs:
+    build:
+      context: ../..
+      target: bbs
   backup:
     build:
       context: ../..
