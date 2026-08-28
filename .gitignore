@@ -31,9 +31,7 @@ dist-ssr
 
 # AI agent worktrees
 .claude/worktrees/
+.zcode/
 !.vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
-
-# direnv
-.direnv/
