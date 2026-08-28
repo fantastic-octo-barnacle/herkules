@@ -3,6 +3,7 @@
  * boots its own service so state never leaks between scenarios.
  */
 import { mcpResource } from "@herkules/auth-middleware";
+import { fetchVia } from "@herkules/auth-middleware/testing";
 import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 import { createTestService, TEST_ORG, type TestService } from "../src/testing.ts";
 
@@ -214,8 +215,7 @@ describe("admin operations", () => {
     const rs = mcpResource({
       resource: t.service.registry.canonical.audience,
       issuer: t.issuer,
-      fetch: async (input, init) =>
-        t.app.request(input instanceof Request ? input : String(input), init),
+      fetch: fetchVia(t.app),
     });
     expect((await rs.verifyToken(client.accessToken)).ok).toBe(true);
 
@@ -497,8 +497,7 @@ describe("user-info API and clients", () => {
     const rs = mcpResource({
       resource: t.service.registry.canonical.audience,
       issuer: t.issuer,
-      fetch: async (input, init) =>
-        t.app.request(input instanceof Request ? input : String(input), init),
+      fetch: fetchVia(t.app),
     });
     const outcome = await rs.verifyToken(dev.accessToken);
     expect(outcome.ok).toBe(true);

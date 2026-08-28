@@ -1,4 +1,5 @@
 import { mcpResource } from "@herkules/auth-middleware";
+import { fetchVia } from "@herkules/auth-middleware/testing";
 import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 import { createTestService, type TestService } from "../src/testing.ts";
 
@@ -63,9 +64,7 @@ describe("login and token", () => {
     const client = await t.mcpClient(login.cookie, audience);
     expect(client.refreshToken).not.toBe("");
 
-    const viaApp: typeof globalThis.fetch = async (input, init) =>
-      t.app.request(input instanceof Request ? input : String(input), init);
-    const auth = mcpResource({ resource: audience, issuer: t.issuer, fetch: viaApp });
+    const auth = mcpResource({ resource: audience, issuer: t.issuer, fetch: fetchVia(t.app) });
     const outcome = await auth.verifyToken(client.accessToken);
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;

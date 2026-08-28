@@ -3,8 +3,11 @@
  * entry points. An in-process issuer that is the executable form of
  * docs/tokens.md's minting side: Ed25519 via jose, a JWKS served through a
  * `fetch` the verifier takes as its transport seam, and a minter that can
- * also produce every kind of BAD token the contract must reject.
+ * also produce every kind of BAD token the contract must reject. `fetchVia`
+ * is the other half of that seam: it points a verifier's `fetch` at an
+ * in-process app, so a whole suite runs with no network.
  */
+import type { Hono } from "hono";
 import type { CryptoKey, JWK } from "jose";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import type { Role } from "./principal.ts";
@@ -152,4 +155,9 @@ export async function createTestIssuer(options?: {
     },
   };
   return self;
+}
+
+/** Route a fetch to an in-process Hono app (any origin). */
+export function fetchVia(app: { request: Hono["request"] }): typeof globalThis.fetch {
+  return async (input, init) => app.request(input instanceof Request ? input : String(input), init);
 }

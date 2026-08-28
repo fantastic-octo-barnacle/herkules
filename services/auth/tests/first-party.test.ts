@@ -10,6 +10,7 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 import { apiResource } from "@herkules/auth-middleware";
+import { fetchVia } from "@herkules/auth-middleware/testing";
 import { decodeJwt } from "jose";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vite-plus/test";
 import { hashClientSecret, clientSecretStore } from "../src/secrets.ts";
@@ -150,8 +151,7 @@ describe("a directly inserted confidential first-party client", () => {
     const rs = apiResource({
       resource: audience,
       issuer: t.issuer,
-      fetch: async (input, init) =>
-        t.app.request(input instanceof Request ? input : String(input), init),
+      fetch: fetchVia(t.app),
     });
     const outcome = await rs.verifyToken(access);
     expect(outcome.ok).toBe(true);

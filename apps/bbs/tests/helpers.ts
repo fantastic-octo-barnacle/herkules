@@ -3,10 +3,11 @@
  *
  *  1. PGlite 0.5.8 ships `pg_trgm` as a constructor extension; `createDb` passes
  *     it, so this file only points `DATABASE_URL` at `pglite://memory`.
- *  2. `fetchVia` is the repo's whole test architecture: one in-process Hono app's
- *     `fetch` becomes another service's outbound transport. bbs keeps the seam
- *     (`ServiceDeps.fetch`), so a bbs test drives the REAL auth service on
- *     PGlite via `@herkules/auth/testing`, and the fast suites use
+ *  2. `fetchVia` (from `@herkules/auth-middleware/testing`) is the repo's whole
+ *     test architecture: one in-process Hono app's `fetch` becomes another
+ *     service's outbound transport. bbs keeps the seam (`ServiceDeps.fetch`),
+ *     so a bbs test drives the REAL auth service on PGlite via
+ *     `@herkules/auth/testing`, and the fast suites use
  *     `@herkules/oauth-client/testing`'s `createFakeIssuer()` instead.
  *
  * WHAT RUNS WHERE
@@ -34,6 +35,7 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { apiResource, mcpResource } from "@herkules/auth-middleware";
+import { fetchVia } from "@herkules/auth-middleware/testing";
 import { createUserInfo } from "@herkules/auth-middleware/userinfo";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { createOAuthClient } from "@herkules/oauth-client";
@@ -73,10 +75,8 @@ export const MCP_RESOURCE = `${ORIGIN}/mcp/bbs`;
 export const CLIENT_SECRET = "bbs-secret-".padEnd(48, "x");
 export const COOKIE_SECRET = "c".repeat(32);
 
-/** Route a fetch to an in-process Hono app (any origin). */
-export function fetchVia(app: { request: Hono["request"] }): typeof globalThis.fetch {
-  return async (input, init) => app.request(input instanceof Request ? input : String(input), init);
-}
+// Re-exported so bbs tests reach the harness through one import.
+export { fetchVia };
 
 /** An SDK 2.0 client connected over an in-process fetch with a Bearer token. */
 export async function connect(

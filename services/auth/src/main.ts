@@ -102,9 +102,17 @@ export async function main(): Promise<void> {
     () => void service.prune().catch((err) => console.error("dcr-prune failed", err)),
     DAY_MS,
   ).unref();
-  serve({ fetch: service.app.fetch, port: service.config.PORT }, (info) => {
+  const server = serve({ fetch: service.app.fetch, port: service.config.PORT }, (info) => {
     console.log(`herkules auth listening on :${info.port} as ${service.config.issuer}`);
   });
+  // Docker stops the container with SIGTERM: stop accepting, then hand the
+  // Postgres pool back before the runtime kills the process.
+  const shutdown = () => {
+    server.close();
+    void service.close().finally(() => process.exit(0));
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

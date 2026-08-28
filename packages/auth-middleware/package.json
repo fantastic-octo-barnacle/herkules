@@ -23,11 +23,11 @@
     "vectors": "node scripts/generate-vectors.ts"
   },
   "dependencies": {
-    "jose": "^6.0.0"
+    "jose": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "hono": "^4.0.0",
+    "hono": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"

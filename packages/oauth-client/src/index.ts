@@ -31,14 +31,11 @@ import { MIN_SECRET_LENGTH, createSealer } from "./seal.ts";
 import type { SessionEvent, SessionOutcome } from "./session.ts";
 import { createSessionResolver } from "./session.ts";
 
-export type { SafePath } from "./cookie.ts";
-export { safePath } from "./cookie.ts";
 export type { LoginFailure, LoginFailureCode, Redirect } from "./login.ts";
 export type { AnonymousReason, SessionEvent, SessionFailure, SessionOutcome } from "./session.ts";
-export { REFRESH_AHEAD_SECONDS, REPLAY_WINDOW_SECONDS } from "./session.ts";
 
-export const CALLBACK_PATH = "/callback";
-export const SCOPE: readonly string[] = ["offline_access"]; // `openid` is filtered per resource by the issuer; asking would buy nothing
+const CALLBACK_PATH = "/callback";
+const SCOPE: readonly string[] = ["offline_access"]; // `openid` is filtered per resource by the issuer; asking would buy nothing
 const MIN_CLIENT_SECRET_LENGTH = 16;
 
 /**

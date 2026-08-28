@@ -14,7 +14,7 @@
  *   challenge.ts  AuthFailure -> Response; the only writer of WWW-Authenticate. Pure.
  *   hono.ts       subpath ./hono: honoAuth middleware + AuthEnv. Optional peer: hono.
  *   mcp.ts        subpath ./mcp: Principal <-> MCP SDK AuthInfo (structural type, no SDK import).
- *   testing.ts    subpath ./testing: createTestIssuer, the executable form of docs/tokens.md.
+ *   testing.ts    subpath ./testing: createTestIssuer + fetchVia, the executable form of docs/tokens.md.
  *   userinfo.ts   subpath ./userinfo: the auth service's user-info API with the caller's own token.
  * Call chain a reader traces: index -> verify -> { principal, challenge }. Two hops.
  */
@@ -27,13 +27,11 @@ import { jwksUrlFor, resourceMetadataUrlFor, validateResource } from "./resource
 import { createTokenVerifier, parseAuthorization } from "./verify.ts";
 
 /** docs/tokens.md §8: SHOULD tolerate up to 60 s. */
-export const DEFAULT_CLOCK_TOLERANCE_SECONDS = 60;
+const DEFAULT_CLOCK_TOLERANCE_SECONDS = 60;
 
 export type { AuthFailure, InvalidTokenReason } from "./failure.ts";
 export type { Principal, Role } from "./principal.ts";
-export { roleSatisfies } from "./principal.ts";
 export { resourceMetadataUrlFor } from "./resource.ts";
-export type { BodyStyle };
 
 /**
  * @typeParam S the resource's declared scope vocabulary. Defaults to `never`:

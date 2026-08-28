@@ -41,4 +41,4 @@ app.use("/api/*", honoAuth(auth));
 app.get("/api/me", (c) => c.json({ id: c.var.principal.subject }));
 ```
 
-Use `src/testing.ts` through the `/testing` export for unit tests. The conformance suite is in `tests/vectors.test.ts` and `tests/contract.test.ts`.
+Use `src/testing.ts` through the `/testing` export for unit tests: `createTestIssuer()` mints tokens and serves JWKS, and `fetchVia(app)` points a verifier's `fetch` at an in-process Hono app so the suite needs no network. The conformance suite is in `tests/vectors.test.ts` and `tests/contract.test.ts`.
