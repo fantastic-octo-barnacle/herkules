@@ -1,0 +1,31 @@
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite-plus";
+
+/**
+ * Dev: this server IS the public origin (http://localhost:3000), so the auth
+ * service and the directory run with PUBLIC_ORIGIN=http://localhost:3000 and
+ * are reached through the proxy exactly as Caddy routes them in production.
+ */
+const AUTH = "http://localhost:3001";
+const DIRECTORY = "http://localhost:3002";
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 3000,
+    strictPort: true,
+    proxy: {
+      "/auth": AUTH,
+      "/.well-known": AUTH,
+      "/mcp/directory": DIRECTORY,
+    },
+  },
+  build: { sourcemap: false },
+  test: {
+    // Pure modules only (api client, dev-token flow, formatting); the flow test runs the real auth service on PGlite.
+    include: ["tests/**/*.test.ts"],
+    testTimeout: 20_000,
+  },
+  lint: { options: { typeAware: true, typeCheck: true } },
+  fmt: {},
+});

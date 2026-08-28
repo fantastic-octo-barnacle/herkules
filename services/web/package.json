@@ -1,0 +1,29 @@
+{
+  "name": "@herkules/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "herkules web: the SPA at https://herkules.dev/ — login, consent, settings (connected clients), admin (members, allowlist, audit), dev-token page. Static files; every call goes to services/auth under /auth.",
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview",
+    "test": "vp test",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router": "^7.9.0"
+  },
+  "devDependencies": {
+    "@herkules/auth": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.1.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

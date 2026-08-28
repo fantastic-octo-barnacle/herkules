@@ -309,5 +309,5 @@ a test in `tests/`.
 Done: every module body, the schema/migration pipeline, and the test suite.
 `services/mcp-directory` (2026-08-28) consumes the surface above and added one
 route, `GET /auth/api/users` (member directory for any identified member).
-Next: `services/web` (login, consent, settings, admin and dev-token pages
-against the HTTP surface above), then `tools/deploy`.
+`services/web` (2026-08-28) codes against the surface above unchanged.
+Next: `tools/deploy`.
