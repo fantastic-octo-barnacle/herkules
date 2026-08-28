@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "data": {
+    "id": 1939254,
+    "title": "底盘功率控制笔记",
+    "authorNickname": "Chassis",
+    "createAt": 1755680000000,
+    "contentType": "MARKDOWN",
+    "htmlContent": "<p>ignored when markdown is present</p>",
+    "markdownContent": "## 架构\n\n使用插件系统。\n\n[仓库](https://gitee.com/a/b)\n\n![功率曲线](https://cdn.example.com/power.png)\n",
+    "attachments": null,
+    "fileItems": [],
+    "references": null
+  }
+}

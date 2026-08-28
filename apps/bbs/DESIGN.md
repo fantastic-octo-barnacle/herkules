@@ -478,3 +478,112 @@ each surfaced by the implementer rather than absorbed:
 - `ai-json.ts`: zod v4 rejects an absent key under `z.unknown().transform()`; `.optional()` precedes it.
 - Open from the deploy track: `WEB_DIR` is wired in compose and the image, so the container will not
   boot until round 2 ships `dist/client/index.html` — deliberate; ship round 2 before the first deploy.
+
+---
+
+# `apps/bbs` — design, round 3: the crawler (`bbs-worker`) — 2026-08-28
+
+Decision record: `FRAME.md` "Frame 2" (crawler only; AI deferred entirely). Designed by a
+three-candidate arena and a cross-judge; synthesis = candidate A (two supervised loops, exact
+rm-wenku cadence) with grafts from B (forward-only link resolution, wire-key codec, `Lease`,
+`ThrottledError` as its own class, `MIN_BODY_CHARS = 100`) and C (`Budget`, advisory lock).
+Rejected: a single sequential loop (reverses grilling Q5), a `poll_runs_one_running` partial index
+(an incomplete backfill never idles → 23505 on a fresh self-host database), any inverse SQL URL rule.
+
+## Usage (caller's view)
+
+```
+bbs migrate               apply drizzle/, rederive if corpus_versions differs   (compose one-shot)
+bbs work                  the crawler, forever (bbs-worker container); exit 3 if another worker holds the lock
+bbs work --once           one full cycle: discover page 1, one backfill page, ≤10 fetches, ≤5 refreshes; exit 1 on a failed poll
+bbs rederive [--force]    recompute derived columns; prints changed counts
+```
+
+```ts
+const crawler = createCrawler({ db, fetch, clock, guard: PERMISSIVE_GUARD }); // every seam a parameter
+const outcome = await crawler.once(); // poll_runs counters
+// the API's one write, after a successful REST GET /api/articles/:id (app.ts onArticleRead):
+await noteArticleRead(db, article.id, now); // true at most once per 24 h per fetched article
+```
+
+## Shape
+
+```
+source/index.ts       ListedArticle · Listing · ArticleDetail · SourceError (7 closed kinds) · breakerKind — the ONE source→guard map
+source/http.ts        the only outbound call: guard.acquire → fetch → lease.ok|failed; https+origin+private-host policy, 5 MiB cap,
+                      redirect "manual", one 15 s timeout, no retries (the persistent guard IS the retry policy)
+source/robomaster.ts  zod DTOs (private) + mapping; PARSER_VERSION "rm-api-v5"; offset-less dates are UTC+8
+guard/policy.ts       PURE reducer: decide/proceed/recordSuccess/recordFailure/refusal/roll — every rm-wenku number
+guard/index.ts        createGuard: promise-chain serialised; persisted BEFORE the request (over-count, never under)
+guard/store.ts        the only place rm-wenku's snake_case blob keys exist (zod; corrupt blob → fresh state, one log line)
+content/extract.ts    raw html/markdown → {bodyText, links, images}; extras (attachments, references) through the same rules
+content/title.ts      splitTitle, golden-tested 810/810 against rm-wenku's corpus; text.ts / urls.ts helpers
+crawl/corpus.ts       THE WRITE MODULE: discover (one tx per page), storeDetail (the article tx), marks, poll_runs, backfill cursor,
+                      nextWork = the ladder as ONE UNION ALL statement, noteArticleRead
+crawl/links.ts        target_article_id resolved FORWARD by import/derive.ts resolveLinkTarget on both paths; dangling links
+                      re-resolved after inserts from one ~1 000-row index query — no cache, no second rule
+crawl/worker.ts       discovery loop (600 s + rand 30 s, poll_runs row per cycle) + fetch loop (ladder, paced) + Wake;
+                      Budget {fetch, refresh, backfill} — one runWork for the loops and once(); supervise 30→600 s backoff
+crawl/index.ts        createCrawler → work(signal) | once(); pg_try_advisory_lock on a dedicated connection (exit 3)
+crawl/rederive.ts     corpus_versions (id = 1 CHECK) → rederive at migrate and at API boot; covers kb_search.document too
+crawl/cli.ts          migrate | rederive | work [--once]; main.ts is a dispatch table; `work` never builds the Hono app
+db/schema.ts          + corpus_versions (drizzle/0001_calm_terrax.sql); header ownership rule rewritten
+api/routes.ts         GET /articles/:id awaits deps.onArticleRead in try/catch after the DTO; REST only; Library stays read-only
+tools/deploy          bbs-migrate (one-shot), bbs (depends on it), bbs-worker (command ["work"], replicas 0, 256m, 30 s grace)
+```
+
+Trace "discovery found a post → row in article_search": `worker.ts runCycle → corpus.ts discover`,
+then `worker.ts runWork → corpus.ts storeDetail` (+ `links.ts`). Two files.
+
+Policy constants (no env knobs): guard 2 s + 0–1 s jitter, 20/min, 2 000/day at UTC midnight,
+reserve 200, ladder 60 s/5 m/30 m/2 h/24 h with `max(Retry-After, step)`, Throttled past 30 s;
+worker POLL 600 s + 30 s jitter, window 20, fetch pace 10 s, idle recheck 60 s (Frame 2; rm-wenku 600),
+error pause 60 s, pause recheck 900 s, throttle wait 60 s–1 h, backfill page 20, failed retry 1 h,
+refresh stale after 24 h, `MIN_BODY_CHARS` 100 code points.
+
+## As built — deviations from rm-wenku and from the sketch, all named
+
+- fetch() has one 15 s timeout (no separate 10 s connect timeout).
+- `body_text` is not byte-identical to the Rust extractor: the first refresh of every imported
+  article sets `content_changed_at` once (accepted at the checkpoint; nothing reads it now).
+- Tags are replaced on a refresh when the detail carries tags (rm-wenku `replace_tags`).
+- A backfill listing error inside the fetch loop pauses the loop 60 s and retries the same page;
+  the cycle path (`once()`) fails the poll as rm-wenku did.
+- `serve` keeps its idempotent `migrate()` + boot rederive (~3 s on 1 000 rows); `bbs-migrate`
+  makes both no-ops in compose. `work`/`rederive` refuse an unmigrated database.
+- Versions: `RENDER_VERSION` "1", `NORMALIZE_VERSION` "1" (round 1), `TITLE_VERSION` "0",
+  `EXTRACT_VERSION` "0" — a clean break; nothing reads the old `import_runs` versions.
+  `EXTRACT_VERSION` is NOT in `corpus_versions`: `parser_version` + a refresh is the repair path.
+- `import` writes title parts from the SQLite copy and never touches `corpus_versions`; after the
+  API boot has written the row, a later import's rows are not re-titled (the golden corpus proves
+  the two parsers agree). `bbs rederive --force` exists for the day they do not.
+- The synthetic test fixture's source id is `src-bbs`; the crawler owns `robomaster` (rm-wenku's
+  `SOURCE_ID`, what the Singapore backup carries). Imported rows under another source id are
+  invisible to the ladder — the cutover import must carry `robomaster`.
+- Ids stay 26-char ULIDs (`crawl/ulid.ts`): the read side validates that shape
+  (`api/schemas.ts`, `library/types.ts`, MCP), so a numeric id would be a contract change.
+
+## Tests (48 crawler tests; suite 37 files / 314)
+
+`tests/guard.test.ts` (policy against numbers; shell against a memory store and PGlite; wire keys;
+corrupt blob), `tests/source.test.ts` (fixture mapping, request shape, isLast, format matrix, date
+formats, status → failure → lease settle, cap, no retries), `tests/corpus.test.ts` (every operation's
+idempotence, COALESCE rules, one-transaction proofs, caption-preserving image upsert, forward
+back-fill, the ladder, `noteArticleRead`), `tests/crawl.test.ts` (`once()` on an empty database
+twice with table digests, too-short/not-found/throttle, fetch-loop pacing and pauses, crash → 60 s,
+supervise backoff, Wake, the stale-GET round trip through the real service, import-then-crawl
+coexistence, rederive no-op/drift, the CLIs), `tests/title.test.ts` (golden 810/810),
+`tests/extract.test.ts`, `tests/urls.test.ts`. Seams: `tests/crawl-helpers.ts` — `fakeForum`,
+`fakeClock`, `PERMISSIVE_GUARD`, `freshDb`, `digestTables`.
+
+## Frame 2 done predicate — status
+
+1. `work --once` on PGlite against the fixtures: **done** (tests/crawl.test.ts).
+2. Guard numbers as tests: **done** (tests/guard.test.ts).
+3. Title golden corpus: **done**, 810/810.
+4. Rederive no-op after import: **done** for content_html and both documents; title parts of the
+   synthetic fixture are hand-written (see deviations).
+5. Empty-database self-host backfill: **done** (`once()` completes the backfill in the test; the
+   loop does it a page per ladder step in production).
+6. Post visible within 15 min after cutover: **operational** — needs the HK-box curl, the deploy
+   and the Singapore backup (tools/deploy/README.md "Cutover").

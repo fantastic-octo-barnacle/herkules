@@ -74,10 +74,34 @@ Then the kill-criterion run: `claude mcp add --transport http directory https://
 
 ## bbs (RM 文库)
 
-`bbs` creates its database at boot (`ensureDatabase`; set `BBS_CREATE_DATABASE=false`
-and `createdb -U herkules bbs` yourself if the role ever loses CREATEDB) and runs its
-migrations, but serves an empty archive until the corpus is imported from a
-`wenku backup` copy of the old box's SQLite:
+One image, three commands (`apps/bbs/FRAME.md` Frame 2): `bbs-migrate` (one-shot: creates the
+database with `ensureDatabase` — set `BBS_CREATE_DATABASE=false` and `createdb -U herkules bbs`
+yourself if the role ever loses CREATEDB — applies migrations, rederives derived columns when
+`corpus_versions` differs), `bbs` (API + MCP + SPA) and `bbs-worker` (the crawler, `replicas: 0`
+until cutover). The crawl policy is constants in the code, not env: 2 s spacing, 20/min,
+2 000/day (UTC), 200 kept for reader-triggered refreshes, cooldown ladder on 429/403/5xx.
+
+**Self-host from an empty database** — nothing to import; the worker discovers page 1 every
+10 min and backfills one page per ladder step until the forum is exhausted:
+
+```sh
+docker compose up -d --scale bbs-worker=1
+docker compose run --rm bbs work --once                # one manual cycle; prints the counters
+docker compose logs -f bbs-worker
+```
+
+**Cutover from the Singapore rm-wenku box** (its 908 generated overviews come only through a
+final import; articles crawled afterwards show 尚未生成 until an AI phase exists):
+
+1. From this box, `curl` both forum endpoints with rm-wenku's UA once; a 403 here is the kill criterion.
+2. Deploy with `bbs-worker` at scale 0 (the default).
+3. Stop the old crawler, run `wenku backup` there, `scp` the dump, then the final import below.
+4. `docker compose up -d --scale bbs-worker=1`; a new forum post appears on the site within 15 min.
+5. After a clean week, decommission the old box. A second worker against the same database exits 3
+   (advisory lock) before sending any request — `compose ps` shows it restarting; harmless.
+
+`bbs import` is DEPRECATED (the cutover tool and dev loader): it truncates the corpus,
+including everything the worker wrote, and reloads from a `wenku backup` copy of the old box's SQLite:
 
 ```sh
 scp old-box:app.db ~/herkules/import/app.db          # ./import is mounted read-only at /import

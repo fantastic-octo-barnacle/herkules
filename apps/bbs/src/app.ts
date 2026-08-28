@@ -47,6 +47,12 @@ export interface AppDeps {
   /** `db.execute(sql\`select 1\`)`; the only thing /healthz can meaningfully check. */
   readonly ping: () => Promise<void>;
   readonly onError?: (error: Error) => void;
+  /**
+   * Called with the article id after a successful REST GET /api/articles/:id — the API's one write
+   * (crawl/corpus.ts noteArticleRead queues a refresh for a stale article). Optional so tests over
+   * fakeLibrary need not wire it; MCP reads never call it (rm-wenku parity).
+   */
+  readonly onArticleRead?: (id: string) => Promise<boolean>;
 }
 
 export function createApp(deps: AppDeps) {
@@ -84,6 +90,7 @@ export function createApp(deps: AppDeps) {
       oauth: deps.oauth,
       userInfo: deps.userInfo,
       onError: deps.onError,
+      onArticleRead: deps.onArticleRead,
     }),
   );
   deps.spa.mount(app); // LAST

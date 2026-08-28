@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "data": {
+    "id": 1939253,
+    "title": "自瞄框架开源：插件化视觉系统",
+    "authorNickname": "RobotPilots",
+    "createAt": "2026-08-20 14:03:22",
+    "top": false,
+    "introduction": "基于插件的自瞄框架。",
+    "tags": [{ "groupName": "视觉", "name": "自瞄" }],
+    "contentType": "HTML",
+    "htmlContent": "<h2>框架设计</h2><p>插件通过 Context 通信并按配置动态加载。</p><pre><code>add_plugin(camera)</code></pre><p><a href=\"https://github.com/example/frame\">源码</a></p><img src=\"https://cdn.example.com/diagram.png\" alt=\"架构图\">",
+    "markdownContent": null,
+    "attachments": [{ "src": "https://cdn.example.com/report.pdf", "name": "技术报告.pdf" }],
+    "fileItems": [
+      { "src": "https://cdn.example.com/report.pdf", "name": "重复文件" },
+      { "src": "https://cdn.example.com/files/123", "name": "photo.JPG" }
+    ],
+    "references": [{ "url": "https://bbs.robomaster.com/article/123", "title": "参考项目" }]
+  }
+}

@@ -16,9 +16,11 @@
  *     `c.req.valid(...)`; the SPA's typo becomes a compile error, which is the
  *     point of having a typed client at all.
  *
- * ACCESS POLICY: every route is a read and v1 has NO writes at all — no
- * POST/PUT/PATCH/DELETE, and no table an HTTP request could reach
- * (`import_runs` is the CLI's; everything else is truncate-reload cargo). So
+ * ACCESS POLICY: every route is a read — no POST/PUT/PATCH/DELETE. The one
+ * side effect an HTTP request has (Frame 2) is `onArticleRead` after a
+ * successful GET /articles/:id: a single guarded UPDATE of
+ * `articles.refresh_requested_at` that queues a crawler refresh of a stale
+ * article, never changes the response, and is idempotent per 24 h. So
  * FRAME's "every non-read requires a member" is vacuously satisfied, and
  * `oauth.guard()` protects exactly one route, `/api/me`, because knowing who
  * you are requires being someone. `/api/viewer` answers "who is looking?" with
@@ -42,6 +44,8 @@ export interface ApiDeps {
   /** Display name and avatar, fetched with the caller's own token (mcp-directory's pattern). */
   readonly userInfo: UserInfo;
   readonly onError?: (error: Error) => void;
+  /** After a successful GET /articles/:id (app.ts AppDeps). Awaited in try/catch: it never changes the response. */
+  readonly onArticleRead?: (id: string) => Promise<boolean>;
 }
 
 const CONTENT_TYPES = {
@@ -90,7 +94,15 @@ export function createApi(deps: ApiDeps) {
     })
     .get("/articles/:id", param(idParam), async (c) => {
       const article = await lib.article(id(c.req.valid("param").id));
-      return article ? c.json(article) : c.json(notFound, 404);
+      if (!article) return c.json(notFound, 404);
+      if (deps.onArticleRead) {
+        try {
+          await deps.onArticleRead(article.id);
+        } catch (e) {
+          deps.onError?.(e as Error);
+        }
+      }
+      return c.json(article);
     })
     .get("/articles/:id/content", param(idParam), query(s.contentQuery), async (c) => {
       const { format } = c.req.valid("query");

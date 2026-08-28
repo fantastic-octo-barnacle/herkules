@@ -2,12 +2,19 @@
  * Composition root and argv dispatcher. Boot order is dependency order; nothing
  * here has logic (services/auth/src/main.ts states the rule).
  *
- *   node dist/main.mjs                  serve: ensureDatabase, migrate, listen
- *   node dist/main.mjs import <app.db>  import/cli.ts, exit code = report
+ *   node dist/main.mjs                     serve: ensureDatabase, migrate (idempotent), rederive if stale, listen
+ *   node dist/main.mjs migrate             one-shot compose service both long-running containers depend on
+ *   node dist/main.mjs work [--once]       the bbs-worker container / the manual check   (crawl/cli.ts)
+ *   node dist/main.mjs rederive [--force]  recompute derived columns                     (crawl/cli.ts)
+ *   node dist/main.mjs import <app.db>     DEPRECATED: the cutover tool and dev loader    (import/cli.ts)
+ *
+ * Every arm is `(argv) => Promise<number>` and builds its own dependencies:
+ * `work` returns before createService, so the worker never constructs the
+ * Hono app, the OAuth client, the MCP handler or the SPA handler.
  *
  * The Docker target sets ENTRYPOINT ["node","dist/main.mjs"] so
- * `docker compose run --rm bbs import /import/app.db` appends arguments: one
- * image, one entrypoint, no `scripts/` directory that exists only in the repo.
+ * `docker compose run --rm bbs work --once` appends arguments: one image, one
+ * entrypoint, no `scripts/` directory that exists only in the repo.
  */
 import { serve } from "@hono/node-server";
 import { apiResource, mcpResource } from "@herkules/auth-middleware";
@@ -17,6 +24,9 @@ import { sql } from "drizzle-orm";
 
 import { createApp } from "./app.ts";
 import { RESOURCE_NAME, loadConfig } from "./config.ts";
+import { runMigrateCli, runRederiveCli, runWorkCli } from "./crawl/cli.ts";
+import { noteArticleRead } from "./crawl/index.ts";
+import { rederive } from "./crawl/rederive.ts";
 import { createDb, ensureDatabase, migrate } from "./db/index.ts";
 import { selectSearchIndex } from "./db/search/index.ts";
 import { runImportCli } from "./import/cli.ts";
@@ -36,12 +46,22 @@ export interface ServiceDeps {
   readonly now?: () => Date;
 }
 
+const COMMANDS: Record<string, (argv: readonly string[]) => Promise<number>> = {
+  import: (a) => runImportCli(a, { env: process.env }),
+  migrate: (a) => runMigrateCli(a, { env: process.env }),
+  rederive: (a) => runRederiveCli(a, { env: process.env }),
+  work: (a) => runWorkCli(a, { env: process.env, fetch: globalThis.fetch }),
+};
+
 /** Builds the whole service without listening. Tests call this with pglite://memory and an in-process fetch. */
 export async function createService(deps: ServiceDeps = {}) {
   const config = loadConfig(deps.env);
+  const now = deps.now ?? (() => new Date());
   if (config.createDatabase) await ensureDatabase(config.databaseUrl);
   const db = await createDb(config.databaseUrl);
+  // Kept although bbs-migrate runs first in compose: idempotent, and every test boots a fresh pglite://memory.
   await migrate(db);
+  await rederive(db, { now, log: (l) => console.log("[bbs]", l) }); // one SELECT when corpus_versions matches
 
   const search = selectSearchIndex(config.searchIndex, async (q) => db.execute(q));
   const library = createLibrary({ db, search });
@@ -92,6 +112,7 @@ export async function createService(deps: ServiceDeps = {}) {
       await db.execute(sql`select 1`);
     },
     onError: (err) => console.error("[bbs]", err),
+    onArticleRead: (id) => noteArticleRead(db, id, now()),
   });
   console.log(`[bbs] redirect URI ${client.redirectUri} — must equal the issuer's seeded value`);
   return {
@@ -107,9 +128,8 @@ export async function createService(deps: ServiceDeps = {}) {
 }
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<void> {
-  if (argv[0] === "import") {
-    process.exit(await runImportCli(argv.slice(1), { env: process.env }));
-  }
+  const command = argv[0] === undefined ? undefined : COMMANDS[argv[0]];
+  if (command) process.exit(await command(argv.slice(1)));
   const service = await createService();
   const server = serve({ fetch: service.app.fetch, port: service.config.port }, (info) => {
     console.log(

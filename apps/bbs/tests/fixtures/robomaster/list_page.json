@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "code": 0,
+  "data": {
+    "total": 143,
+    "list": [
+      {
+        "id": 1939253,
+        "title": "  自瞄框架开源：插件化视觉系统  ",
+        "introduction": "基于插件的自瞄框架，支持热插拔相机与识别模块。",
+        "authorNickname": "RobotPilots",
+        "createAt": "2026-08-20 14:03:22",
+        "top": false,
+        "tags": [
+          { "groupName": "视觉", "name": "自瞄" },
+          { "groupName": "", "name": "开源" },
+          { "name": "" }
+        ]
+      },
+      {
+        "id": "1939100",
+        "title": "赛季规则解读",
+        "authorNickname": "组委会",
+        "createAt": "2026-08-18T09:00:00+08:00",
+        "top": true,
+        "tags": []
+      },
+      {
+        "id": 1938001,
+        "title": "无时间的文章",
+        "createAt": "not a date"
+      }
+    ]
+  }
+}

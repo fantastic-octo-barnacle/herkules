@@ -184,17 +184,20 @@ Alternatives considered:
 
 ## Out of scope
 
-- The crawler (discovery, fetch, guard, backfill, refresh queue, poll runs,
-  status SSE). The old box keeps crawling; `sources`, `poll_runs`,
-  `source_guard_state` are imported read-only.
+- _Superseded 2026-08-28 by Frame 2 below._ The crawler (discovery, fetch,
+  guard, backfill, refresh queue, poll runs, status SSE). The old box keeps
+  crawling; `sources`, `poll_runs`, `source_guard_state` are imported read-only.
 - AI inference: generation pass, chat, `ask_article`, provider config,
   budgets, cost accounting, usage ledger UI. `article_ai`, `kb_entities`,
-  `article_entities`, `ai_usage` are imported and read.
+  `article_entities`, `ai_usage` are imported and read. _(Still out after
+  Frame 2: articles crawled after cutover have no overview until an AI
+  phase exists.)_
 - Anonymous rate limiting (decided out of v1 by the user). When it comes: a
   Hono middleware keyed on principal `sub` else client IP behind
   `TRUSTED_PROXIES`, in-process token bucket (one replica), tighter on search.
 - Embeddings, pgvector, semantic search.
-- Admin page; any write to imported tables from the app.
+- Admin page; any write to imported tables from the app. _(Writes: superseded
+  by Frame 2. Admin page: still out.)_
 - PAT / `rmk_` tokens, stdio MCP transport.
 - OpenAPI document; `/api/v1` path compatibility.
 - Any write-back or two-way sync to the old box.
@@ -244,3 +247,239 @@ switch on the two search tables.
   `SELECT show_trgm('步兵')` — pg_trgm's word-character test runs through
   `iswalpha` under the database `LC_CTYPE`, so the trigrams the index stores
   for CJK depend on it. Recall does not (it is `LIKE`), index effectiveness does.
+
+---
+
+# Frame 2: bbs crawler — 2026-08-28
+
+Supersedes Frame 1's "Out of scope: the crawler" and its write model ("v1
+never writes to imported tables"). AI inference stays out. Everything else
+in Frame 1 stands.
+
+## Problem
+
+The port reads a corpus it cannot produce. New forum posts reach
+`bbs.herkules.dev` only when someone copies a `wenku backup` off the old
+Singapore box and runs `bbs import`. That box is a second machine, schema,
+language and deploy pipeline for one product, and nobody else can host RM
+文库 without it. We want herkules to discover, fetch, render and index the
+forum itself — in TypeScript, against the `bbs` Postgres database, with
+policy identical to the crawler that has run without incident — so the
+Singapore box can be switched off and a stranger with an empty database can
+build the same corpus.
+
+## Prior art
+
+- **`../rm-wenku`** — the crawler being ported. Facts that shape this frame:
+  - **The queue is SQL, not a data structure.** Fetch work is a projection
+    (`next_refresh` → `next_pending` → backfill cursor on `sources`) over
+    `articles.status` / `refresh_requested_at` / `updated_at`. Only the wake
+    signal (`tokio::Notify`) and the event bus (in-process ring of 400, 30
+    message variants, SSE) are process-local — which makes a separate
+    worker process nearly free and the event bus droppable.
+  - **Guard policy**: 2 s spacing + 0–1 s jitter, 20/min, 2 000/day anchored
+    at UTC midnight, background reserve 200 (`max(day/10, 50)`), cooldown
+    ladder 60 s → 5 m → 30 m → 2 h → 24 h on 429/403/5xx/network/WAF
+    (`max(Retry-After, step)`, capped 24 h), any success resets, `max_wait`
+    30 s else `Throttled`; `Refresh` work bypasses the reserve, `Fetch` and
+    `Backfill` are background. State is one JSON blob per source in
+    `source_guard_state`, upserted on every request — the table and columns
+    bbs already has.
+  - **Forum API**: two POST endpoints on `https://bbs.robomaster.com`
+    (`/developers-server/rest/posts/list` with
+    `{pageSize, pageNo, filter:{category:"ARTICLE", sortByCreateAt:true, tagIds:[]}}`;
+    `/developers-server/rest/posts/info/{id}` with `{}`), 5 MiB body cap, no
+    redirects, one allowed origin, UA `rm-wenku/0.2 (+public article
+monitoring; rate limited; …)`, 15 s / 10 s timeouts, no retry (the guard
+    is the retry). Articles match on `(source_id, source_article_id)`; ids
+    are locally minted ULIDs; the URL is minted
+    (`{origin}/article/{id}?source=1`). Discovery every 600 s (+0–30 s
+    jitter), page 1 of 20, startup poll on; fetch spacing 10 s; backfill one
+    page of 20 per run from `sources.backfill_next_page` (starts at 2);
+    lazy refresh when a reader opens an article with `fetched_at` older than
+    24 h (`refresh_requested_at`, idempotent); failed rows retry after
+    3 600 s; `content_changed_at` set only when the SHA-256 of `body_text`
+    changes; `article_images` upserted on `(article_id, url)` so caption
+    columns survive, `article_links` replaced, tags written for new rows only.
+  - **Not yet in TS** (the handoff over-counted): `extract/` (raw HTML /
+    markdown → `body_text`, links, images; 648 lines), `title.rs` (season /
+    team / topic / labels; 889 lines, with `fixtures/title-parser/`),
+    `text/links/url/hash` (~280). `render.ts` and link-target resolution
+    are. Recorded API fixtures exist: `fixtures/robomaster/{list_page,
+post_html, post_markdown, post_missing}.json`.
+  - **Sizes**: source 600, guard 1 000, workers 941, ingest 1 186, poll
+    runs / sources / guard store 450, write side of `articles.rs`, core
+    1 800 — ≈ 8k Rust lines, ~4–5k TS expected.
+- **Production state** (user, 2026-08-28): the live rm-wenku box is in
+  Singapore and has all 908 fetched articles generated; the local
+  `data/app.db` (105 ready) is a stale copy. The cutover import comes from a
+  fresh Singapore backup; development uses the stale copy.
+- **Ecosystem**: pg-boss / graphile-worker not needed (the queue is SQL);
+  `ulid` for ids. No RM-forum crawler exists on npm or GitHub.
+
+## Decision
+
+**A second compose service `bbs-worker` from the same image
+(`node dist/main.mjs work`) owns every corpus write — discovery, fetch,
+backfill, refresh — as a line-for-line port of rm-wenku's policy into
+`apps/bbs/src/{source,guard,crawl}` and `src/content/{extract,title}`.
+The API container keeps serving reads. `bbs import` is deprecated in place.
+No AI code is written.**
+
+Write model (replaces Frame 1's "v1 never writes"):
+
+- The worker writes one transaction per article: the row plus every derived
+  column — `content_html` (`renderArticleHtml`), title parts (ported
+  `title.ts`), `article_search.document` (`buildDocument`),
+  `article_links.target_article_id` (`resolveLinkTarget` against the DB:
+  `canonical_url` equality and `/article/{n}` against `source_article_id`),
+  and the back-fill of `target_article_id` on existing links that point at
+  the new article. The alignment CHECKs already hold per row, so incremental
+  writes keep them. `kb_search` is never written (AI).
+- `bbs import` stays exactly as it is, header marked deprecated: still the
+  dev loader (`vp run import`) and the cutover tool. Two callers of the same
+  derive functions, no shared `writeArticle`, no refactor. It does not carry
+  `context_text`; the AI phase will re-import from a backup kept on R2.
+- Versions: `RENDER_VERSION` / `NORMALIZE_VERSION` / new `TITLE_VERSION`
+  live in a `corpus_versions` single row. The API rederives at boot when
+  they differ from the code's (batches, ~3 s for 1 000 rows, inside the
+  migration phase); `bbs rederive` is the same pass as a CLI.
+- On worker start: `poll_runs` rows left `running` become
+  `failed (interrupted…)`; the `sources` row `robomaster` is ensured from
+  constants — a fresh database needs nothing else.
+
+Process shape:
+
+- One image, three commands: `migrate` (one-shot compose service; `bbs` and
+  `bbs-worker` `depends_on: service_completed_successfully`; neither
+  long-running process migrates), `serve` (API; its one write is
+  `refresh_requested_at` on a stale GET, as rm-wenku), `work` (three
+  supervised loops — discovery, fetch ladder, wake signals in-process,
+  restart-on-crash with 30 s → 600 s backoff; `--once` runs a single
+  discovery + fetch cycle for tests and the manual check).
+- Policy numbers are constants in code, the forum URL included. No env
+  knobs (the archived project has them if ever needed). Tests inject a
+  permissive guard and a fake `fetch` through constructors.
+- No status table, no events table, no SSE, no admin surface, stdout logs
+  only. `/api/status` and MCP `library_status` already report
+  `max(poll_runs.started_at)`, so they go live by themselves; the Status
+  page is untouched until its redesign.
+- `bbs-worker`: same env as `bbs`, `mem_limit` 256m, `restart:
+unless-stopped`, scaled to 0 until cutover step 4.
+
+Cutover (Singapore box → herkules):
+
+1. From the herkules box, POST both forum endpoints with the old UA — the
+   one manual live check (kill criterion 1).
+2. `compose up -d` with `migrate`, `bbs`, and `bbs-worker` at scale 0.
+3. Stop the old crawler; `wenku backup`; copy; `bbs import /import/app.db`
+   (ULIDs, `backfill_completed_at` and the guard state come with it, so
+   nothing is re-crawled).
+4. `up -d --scale bbs-worker=1`. First discovery closes any gap of fewer
+   than 20 new posts.
+5. Old box off after one week of clean `poll_runs`. From then on articles
+   have no overview until an AI phase exists — accepted.
+
+Alternatives considered:
+
+- **Incremental writes** (chosen) over the **bridge** (Rust crawler stays,
+  scheduled import; zero code, two schemas forever) and over **staging
+  tables + swap**.
+- **Two callers of shared derive functions** (chosen) over **refactoring
+  `import` onto one `writeArticle`** — import is deprecated; work on it is
+  waste.
+- **Separate worker container** (chosen) over **in-process workers** (old
+  shape; crawl I/O on the API's event loop) and over a **`crawl --once`
+  compose loop** (loses wake-on-ingest and the interruptible throttle
+  sleeps that make the guard correct).
+- **Rows as API→worker signal** (chosen; fetch idle recheck 600 s → 60 s so
+  a refresh request is honoured within a minute) over **`LISTEN/NOTIFY`**.
+- **Constants** (chosen) over **porting the 25-knob config** — tuned once,
+  archived.
+- **Port backfill** (chosen) over **skipping it** because production has
+  completed it — it is what lets anyone else host this from an empty
+  database.
+- **Crawler now, AI never in this phase** (chosen) over **crawler + AI in
+  one phase** — AI is ~8k more lines and its own provider / budget / prompt
+  decisions; the user deferred it entirely.
+- **Rederive at boot** (chosen) over **refuse to boot on version mismatch**
+  — a code change must not become an outage step.
+
+## In scope
+
+- `apps/bbs/src/source/` (forum adapter, DTOs, mapping, HTTP client with
+  origin policy, `ulid` ids), `src/guard/` (policy, clock, Postgres store),
+  `src/crawl/` (discovery, fetch ladder, backfill, refresh, poll runs,
+  supervision, `work` / `work --once`), `src/content/extract.ts` and
+  `src/content/title.ts` (+ `text/links/url/hash` helpers), the article
+  write transaction, `corpus_versions` + rederive at boot + `bbs rederive`,
+  the `migrate` command, `refresh_requested_at` on stale GET.
+- `tools/deploy`: `bbs-migrate` one-shot, `bbs-worker` service, README
+  cutover + self-host sections.
+- Fixtures copied from rm-wenku: `fixtures/robomaster/*.json`,
+  `fixtures/title-parser/*`.
+- Tests: guard policy against rm-wenku's numbers; adapter mapping on the
+  fixtures; title parser on the fixture corpus; `work --once` end to end on
+  PGlite with a fake `fetch`; write invariants (CHECKs, link back-fill,
+  image upsert survivals, refresh idempotence); rederive no-op.
+- `apps/bbs/DESIGN.md` round 3 (crawler).
+
+## Out of scope
+
+- AI in every form: generation, chat, `ask_article`, provider, budgets,
+  ledger, `context_text`, `kb_search` writes, `kb_entities` growth.
+- Status page redesign, worker status table, event bus, SSE, live console.
+- Admin surface of any kind (routes, page, MCP tools, `poll now` /
+  `refetch` / `backfill reset`). Only `bbs rederive` exists as a CLI besides
+  `migrate` / `serve` / `work` / `import`.
+- Any change to `bbs import` beyond a deprecation note.
+- Env-configurable crawl policy; a second source kind; more than one replica
+  of either container; `LISTEN/NOTIFY`.
+- Rate limiting, embeddings, PGroonga (unchanged from Frame 1).
+- Any change to the API read contract, the MCP read tools, or the SPA.
+
+## Kill criterion
+
+If `bbs.robomaster.com`'s list/info endpoints refuse the herkules box (WAF,
+geo, or a sustained 403 the cooldown ladder cannot clear within a day), the
+box cannot be the crawler: stop and re-frame between the bridge (rm-wenku's
+crawler kept headless, scheduled `bbs import`) and crawling from another
+vantage point. Do not tunnel around it silently.
+
+If the crawler needs a derived value that `renderArticleHtml` /
+`buildDocument` / `resolveLinkTarget` / `title.ts` cannot produce, the two
+write paths have diverged: stop and re-frame the write model before adding a
+crawler-only derivation.
+
+## Done predicate
+
+1. On PGlite with a fake `fetch` serving the fixtures, `bbs work --once`
+   discovers the fixture's new post, fetches it, and the article appears in
+   `/api/articles`, `/api/search` (with snippet) and `/api/articles/:id`
+   with `contentHtml` and title parts; a second `--once` changes no row;
+   `poll_runs` records both runs.
+2. Guard tests reproduce rm-wenku's numbers: spacing, 20/min, 2 000/day
+   reset at UTC midnight, reserve 200 held for background work and not for
+   refresh, the cooldown ladder, `Throttled` past 30 s; state round-trips
+   through `source_guard_state`.
+3. Title parser output equals `fixtures/title-parser/corpus.expected.jsonl`.
+4. `bbs rederive` on the imported corpus is a no-op (every derived column
+   recomputed equals the imported value).
+5. Reproducibility: on an **empty** database, `work` (real network, from a
+   permitted vantage point) creates the `sources` row, discovers page 1 and
+   backfills page by page; the run is stopped after ≥ 3 pages and every
+   stored article is readable in the SPA.
+6. On the box: a post published on the forum after cutover is in Browse and
+   Search within 15 minutes with the Singapore box stopped; `poll_runs`
+   shows a clean week; the old box is decommissioned.
+
+## Verification to do before build
+
+- From the herkules box, with rm-wenku's UA:
+  `curl -X POST https://bbs.robomaster.com/developers-server/rest/posts/list -H 'Content-Type: application/json' -d '{"pageSize":1,"pageNo":1,"filter":{"category":"ARTICLE","sortByCreateAt":true,"tagIds":[]}}'`
+  returns JSON; then `/posts/info/{id}` for the returned id. This is the
+  only live check; everything else runs on fixtures.
+- `fixtures/robomaster/*.json` still match today's API shape (compare the
+  live response above against `list_page.json` field by field).
+- Drizzle `migrate()` as a one-shot command exits 0 on an already-migrated
+  database (compose reruns it on every `up`).

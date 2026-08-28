@@ -6,8 +6,14 @@
  * `sessions` / `api_tokens` (identity is the issuer's), `article_chunks` +
  * pgvector, every PGroonga index, and `article_ai.context_text`.
  *
- * Ownership rule: every table here except `import_runs` is written ONLY by
- * `bbs import` (truncate-and-reload); the app never synchronises anything.
+ * Ownership rule: every table here except `import_runs` and `corpus_versions` is written by
+ * `bbs import` (truncate-and-reload — DEPRECATED since Frame 2: the cutover tool and dev loader)
+ * and, from Frame 2, by `bbs-worker` through crawl/corpus.ts — the only runtime writer. The API
+ * process has exactly one write: articles.refresh_requested_at (crawl/corpus.ts noteArticleRead,
+ * called from the REST GET article route). Derived columns are computed by the same four functions
+ * on both write paths (content/render.ts, content/title.ts, import/derive.ts buildDocument +
+ * resolveLinkTarget) and are versioned in `corpus_versions`; they are never synchronised, only
+ * rederived (crawl/rederive.ts). The AI tables stay import-only: no phase writes them yet.
  * Column names are byte-identical to the source so the import's TableSpecs
  * and read-back digests need no mapping.
  *
@@ -94,7 +100,7 @@ export const articles = pgTable(
     lastError: text("last_error"),
     createdAt: ms("created_at").notNull(),
     updatedAt: ms("updated_at").notNull(),
-    refreshRequestedAt: ms("refresh_requested_at"), // imported, never read: crawler machinery on the old box
+    refreshRequestedAt: ms("refresh_requested_at"), // set by a stale REST GET (24 h), consumed by the ladder, cleared by storeDetail / finishRefreshFailed
     contentChangedAt: ms("content_changed_at"),
     titleSeason: text("title_season"),
     titleTeam: text("title_team"),
@@ -215,12 +221,31 @@ export const pollRuns = pgTable(
   (t) => [index("poll_runs_started_idx").on(t.sourceId, t.startedAt.desc())],
 );
 
-/** Imported so the corpus copy is total; read by nothing in v1. */
+/** One jsonb GuardState per source (guard/store.ts owns the wire keys), upserted on every request. */
 export const sourceGuardState = pgTable("source_guard_state", {
   sourceId: text("source_id").primaryKey(),
   stateJson: jsonb("state_json").notNull(),
   updatedAt: ms("updated_at").notNull(),
 });
+
+/**
+ * APP-OWNED singleton: which RENDER_VERSION / NORMALIZE_VERSION / TITLE_VERSION produced the derived
+ * columns on disk. Absent (fresh database, or first boot after this migration) means "unknown":
+ * the next migrate/boot rederives everything and writes the row. NOT in IMPORTED_TABLES: an import
+ * does not touch it, so the rederive after an import is the proof that both write paths agree
+ * (Frame 2 done predicate 4). "There is one corpus" is a CHECK, not a convention.
+ */
+export const corpusVersions = pgTable(
+  "corpus_versions",
+  {
+    id: integer("id").primaryKey().default(1),
+    renderVersion: text("render_version").notNull(),
+    normalizeVersion: text("normalize_version").notNull(),
+    titleVersion: text("title_version").notNull(),
+    updatedAt: ms("updated_at").notNull(),
+  },
+  (t) => [check("corpus_versions_singleton", sql`${t.id} = 1`)],
+);
 
 export const articleAi = pgTable(
   "article_ai",

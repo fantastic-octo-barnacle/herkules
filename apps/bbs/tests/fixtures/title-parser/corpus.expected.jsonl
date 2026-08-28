@@ -1,0 +1,810 @@
+{"title":"RoboMaster 机甲大师高校系列赛报名参赛攻略","season":null,"team":null,"labels":[],"topic":"RoboMaster 机甲大师高校系列赛报名参赛攻略"}
+{"title":"【RM2026-成本控制】首都师范大学PIE战队","season":"RM2026","team":"首都师范大学PIE战队","labels":[],"topic":"成本控制"}
+{"title":"RM2026首都师范大学WPIE手持装甲板软硬件开源","season":"RM2026","team":"首都师范大学","labels":[],"topic":"WPIE手持装甲板软硬件开源"}
+{"title":"【RM2026-视觉模型统一部署库与识别模型开源 】深圳大学-RobotPilots战队","season":"RM2026","team":"深圳大学 RobotPilots战队","labels":[],"topic":"视觉模型统一部署库与识别模型开源"}
+{"title":"【RM2026-自适应半舵半全过洞步兵机械结构开源】常州大学 Climber战队","season":"RM2026","team":"常州大学 Climber战队","labels":[],"topic":"自适应半舵半全过洞步兵机械结构开源"}
+{"title":"【RM2026飞镖系统双目测距及前端制导开源】山东理工大学齐奇战队","season":"RM2026","team":"山东理工大学齐奇战队","labels":[],"topic":"飞镖系统双目测距及前端制导开源"}
+{"title":"RC2026-福州大学-浮舟湿地-R2排球机器人机械结构开源","season":"RC2026","team":"福州大学 浮舟湿地","labels":[],"topic":"R2排球机器人机械结构开源"}
+{"title":"【RM2026 - RM Schedule 赛程分析软件】 华南理工大学 华南虎开源报告","season":"RM2026","team":"华南理工大学","labels":[],"topic":"RM Schedule 赛程分析软件 华南虎开源报告"}
+{"title":"【RM2026赛季-HPM5361主控板开源】首都师范大学-PIE战队","season":"RM2026","team":"首都师范大学 PIE战队","labels":[],"topic":"HPM5361主控板开源"}
+{"title":"【技术报告 北京理工大学追梦战队 RM2026 技术报告开源】","season":"RM2026","team":"北京理工大学追梦战队","labels":["技术报告"],"topic":"技术报告开源"}
+{"title":"【RM2026 自瞄开源 地面 | 前哨 | 大小符】南京理工大学 Alliance 战队","season":"RM2026","team":"南京理工大学 Alliance 战队","labels":[],"topic":"自瞄开源 地面 | 前哨 | 大小符"}
+{"title":"[局均反制时间175s，单局最高反制时间225s] - RM2026-沈阳理工大学-Ambition战队雷达反制算法开源","season":"RM2026","team":"沈阳理工大学","labels":[],"topic":"局均反制时间175s，单局最高反制时间225s Ambition战队雷达反制算法开源"}
+{"title":"如何正确饲养一只AI","season":null,"team":null,"labels":[],"topic":"如何正确饲养一只AI"}
+{"title":"【RM2026-最佳战术开源】北京理工大学（珠海）毅恒战队","season":"RM2026","team":"北京理工大学（珠海）毅恒战队","labels":[],"topic":"最佳战术开源"}
+{"title":"【RM2026 工程机器人机械结构设计开源】 首都师范大学 PIE战队","season":"RM2026","team":"首都师范大学 PIE战队","labels":[],"topic":"工程机器人机械结构设计开源"}
+{"title":"【飞镖系统技术报告+西安交通大学笃行战队+RM2026技术报告开源】","season":"RM2026","team":"西安交通大学笃行战队","labels":[],"topic":"飞镖系统技术报告 技术报告开源"}
+{"title":"【RM2026-无线充电开源及超级硬核思路分享】——南方科技大学ARTINX战队","season":"RM2026","team":"南方科技大学ARTINX战队","labels":[],"topic":"无线充电开源及超级硬核思路分享"}
+{"title":"许愿征集 | 论坛编辑器体验反馈，你的吐槽和许愿我们都想听👀","season":null,"team":null,"labels":[],"topic":"许愿征集 | 论坛编辑器体验反馈，你的吐槽和许愿我们都想听👀"}
+{"title":"【RM2026-红外透传CAN总线-无线充电外置识别模块】南京理工大学 Alliance战队","season":"RM2026","team":"南京理工大学 Alliance战队","labels":[],"topic":"红外透传CAN总线-无线充电外置识别模块"}
+{"title":"【RM2026-自研关节电机-F8518P14.3】南京理工大学 Alliance战队","season":"RM2026","team":"南京理工大学 Alliance战队","labels":[],"topic":"自研关节电机-F8518P14.3"}
+{"title":"【RM2026-RMCS_Slave系列自研主控】南京理工大学 Alliance战队","season":"RM2026","team":"南京理工大学 Alliance战队","labels":[],"topic":"RMCS_Slave系列自研主控"}
+{"title":"【RM2026 开源】北京理工大学的ZeroShot自动标注系统","season":"RM2026","team":null,"labels":["开源"],"topic":"北京理工大学的ZeroShot自动标注系统"}
+{"title":"【RM2026-能量机关算法开源】深圳大学-RobotPilots战队","season":"RM2026","team":"深圳大学 RobotPilots战队","labels":[],"topic":"能量机关算法开源"}
+{"title":"【RM2026 复旦大学 星云EGA战队】雷达站视觉+激光雷达融合定位算法开源","season":"RM2026","team":"复旦大学 星云EGA战队","labels":[],"topic":"雷达站视觉+激光雷达融合定位算法开源"}
+{"title":"【RM2026-工程自定义控制器机械部分开源】北京理工大学 DreamChaser 战队","season":"RM2026","team":"北京理工大学 DreamChaser 战队","labels":[],"topic":"工程自定义控制器机械部分开源"}
+{"title":"【RM2026-单&双臂上台阶工程机器人机械开源】北京理工大学 DreamChaser战队","season":"RM2026","team":"北京理工大学 DreamChaser战队","labels":[],"topic":"单&双臂上台阶工程机器人机械开源"}
+{"title":"【RM2026 - RM Extension 浏览器插件】 华南理工大学 华南虎开源报告","season":"RM2026","team":"华南理工大学","labels":[],"topic":"RM Extension 浏览器插件 华南虎开源报告"}
+{"title":"【RM2026-半麦半全登岛工程机械结构开源】常州大学 Climber战队","season":"RM2026","team":"常州大学 Climber战队","labels":[],"topic":"半麦半全登岛工程机械结构开源"}
+{"title":"【RM2026】易维护H7主控解决方案 - 五大湖联合大学/UBC","season":"RM2026","team":"五大湖联合大学 UBC","labels":[],"topic":"易维护H7主控解决方案"}
+{"title":"【RM2026-四开关BuckBoost级联全桥LCC的双向无线充电系统】南京理工大学 Alliance战队","season":"RM2026","team":"南京理工大学 Alliance战队","labels":[],"topic":"四开关BuckBoost级联全桥LCC的双向无线充电系统"}
+{"title":"【RM2026-自瞄算法开源】中国石油大学（华东）- RPS前哨站15s速推+打车自瞄部分开源","season":"RM2026","team":"中国石油大学（华东）","labels":[],"topic":"自瞄算法开源 RPS前哨站15s速推+打车自瞄部分开源"}
+{"title":"【RM2026 开源】中国石油大学(华东)RPS舵轮哨兵导航开源","season":"RM2026","team":"中国石油大学(华东)","labels":["开源"],"topic":"RPS舵轮哨兵导航开源"}
+{"title":"【RM2026-可逐周期峰值电感电流控制的超级电容控制器】南京理工大学 Alliance战队","season":"RM2026","team":"南京理工大学 Alliance战队","labels":[],"topic":"可逐周期峰值电感电流控制的超级电容控制器"}
+{"title":"【RM 2026 舵轮底盘控制开源】山东理工大学齐奇战队","season":"RM2026","team":"山东理工大学齐奇战队","labels":[],"topic":"舵轮底盘控制开源"}
+{"title":"【RM2026-雷达解析信息波算法开源】同济大学SuperPower战队","season":"RM2026","team":"同济大学SuperPower战队","labels":[],"topic":"雷达解析信息波算法开源"}
+{"title":"[共轴所见即所得，ESKF，虚拟调参！RM2026-反无人机机械结构和算法完整开源]华南理工大学华南虎战队","season":null,"team":"华南理工大学华南虎战队","labels":[],"topic":"共轴所见即所得，ESKF，虚拟调参！RM2026-反无人机机械结构和算法完整开源"}
+{"title":"【技术报告+中南大学FYT战队+RM2026技术报告开源】工程结构、硬件及控制算法","season":"RM2026","team":"中南大学FYT战队","labels":["技术报告"],"topic":"技术报告开源 工程结构、硬件及控制算法"}
+{"title":"【适用于轮腿机器人的FPGA强化学习硬件加速器】-北京理工大学-DreamChaser战队【实验性】","season":null,"team":"北京理工大学 DreamChaser战队","labels":["实验性"],"topic":"适用于轮腿机器人的FPGA强化学习硬件加速器"}
+{"title":"【RM2026-非变形过洞全向步兵机械结构&电控代码开源】常州大学 Climber战队","season":"RM2026","team":"常州大学 Climber战队","labels":[],"topic":"非变形过洞全向步兵机械结构&电控代码开源"}
+{"title":"【RM2026-复旦大学-星云EGA战队】局均易伤「全国第一」的雷达解析信息波算法及其应用-保姆级开源","season":"RM2026","team":"复旦大学 星云EGA战队","labels":[],"topic":"局均易伤 全国第一 的雷达解析信息波算法及其应用-保姆级开源"}
+{"title":"【RM2026 英雄机器人底盘结构设计开源】山东理工大学 齐奇战队","season":"RM2026","team":"山东理工大学 齐奇战队","labels":[],"topic":"英雄机器人底盘结构设计开源"}
+{"title":"【RMUC 2026 雷达开源】西安交通大学-笃行","season":"RMUC2026","team":"西安交通大学 笃行","labels":[],"topic":"雷达开源"}
+{"title":"【RM2026 复旦大学 星云EGA战队】平衡步兵强化学习控制部署开源","season":"RM2026","team":"复旦大学 星云EGA战队","labels":[],"topic":"平衡步兵强化学习控制部署开源"}
+{"title":"【RM2026 北京理工大学 追梦战队 嵌入式/控制方向】仿人形七轴双臂机械臂控制技术开源","season":"RM2026","team":"北京理工大学 追梦战队","labels":[],"topic":"嵌入式/控制方向 仿人形七轴双臂机械臂控制技术开源"}
+{"title":"robocon 2026 fzsd马术部署开源","season":"ROBOCON2026","team":null,"labels":[],"topic":"fzsd马术部署开源"}
+{"title":"【RC2026机械结构开源】广州美术学院Artlnnov.艺创战队","season":"RC2026","team":"广州美术学院Artlnnov.艺创战队","labels":[],"topic":"机械结构开源"}
+{"title":"【开源】RM Studio PC：面向 RoboMaster 整车电控的参数调试、运行观测与协议诊断上位机","season":null,"team":null,"labels":["开源"],"topic":"RM Studio PC：面向 RoboMaster 整车电控的参数调试、运行观测与协议诊断上位机"}
+{"title":"【RM2026-厦门大学嘉庚学院-TCR战队】压缩包过洞步兵机械开源","season":"RM2026","team":"厦门大学嘉庚学院 TCR战队","labels":[],"topic":"压缩包过洞步兵机械开源"}
+{"title":"【RM2026-单臂隧道工程结构+技术方案开源】同济大学SuperPower战队","season":"RM2026","team":"同济大学SuperPower战队","labels":[],"topic":"单臂隧道工程结构+技术方案开源"}
+{"title":"【RM2026-无人机反制算法开源】同济大学SuperPower战队","season":"RM2026","team":"同济大学SuperPower战队","labels":[],"topic":"无人机反制算法开源"}
+{"title":"【RM2026 开源】北京理工大学追梦战队哨兵自主导航","season":"RM2026","team":"北京理工大学追梦战队","labels":["开源"],"topic":"哨兵自主导航"}
+{"title":"【RM2026-隧道工程机器人机械结构开源】沈阳理工大学 Ambition战队","season":"RM2026","team":"沈阳理工大学 Ambition战队","labels":[],"topic":"隧道工程机器人机械结构开源"}
+{"title":"【RM2026-工程视觉上位机方案开源】北京理工大学 DreamChaser 战队","season":"RM2026","team":"北京理工大学 DreamChaser 战队","labels":[],"topic":"工程视觉上位机方案开源"}
+{"title":"【RM2026-成本控制开源】同济大学SuperPower战队","season":"RM2026","team":"同济大学SuperPower战队","labels":[],"topic":"成本控制开源"}
+{"title":"【RM2026 复旦大学 星云EGA战队】平衡步兵强化学习控制训练开源","season":"RM2026","team":"复旦大学 星云EGA战队","labels":[],"topic":"平衡步兵强化学习控制训练开源"}
+{"title":"【RM2026——哨兵机器人动态物体滤除建图工具、地图编辑工具开源】华东理工大学——起源战队","season":"RM2026","team":"华东理工大学 起源战队","labels":[],"topic":"哨兵机器人动态物体滤除建图工具、地图编辑工具开源"}
+{"title":"【RM2026 英雄机器人云台结构设计开源】山东理工大学 齐奇战队","season":"RM2026","team":"山东理工大学 齐奇战队","labels":[],"topic":"英雄机器人云台结构设计开源"}
+{"title":"【RM2026-FPGA制导飞镖控制器软硬件开源】北京理工大学-","season":"RM2026","team":"北京理工大学","labels":[],"topic":"FPGA制导飞镖控制器软硬件开源"}
+{"title":"【RM2026-FEC前向纠错防丢包通信技术及其应用开源】南京理工大学 Alliance战队","season":"RM2026","team":"南京理工大学 Alliance战队","labels":[],"topic":"FEC前向纠错防丢包通信技术及其应用开源"}
+{"title":"【复盘开源】ROBOCON 2026 排球机器人上位机算法与思路分享——无疾而终，只剩遗憾","season":"ROBOCON2026","team":null,"labels":["复盘开源"],"topic":"排球机器人上位机算法与思路分享——无疾而终，只剩遗憾"}
+{"title":"RM2026-大弹丸偏置式中心供弹模块开源-北京信息科技大学-星辰","season":"RM2026","team":"北京信息科技大学 星辰","labels":[],"topic":"大弹丸偏置式中心供弹模块开源"}
+{"title":"【RM2026-复旦大学-星云EGA战队】过洞步兵&哨兵机器人机械结构开源","season":"RM2026","team":"复旦大学 星云EGA战队","labels":[],"topic":"过洞步兵&哨兵机器人机械结构开源"}
+{"title":"【RM2026-适用于RMUL的三摩擦英雄机器人机械设计开源】西安科技大学 秦风战队","season":"RM2026","team":"西安科技大学 秦风战队","labels":[],"topic":"适用于RMUL的三摩擦英雄机器人机械设计开源"}
+{"title":"【RM2026-Odin1空间记忆模组机械保护与数据融合方案】深圳大学-RobotPilots战队","season":"RM2026","team":"深圳大学 RobotPilots战队","labels":[],"topic":"Odin1空间记忆模组机械保护与数据融合方案"}
+{"title":"【RM2026-自瞄算法框架开源】深圳大学-RobotPilots战队","season":"RM2026","team":"深圳大学 RobotPilots战队","labels":[],"topic":"自瞄算法框架开源"}
+{"title":"【RM2026-能量机关五点识别模型】深圳大学-RobotPilots战队","season":"RM2026","team":"深圳大学 RobotPilots战队","labels":[],"topic":"能量机关五点识别模型"}
+{"title":"27赛季无人机思路","season":"RM2027","team":null,"labels":[],"topic":"无人机思路"}
+{"title":"【RM2026-制导飞镖开源】深圳大学-RobotPilots战队","season":"RM2026","team":"深圳大学 RobotPilots战队","labels":[],"topic":"制导飞镖开源"}
+{"title":"【RM2026-五自由度科技核心/兑换站 机械开源】南京理工大学 Alliance战队","season":"RM2026","team":"南京理工大学 Alliance战队","labels":[],"topic":"五自由度科技核心/兑换站 机械开源"}
+{"title":"【电控小巧思】6020的神秘速度反馈和奇妙变噪卡尔曼","season":null,"team":null,"labels":[],"topic":"电控小巧思 6020的神秘速度反馈和奇妙变噪卡尔曼"}
+{"title":"RMUC 2027 规则建议征集","season":"RMUC2027","team":null,"labels":[],"topic":"规则建议征集"}
+{"title":"【RM2026 - 基于压感膜传感器的能量机关靶面设计】华东理工大学起源战队","season":"RM2026","team":"华东理工大学起源战队","labels":[],"topic":"基于压感膜传感器的能量机关靶面设计"}
+{"title":"[RM2026 自瞄开源]仲恺农业工程学院-奇点战队","season":"RM2026","team":"仲恺农业工程学院 奇点战队","labels":[],"topic":"自瞄开源"}
+{"title":"【局均易伤1927.2s，稳定三级干扰，多模态识别敌方我方单位!】RM2026-江南大学霞客湾校区-SHARK 战队雷达站无线电+视觉融合识别系统全开源","season":"RM2026","team":"江南大学霞客湾校区","labels":[],"topic":"局均易伤1927.2s，稳定三级干扰，多模态识别敌方我方单位! SHARK 战队雷达站无线电+视觉融合识别系统全开源"}
+{"title":"42mm发射玩具分享","season":null,"team":null,"labels":[],"topic":"42mm发射玩具分享"}
+{"title":"【RM2026-镖架独立4Z轴底座自动调平算法开源】南京理工大学 Alliance战队","season":"RM2026","team":"南京理工大学 Alliance战队","labels":[],"topic":"镖架独立4Z轴底座自动调平算法开源"}
+{"title":"一种高刚度快拆机构思路","season":null,"team":null,"labels":[],"topic":"一种高刚度快拆机构思路"}
+{"title":"【RM2026-自定义控制器重力补偿开源】山东科技大学-SmartRobot战队","season":"RM2026","team":"山东科技大学 SmartRobot战队","labels":[],"topic":"自定义控制器重力补偿开源"}
+{"title":"RM26_半/总决赛照片_观众席","season":"RM2026","team":null,"labels":[],"topic":"半/总决赛照片_观众席"}
+{"title":"【RM2026】一些RM元素、参赛队logo的24x24像素画","season":"RM2026","team":null,"labels":[],"topic":"一些RM元素、参赛队logo的24x24像素画"}
+{"title":"【RM2026 雷达地面视觉、无线电与无人机反制开源】厦门大学嘉庚学院 TCR 战队","season":"RM2026","team":"厦门大学嘉庚学院 TCR 战队","labels":[],"topic":"雷达地面视觉、无线电与无人机反制开源"}
+{"title":"【RM 2026 轮足机器人控制开源--基于MPC的腿长控制和LESO动态扰动观测】山东理工大学齐奇战队","season":"RM2026","team":"山东理工大学齐奇战队","labels":[],"topic":"轮足机器人控制开源--基于MPC的腿长控制和LESO动态扰动观测"}
+{"title":"【RC2026 福州大学浮舟湿地实验室 马术强化学习运控训练开源】","season":"RC2026","team":"福州大学浮舟湿地实验室","labels":[],"topic":"马术强化学习运控训练开源"}
+{"title":"【RM-2026能量机关算法开源】浙江大学Hello World战队","season":"RM2026","team":"浙江大学Hello World战队","labels":[],"topic":"能量机关算法开源"}
+{"title":"香港科技大学ENTERPRIZE RM26 串联腿步兵开源","season":null,"team":"香港科技大学","labels":[],"topic":"ENTERPRIZE RM26 串联腿步兵开源"}
+{"title":"[西北工业大学WMJ战队雷达开源] 局均186.4s反制模型+单SDR方案无线电开源","season":null,"team":"西北工业大学WMJ战队","labels":[],"topic":"雷达开源 局均186.4s反制模型+单SDR方案无线电开源"}
+{"title":"【RM2026 - 个人硬件项目开源】浙江大学Hello World战队","season":"RM2026","team":"浙江大学Hello World战队","labels":[],"topic":"个人硬件项目开源"}
+{"title":"[RM26工程电控开源]","season":"RM2026","team":null,"labels":[],"topic":"工程电控开源"}
+{"title":"【RM2026-轮腿哨兵导航算法开源】浙江大学 Hello World 战队","season":"RM2026","team":"浙江大学 Hello World 战队","labels":[],"topic":"轮腿哨兵导航算法开源"}
+{"title":"【RM2026-串联腿哨兵机械开源】南京航空航天大学金城学院-Born of Fire战队","season":"RM2026","team":"南京航空航天大学金城学院 Born of Fire战队","labels":[],"topic":"串联腿哨兵机械开源"}
+{"title":"【RM2026-串联腿步兵机械结构开源】南京航空航天大学金城学院-Born of Fire战队","season":"RM2026","team":"南京航空航天大学金城学院 Born of Fire战队","labels":[],"topic":"串联腿步兵机械结构开源"}
+{"title":"香港科技大学RM26内部赛开源","season":null,"team":"香港科技大学","labels":[],"topic":"RM26内部赛开源"}
+{"title":"【RM-2026自制荧光充能开源】浙江大学Hello World战队","season":"RM2026","team":"浙江大学Hello World战队","labels":[],"topic":"自制荧光充能开源"}
+{"title":"【RM2026-超级电容&缓冲电容 硬件同构】浙江大学 HelloWorld战队","season":"RM2026","team":"浙江大学 HelloWorld战队","labels":[],"topic":"超级电容&缓冲电容 硬件同构"}
+{"title":"【风信子战队】基于RS485可多块同步灯光切换手持装甲板","season":null,"team":"风信子战队","labels":[],"topic":"基于RS485可多块同步灯光切换手持装甲板"}
+{"title":"桌面6无刷驱动串联腿","season":null,"team":null,"labels":[],"topic":"桌面6无刷驱动串联腿"}
+{"title":"【RM2026-中南四级工程机械结构开源】中南大学FYT战队","season":"RM2026","team":"中南大学FYT战队","labels":[],"topic":"中南四级工程机械结构开源"}
+{"title":"26.5赛季中州烛龙全向轮下供弹底盘开源","season":null,"team":null,"labels":[],"topic":"26.5赛季中州烛龙全向轮下供弹底盘开源"}
+{"title":"Navigator RMUC 2026雷达开发小记【应该不止第二章】","season":null,"team":null,"labels":[],"topic":"Navigator RMUC2026雷达开发小记 应该不止第二章"}
+{"title":"【RM2026-超电三端校准系统LinkZap开源】长安大学-VGD战队","season":"RM2026","team":"长安大学 VGD战队","labels":[],"topic":"超电三端校准系统LinkZap开源"}
+{"title":"十年微城，等你来战！","season":null,"team":null,"labels":[],"topic":"十年微城，等你来战！"}
+{"title":"【求助帖】老图传，tool2识别不到","season":null,"team":null,"labels":["求助帖"],"topic":"老图传，tool2识别不到"}
+{"title":"【RM2026-LIO算法开源：Batch-LIO：批量更新加速 Point-LIO 最高 4.7 倍】","season":"RM2026","team":null,"labels":[],"topic":"LIO算法开源：Batch-LIO：批量更新加速 Point-LIO 最高 4.7 倍"}
+{"title":"【RMUC2026-全兵种自主决策离线强化学习框架】北师香港浸会大学算法组","season":"RMUC2026","team":"北师香港浸会大学 算法组","labels":[],"topic":"全兵种自主决策离线强化学习框架"}
+{"title":"【RM2026-英雄机器人自定义客户端开源】江苏大学-Aurora","season":"RM2026","team":"江苏大学 Aurora","labels":[],"topic":"英雄机器人自定义客户端开源"}
+{"title":"【RM2026-导航开源】青岛大学未来战队","season":"RM2026","team":"青岛大学未来战队","labels":[],"topic":"导航开源"}
+{"title":"2026年河北工程大学—步兵机器人独立式悬挂结构设计_v1.0","season":"RM2026","team":"河北工程大学","labels":[],"topic":"步兵机器人独立式悬挂结构设计_v1.0"}
+{"title":"东北大学秦皇岛分校 RM2026无线充电开源","season":"RM2026","team":"东北大学","labels":[],"topic":"秦皇岛分校 无线充电开源"}
+{"title":"VOFA-Next 基于 Tauri 重构遥遥领先的「开源」串口助手","season":null,"team":null,"labels":["开源"],"topic":"VOFA-Next 基于 Tauri 重构遥遥领先的 串口助手"}
+{"title":"滞环控制的超级电容控制器","season":null,"team":null,"labels":[],"topic":"滞环控制的超级电容控制器"}
+{"title":"【RMUC 2026区域赛部分赛事数据发布】","season":"RMUC2026","team":null,"labels":[],"topic":"区域赛部分赛事数据发布"}
+{"title":"【RM2026-超高性价比能量机关 硬件&嵌入式开源】南京理工大学 Alliance战队","season":"RM2026","team":"南京理工大学 Alliance战队","labels":[],"topic":"超高性价比能量机关 硬件&嵌入式开源"}
+{"title":"[RM2026-低成本3508减速箱开源(轻/重型P15.8)] 青岛大学-未来","season":"RM2026","team":"青岛大学 未来","labels":[],"topic":"低成本3508减速箱开源(轻/重型P15.8)"}
+{"title":"[RM2026-算法]关于Ubuntu24.04内核版本与海康相机驱动兼容性问题的提醒 哈尔滨工业大学（深圳）南工骁鹰","season":"RM2026","team":"哈尔滨工业大学（深圳） 南工骁鹰","labels":[],"topic":"算法 关于Ubuntu24.04内核版本与海康相机驱动兼容性问题的提醒"}
+{"title":"稳定30Hz的十爪切线拨盘开源","season":null,"team":null,"labels":[],"topic":"稳定30Hz的十爪切线拨盘开源"}
+{"title":"123123","season":null,"team":null,"labels":[],"topic":"123123"}
+{"title":"【RM2026-算法综合开源（视觉 / 导航 / 决策）】武汉科技大学崇实战队","season":"RM2026","team":"武汉科技大学崇实战队","labels":[],"topic":"算法综合开源（视觉 / 导航 / 决策）"}
+{"title":"【RM2025-过洞舵轮工程机械结构开源】五邑大学-IMCA战队","season":"RM2025","team":"五邑大学 IMCA战队","labels":[],"topic":"过洞舵轮工程机械结构开源"}
+{"title":"【RM2025-四轮足底盘机械结构开源】五邑大学-IMCA战队","season":"RM2025","team":"五邑大学 IMCA战队","labels":[],"topic":"四轮足底盘机械结构开源"}
+{"title":"【RM2026-关节电机缓冲电容经验分享】香港科技大学ENTERPRIZE战队","season":"RM2026","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"关节电机缓冲电容经验分享"}
+{"title":"【RM2026-为提高自瞄上限的云台控制方案开源】南京理工大学江阴校区-Combat战队","season":"RM2026","team":"南京理工大学江阴校区 Combat战队","labels":[],"topic":"为提高自瞄上限的云台控制方案开源"}
+{"title":"【RM2026-阔折叠空中机器人开源及经验分享】武汉科技大学 崇实战队","season":"RM2026","team":"武汉科技大学 崇实战队","labels":[],"topic":"阔折叠空中机器人开源及经验分享"}
+{"title":"【RM2026-全向轮步兵悬挂及低成本全向轮辊子方案开源】-东北农业大学-TCP战队","season":"RM2026","team":"东北农业大学 TCP战队","labels":[],"topic":"全向轮步兵悬挂及低成本全向轮辊子方案开源"}
+{"title":"【RM2026-三相并联BuckBoost超级电容控制板开源】青岛大学-未来战队","season":"RM2026","team":"青岛大学 未来战队","labels":[],"topic":"三相并联BuckBoost超级电容控制板开源"}
+{"title":"【RM2026-自研3508电机P17轮毂减速器开源】中国石油大学（华东）-能特异RPS战队","season":"RM2026","team":"中国石油大学（华东） 能特异RPS战队","labels":[],"topic":"自研3508电机P17轮毂减速器开源"}
+{"title":"[RM2026-全向轮步兵机器人机械结构开源】青岛大学-未来战队","season":"RM2026","team":"青岛大学","labels":[],"topic":"全向轮步兵机器人机械结构开源】-未来战队"}
+{"title":"【硬件设计】OmniX2026 通用4路CAN高密度机器人/飞行器主控板 OmniCtrl™ 2 Pro 设计文件与文档开源 西浦太仓","season":null,"team":null,"labels":["硬件设计"],"topic":"OmniX2026 通用4路CAN高密度机器人/飞行器主控板 OmniCtrl™ 2 Pro 设计文件与文档开源 西浦太仓"}
+{"title":"【已完结】RMU 2026 圆桌分享 ：队伍老队员的维系及建设","season":"RMU2026","team":null,"labels":["已完结"],"topic":"圆桌分享 ：队伍老队员的维系及建设"}
+{"title":"【RM2026-工程上位机装配算法开源】香港科技大学ENTERPRIZE战队","season":"RM2026","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"工程上位机装配算法开源"}
+{"title":"【RM2024-双弧轮近战英雄机械结构开源】合肥工业大学-苍穹战队","season":"RM2024","team":"合肥工业大学 苍穹战队","labels":[],"topic":"双弧轮近战英雄机械结构开源"}
+{"title":"【RM2026-简易电控云台重力补偿公式开源】-北京理工大学珠海学院-毅恒团队","season":"RM2026","team":"北京理工大学珠海学院 毅恒团队","labels":[],"topic":"简易电控云台重力补偿公式开源"}
+{"title":"【RM2026-工程机器人机械结构开源】西北工业大学 WMJ战队","season":"RM2026","team":"西北工业大学 WMJ战队","labels":[],"topic":"工程机器人机械结构开源"}
+{"title":"【RM2026-能量单元6dof位姿检测开源】深圳职业技术大学 RCIA战队","season":"RM2026","team":"深圳职业技术大学 RCIA战队","labels":[],"topic":"能量单元6dof位姿检测开源"}
+{"title":"[RM2026] 青岛大学 工程机器人通用串联型机械臂控制框架与上位机框架开源","season":"RM2026","team":"青岛大学","labels":[],"topic":"工程机器人通用串联型机械臂控制框架与上位机框架开源"}
+{"title":"【RM2026-大弹丸中心供弹机械设计指南】同济大学SuperPower战队","season":"RM2026","team":"同济大学SuperPower战队","labels":[],"topic":"大弹丸中心供弹机械设计指南"}
+{"title":"【RM2026-DAB双有源桥无线充电系统开源】北京理工大学 DreamChaser 战队","season":"RM2026","team":"北京理工大学 DreamChaser 战队","labels":[],"topic":"DAB双有源桥无线充电系统开源"}
+{"title":"【RM2026开源】改进版便宜8块钱3D打印电池架","season":"RM2026","team":null,"labels":["开源"],"topic":"改进版便宜8块钱3D打印电池架"}
+{"title":"【香港科技大学（广州）】EtherCAT转CAN模块开源 软件+硬件","season":null,"team":"香港科技大学（广州）","labels":[],"topic":"EtherCAT转CAN模块开源 软件+硬件"}
+{"title":"基于Unity的能量机关合成数据生成与仿真平台设计","season":null,"team":null,"labels":[],"topic":"基于Unity的能量机关合成数据生成与仿真平台设计"}
+{"title":"【RM2026-制导镖硬件与整体设计】-哈尔滨工业大学（威海）-HERO战队","season":"RM2026","team":"哈尔滨工业大学（威海） HERO战队","labels":[],"topic":"制导镖硬件与整体设计"}
+{"title":"【RM2026-月球车英雄机器人机械结构开源】北京信息科技大学-星辰","season":"RM2026","team":"北京信息科技大学 星辰","labels":[],"topic":"月球车英雄机器人机械结构开源"}
+{"title":"【RM2026-嵌入式软件中间件开源】西安电子科技大学 IRobot战队","season":"RM2026","team":"西安电子科技大学 IRobot战队","labels":[],"topic":"嵌入式软件中间件开源"}
+{"title":"【RM2026-PCB盘式滑环开源】盐城工学院 SaltWave战队","season":"RM2026","team":"盐城工学院 SaltWave战队","labels":[],"topic":"PCB盘式滑环开源"}
+{"title":"【RM2026-COT硬件内环超级电容软硬件开源-pt2】合肥工业大学（宣城校区）-WDR 战队","season":"RM2026","team":"合肥工业大学（宣城校区） WDR 战队","labels":[],"topic":"COT硬件内环超级电容软硬件开源-pt2"}
+{"title":"【RM2026-MP2639C电池管理系统】-哈尔滨工业大学（威海）-HERO战队","season":"RM2026","team":"哈尔滨工业大学（威海） HERO战队","labels":[],"topic":"MP2639C电池管理系统"}
+{"title":"连接飞书的一体化任务提醒及面板-任务管理系统","season":null,"team":null,"labels":[],"topic":"连接飞书的一体化任务提醒及面板-任务管理系统"}
+{"title":"【RM2026-第二代更适合RM宝宝体质的交换机开源】香港科技大学ENTERPRIZE战队","season":"RM2026","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"第二代更适合RM宝宝体质的交换机开源"}
+{"title":"【RM2026-主动预充电缓启动模块开源（适配新电池+X6Plus）】香港科技大学ENTERPRIZE战队","season":"RM2026","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"主动预充电缓启动模块开源（适配新电池+X6Plus）"}
+{"title":"【RM2026——串联腿英雄机器人机械结构开源及经验分享】华东理工大学——起源战队","season":"RM2026","team":"华东理工大学 起源战队","labels":[],"topic":"串联腿英雄机器人机械结构开源及经验分享"}
+{"title":"【开源】使用两相插头的超便宜3D打印电池架","season":null,"team":null,"labels":["开源"],"topic":"使用两相插头的超便宜3D打印电池架"}
+{"title":"【RM-2026过洞工程机器人结构开源】北方工业大学Dream Team战队","season":"RM2026","team":"北方工业大学Dream Team战队","labels":[],"topic":"过洞工程机器人结构开源"}
+{"title":"【RM2026-穹隼空中机器人机械结构开源及经验分享】仲恺农业工程学院 奇点战队","season":"RM2026","team":"仲恺农业工程学院 奇点战队","labels":[],"topic":"穹隼空中机器人机械结构开源及经验分享"}
+{"title":"【RM2026-工程机器人ROS2上位机控制框架开源】香港科技大学（广州）PnX","season":"RM2026","team":"香港科技大学（广州） PnX","labels":[],"topic":"工程机器人ROS2上位机控制框架开源"}
+{"title":"青岛大学未来战队--只能留在图纸上的RM小机","season":null,"team":"青岛大学未来战队","labels":[],"topic":"只能留在图纸上的RM小机"}
+{"title":"【RM2026-空中机器人机械结构开源及经验分享】深圳技术大学 悍匠战队","season":"RM2026","team":"深圳技术大学 悍匠战队","labels":[],"topic":"空中机器人机械结构开源及经验分享"}
+{"title":"福建理工大学区域赛空中机器人机械图纸","season":null,"team":"福建理工大学","labels":[],"topic":"区域赛空中机器人机械图纸"}
+{"title":"【RM2026-飞镖镖架上位机开源】北方工业大学DreamTeam战队","season":"RM2026","team":"北方工业大学DreamTeam战队","labels":[],"topic":"飞镖镖架上位机开源"}
+{"title":"【RM2026 视觉算法仿真器开源】河北科技大学 Actor&Thinker 战队","season":"RM2026","team":"河北科技大学 Actor&Thinker 战队","labels":[],"topic":"视觉算法仿真器开源"}
+{"title":"立刻使用 RoboSouls 打通自定义客户端和真实赛场！","season":null,"team":null,"labels":[],"topic":"立刻使用 RoboSouls 打通自定义客户端和真实赛场！"}
+{"title":"【RM2026-YOLO26 端到端装甲板神经网络识别ONNX模型开源】 河北科技大学-Actor&Thinker 战队","season":"RM2026","team":"河北科技大学 Actor&Thinker 战队","labels":[],"topic":"YOLO26 端到端装甲板神经网络识别ONNX模型开源"}
+{"title":"【RM2026-大能量机关系统软硬件及自瞄算法开源】常州大学 Climber战队","season":"RM2026","team":"常州大学 Climber战队","labels":[],"topic":"大能量机关系统软硬件及自瞄算法开源"}
+{"title":"【RM2026 -雷达无线电开源】华南师范大学PIONEER战队","season":"RM2026","team":"华南师范大学PIONEER战队","labels":[],"topic":"雷达无线电开源"}
+{"title":"【RM2025/26-小型步兵机械结构开源】北方工业大学-DreamTeam战队","season":"RM2025","team":"北方工业大学 DreamTeam战队","labels":[],"topic":"26-小型步兵机械结构开源"}
+{"title":"【RM2026-工程机器人机械结构开源】吉林大学 TARS Go战队","season":"RM2026","team":"吉林大学 TARS Go战队","labels":[],"topic":"工程机器人机械结构开源"}
+{"title":"[RM2026-无人机反制开源]华南师范大学 PIONEER战队","season":"RM2026","team":"华南师范大学 PIONEER战队","labels":[],"topic":"无人机反制开源"}
+{"title":"[RM2026 吉林大学] 共轴双桨构型空中机器人开源","season":"RM2026","team":"吉林大学","labels":[],"topic":"共轴双桨构型空中机器人开源"}
+{"title":"RoboMaster 2026机甲大师超级对抗赛战场申领结果说明","season":"RM2026","team":null,"labels":[],"topic":"机甲大师超级对抗赛战场申领结果说明"}
+{"title":"【RM2026-低成本带串口无控镖电源板开源】西安交通大学-笃行战队","season":"RM2026","team":"西安交通大学 笃行战队","labels":[],"topic":"低成本带串口无控镖电源板开源"}
+{"title":"【RM2026-无感FOC驱动方案开源】华南师范大学（佛山）-VANGUARD战队","season":"RM2026","team":"华南师范大学（佛山） VANGUARD战队","labels":[],"topic":"无感FOC驱动方案开源"}
+{"title":"【RM2026-MP2480小体积荧光充能驱动开源】华南师范大学（佛山）-VANGUARD战队","season":"RM2026","team":"华南师范大学（佛山） VANGUARD战队","labels":[],"topic":"MP2480小体积荧光充能驱动开源"}
+{"title":"【RM AWARD 2025】中石大（华东）RPS 张淄栋 方案 规划 质量 人员 成本","season":null,"team":null,"labels":[],"topic":"RM AWARD 2025 中石大（华东）RPS 张淄栋 方案 规划 质量 人员 成本"}
+{"title":"【RM2026 - 关节电容和控制器开源 - 西安交通大学笃行战队】","season":"RM2026","team":"西安交通大学笃行战队","labels":[],"topic":"关节电容和控制器开源"}
+{"title":"【RM2026-STM32H723空中机器人主控开源】-厦门大学嘉庚学院TCR战队","season":"RM2026","team":"厦门大学嘉庚学院TCR战队","labels":[],"topic":"STM32H723空中机器人主控开源"}
+{"title":"[RM2026 偏置并联腿(整车)电控开源] 南京航空航天大学金城学院-Born Of Fire战队","season":"RM2026","team":"南京航空航天大学金城学院 Born Of Fire战队","labels":[],"topic":"偏置并联腿(整车)电控开源"}
+{"title":"【电磁弹射事故报告】因虚焊引发的电容组短路","season":null,"team":null,"labels":[],"topic":"电磁弹射事故报告 因虚焊引发的电容组短路"}
+{"title":"RM2026-厦理PFA-雷达站算法开源","season":"RM2026","team":null,"labels":[],"topic":"厦理PFA-雷达站算法开源"}
+{"title":"【RM2026 轮腿代码开源】中国石油大学（北京）SPR轮腿步兵代码开源","season":"RM2026","team":"中国石油大学（北京）","labels":[],"topic":"轮腿代码开源 SPR轮腿步兵代码开源"}
+{"title":"【RM2026-无人机48V-24V降压模块开源】西南交通大学Helios战队","season":"RM2026","team":"西南交通大学Helios战队","labels":[],"topic":"无人机48V-24V降压模块开源"}
+{"title":"2026RM中国矿业大学工程机器人和自定义控制器开源","season":null,"team":"2026RM中国矿业大学","labels":[],"topic":"工程机器人和自定义控制器开源"}
+{"title":"RM2026-9齿英雄中心供弹拨盘开源","season":"RM2026","team":null,"labels":[],"topic":"9齿英雄中心供弹拨盘开源"}
+{"title":"杨三十的校内赛小车（2019年）","season":null,"team":null,"labels":[],"topic":"杨三十的校内赛小车（2019年）"}
+{"title":"一个从未被端上赛场的东西（旋转起伏台）","season":null,"team":null,"labels":[],"topic":"一个从未被端上赛场的东西（旋转起伏台）"}
+{"title":"太原科技大学老版本能量机关机械结构图纸补档","season":null,"team":"太原科技大学","labels":[],"topic":"老版本能量机关机械结构图纸补档"}
+{"title":"【RM2026 -雷达无线电 开源】南京理工大学江阴校区-Combat战队","season":"RM2026","team":"南京理工大学江阴校区 Combat战队","labels":["开源"],"topic":"雷达无线电"}
+{"title":"[RM2026 东南大学] 基于神经网络压缩的低码率吊射图传自定义客户端","season":"RM2026","team":"东南大学","labels":[],"topic":"基于神经网络压缩的低码率吊射图传自定义客户端"}
+{"title":"太原科技大学无人机Word开源更新","season":null,"team":"太原科技大学","labels":[],"topic":"无人机Word开源更新"}
+{"title":"[RM2026]英雄吊射用 通过图传链路0x3010传递图像 以及对应解码用自定义客户端","season":"RM2026","team":null,"labels":[],"topic":"英雄吊射用 通过图传链路0x3010传递图像 以及对应解码用自定义客户端"}
+{"title":"弹仓式弹丸拾取器开源","season":null,"team":null,"labels":[],"topic":"弹仓式弹丸拾取器开源"}
+{"title":"【BNBU Navigator 2026雷达射频二阶段开源】+ 开发计划","season":null,"team":null,"labels":[],"topic":"BNBU Navigator 2026雷达射频二阶段开源 开发计划"}
+{"title":"【个人开源】一种C板蜂鸣器播放模板","season":null,"team":null,"labels":["个人开源"],"topic":"一种C板蜂鸣器播放模板"}
+{"title":"【库存管理系统】电子元器件管理","season":null,"team":null,"labels":[],"topic":"库存管理系统 电子元器件管理"}
+{"title":"RM2026-全向轮步兵开源","season":"RM2026","team":null,"labels":[],"topic":"全向轮步兵开源"}
+{"title":"【 RM2026赛季 地瓜机器人赞助物资权益通知】","season":"RM2026","team":null,"labels":[],"topic":"地瓜机器人赞助物资权益通知"}
+{"title":"[斗蛐蛐 - RoboMaster 胜率预测总控台] -- 华东理工大学起源战队","season":null,"team":"华东理工大学起源战队","labels":[],"topic":"斗蛐蛐 - RoboMaster 胜率预测总控台"}
+{"title":"RMUC 2026规则讨论&意见征集","season":"RMUC2026","team":null,"labels":[],"topic":"规则讨论&意见征集"}
+{"title":"【诺丁汉大学联队】Wheel_Maker 快速轮组评估工具","season":null,"team":"诺丁汉大学联队","labels":[],"topic":"Wheel_Maker 快速轮组评估工具"}
+{"title":"【开源发布】ros2-web-desktop：浏览器远程开发查看 RViz2 / rqt，无需 X11 转发","season":null,"team":null,"labels":["开源发布"],"topic":"ros2-web-desktop：浏览器远程开发查看 RViz2 / rqt，无需 X11 转发"}
+{"title":"cmake编译在clion与vscode的使用教程（包括jlink,daplink,stlink的下载与下载器在ozone的使用）","season":null,"team":null,"labels":[],"topic":"cmake编译在clion与vscode的使用教程（包括jlink,daplink,stlink的下载与下载器在ozone的使用）"}
+{"title":"【 RM2026赛季 易尔拓（YATO）赞助物资权益通知】","season":"RM2026","team":null,"labels":[],"topic":"易尔拓（YATO）赞助物资权益通知"}
+{"title":"【 RM2026赛季 达索系统&森科云创赞助物资权益通知】","season":"RM2026","team":null,"labels":[],"topic":"达索系统&森科云创赞助物资权益通知"}
+{"title":"【RM2026-AX650自瞄部署平台硬件开源】上海科技大学-magician","season":"RM2026","team":"上海科技大学 magician","labels":[],"topic":"AX650自瞄部署平台硬件开源"}
+{"title":"常见控制理论算法及仿真开源","season":null,"team":null,"labels":[],"topic":"常见控制理论算法及仿真开源"}
+{"title":"[RM2026-步兵自瞄/能量机关算法完整开源] 吉林大学TARS Go战队","season":"RM2026","team":"吉林大学TARS Go战队","labels":[],"topic":"步兵自瞄/能量机关算法完整开源"}
+{"title":"【RM2026-自制串口绘图软件开源】中国科学技术大学 RoboWalker战队","season":"RM2026","team":"中国科学技术大学 RoboWalker战队","labels":[],"topic":"自制串口绘图软件开源"}
+{"title":"【RM2026-AX650自瞄视觉项目开源】上海科技大学-magician","season":"RM2026","team":"上海科技大学 magician","labels":[],"topic":"AX650自瞄视觉项目开源"}
+{"title":"【RM2026-空中机器人机械开源】沈阳航空航天大学T-UP战队","season":"RM2026","team":"UP战队","labels":[],"topic":"空中机器人机械开源 沈阳航空航天大学T"}
+{"title":"【实现手机热点控制机器人上下电】无线开关功率计开源——风信子战队","season":null,"team":"风信子战队","labels":[],"topic":"实现手机热点控制机器人上下电 无线开关功率计开源"}
+{"title":"基于mDNS+UDP的实时视频流传输与键鼠控制系统开源","season":null,"team":null,"labels":[],"topic":"基于mDNS+UDP的实时视频流传输与键鼠控制系统开源"}
+{"title":"Navigator RMUC 2026雷达射频开发小记【应该不止第一章】","season":null,"team":null,"labels":[],"topic":"Navigator RMUC2026雷达射频开发小记 应该不止第一章"}
+{"title":"【RM2026-钣金支架自制麦轮】湖北第二师范学院 潜云DGE战队","season":"RM2026","team":"湖北第二师范学院 潜云DGE战队","labels":[],"topic":"钣金支架自制麦轮"}
+{"title":"无人机激光检测模块机械结构开源","season":null,"team":null,"labels":[],"topic":"无人机激光检测模块机械结构开源"}
+{"title":"【 RM2026赛季 爱安特&追光几何赞助物资权益通知】","season":"RM2026","team":null,"labels":[],"topic":"爱安特&追光几何赞助物资权益通知"}
+{"title":"【 RM2026赛季 智能派（ELEGOO）赞助物资权益通知】","season":"RM2026","team":null,"labels":[],"topic":"智能派（ELEGOO）赞助物资权益通知"}
+{"title":"【广西大学-ROBOTZ战队-工程机器人】机械臂笛卡尔空间控制与重力补偿","season":null,"team":"广西大学 ROBOTZ战队","labels":[],"topic":"工程机器人 机械臂笛卡尔空间控制与重力补偿"}
+{"title":"【RM2026-Car&Armor检测模型部分原始权重先行开源】华北理工大学Horizon战队","season":"RM2026","team":"华北理工大学Horizon战队","labels":[],"topic":"Car&Armor检测模型部分原始权重先行开源"}
+{"title":"【RM2026-空中机器人机械结构开源】上海科技大学Magician战队","season":"RM2026","team":"上海科技大学Magician战队","labels":[],"topic":"空中机器人机械结构开源"}
+{"title":"【 RM2026赛季 留形科技物资购买折扣通知】","season":"RM2026","team":null,"labels":[],"topic":"留形科技物资购买折扣通知"}
+{"title":"一种简单好玩的模拟出真实弹仓容量的方法","season":null,"team":null,"labels":[],"topic":"一种简单好玩的模拟出真实弹仓容量的方法"}
+{"title":"【RM2026-上台阶英雄机器人机械结构开源】云南大学-Future战队","season":"RM2026","team":"云南大学 Future战队","labels":[],"topic":"上台阶英雄机器人机械结构开源"}
+{"title":"【RM2026-无控镖电源板及便携串口分享】南昌大学Passion战队","season":"RM2026","team":"南昌大学Passion战队","labels":[],"topic":"无控镖电源板及便携串口分享"}
+{"title":"一图流讲解双网卡模式配置赛事服务器","season":null,"team":null,"labels":[],"topic":"一图流讲解双网卡模式配置赛事服务器"}
+{"title":"【开源分享】用一套 C++ 接口打通 Linux 与多种 RTOS","season":null,"team":null,"labels":["开源分享"],"topic":"用一套 C++ 接口打通 Linux 与多种 RTOS"}
+{"title":"裁判系统服务器搭建全解——裁判端/选手端","season":null,"team":null,"labels":[],"topic":"裁判系统服务器搭建全解——裁判端/选手端"}
+{"title":"一齿多弹式侧向供弹拨盘系统","season":null,"team":null,"labels":[],"topic":"一齿多弹式侧向供弹拨盘系统"}
+{"title":"DAPLink上位机读取方案","season":null,"team":null,"labels":[],"topic":"DAPLink上位机读取方案"}
+{"title":"电控可视化工具分享：“VarScope”","season":null,"team":null,"labels":[],"topic":"电控可视化工具分享：“VarScope”"}
+{"title":"RM2026 北京工业大学 PIP战队 反无人机部分机械结构开源","season":"RM2026","team":"北京工业大学 PIP战队","labels":[],"topic":"反无人机部分机械结构开源"}
+{"title":"【RM2026-基于赛区志愿选择的RMUC 2026 区域赛名单分析看板】江南大学霞客湾校区-SHARK战队","season":"RM2026","team":"江南大学霞客湾校区 SHARK战队","labels":[],"topic":"基于赛区志愿选择的RMUC 2026 区域赛名单分析看板"}
+{"title":"迷你装甲板 2026联盟赛周边版","season":null,"team":null,"labels":[],"topic":"迷你装甲板 2026联盟赛周边版"}
+{"title":"平动-自旋耦合目标下的火控拦截时间t解析与数值混合寻优策略","season":null,"team":null,"labels":[],"topic":"平动-自旋耦合目标下的火控拦截时间t解析与数值混合寻优策略"}
+{"title":"【RM2026-哨兵舵步机器人机械结构开源】辽宁科技大学-COD战队","season":"RM2026","team":"辽宁科技大学 COD战队","labels":[],"topic":"哨兵舵步机器人机械结构开源"}
+{"title":"基于KTH7823的16位高速磁编码器","season":null,"team":null,"labels":[],"topic":"基于KTH7823的16位高速磁编码器"}
+{"title":"【开源发布】RPL：面向高频机器人通信的 C++ 低延迟协议解析库","season":null,"team":null,"labels":["开源发布"],"topic":"RPL：面向高频机器人通信的 C++ 低延迟协议解析库"}
+{"title":"【RM2026-功率控制系统&电机功率模型开源】天津工业大学 304战队","season":"RM2026","team":"天津工业大学 304战队","labels":[],"topic":"功率控制系统&电机功率模型开源"}
+{"title":"【雷达实用工具】激光雷达-相机联合标定结果快速可视化校验工具","season":null,"team":null,"labels":[],"topic":"雷达实用工具 激光雷达-相机联合标定结果快速可视化校验工具"}
+{"title":"RM2026-达妙MC02 分电板开源","season":"RM2026","team":null,"labels":[],"topic":"达妙MC02 分电板开源"}
+{"title":"RoboMaster2015-2025赛果资料汇总（2026.4.9）","season":"RM2015","team":null,"labels":[],"topic":"2025赛果资料汇总（2026.4.9）"}
+{"title":"超越赛场的胜负，在积累中窥见真正的成长","season":null,"team":null,"labels":[],"topic":"超越赛场的胜负，在积累中窥见真正的成长"}
+{"title":"[CAN协议14位磁编码器模块开源]SharkEncoder-江南大学霞客湾校区Shark战队","season":null,"team":"江南大学霞客湾校区Shark战队","labels":[],"topic":"CAN协议14位磁编码器模块开源 SharkEncoder"}
+{"title":"【RM2026-雷达辅助吊射与算法软件框架开发经验分享-】中国民航大学—ITL战队","season":"RM2026","team":"中国民航大学 ITL战队","labels":[],"topic":"雷达辅助吊射与算法软件框架开发经验分享"}
+{"title":"种一颗树，最好的时间是十年前，其次是现在。","season":null,"team":null,"labels":[],"topic":"种一颗树，最好的时间是十年前，其次是现在。"}
+{"title":"【RM2026-英雄机器人机械结构开源】西交利物浦大学（太仓）OmniX","season":"RM2026","team":"西交利物浦大学（太仓） OmniX","labels":[],"topic":"英雄机器人机械结构开源"}
+{"title":"【RM2026-哨兵机器人机械结构开源】西交利物浦大学（太仓）OmniX","season":"RM2026","team":"西交利物浦大学（太仓） OmniX","labels":[],"topic":"哨兵机器人机械结构开源"}
+{"title":"【RM2026-步兵机器人机械结构开源】西交利物浦大学（太仓）OmniX","season":"RM2026","team":"西交利物浦大学（太仓） OmniX","labels":[],"topic":"步兵机器人机械结构开源"}
+{"title":"【RM2026-工程机器人机械结构开源】西交利物浦大学（太仓）OmniX","season":"RM2026","team":"西交利物浦大学（太仓） OmniX","labels":[],"topic":"工程机器人机械结构开源"}
+{"title":"【走心帖】写给浙江工业大学Deus的情书","season":null,"team":"写给浙江工业大学","labels":["走心帖"],"topic":"Deus的情书"}
+{"title":"更适合RM的控制理论","season":null,"team":null,"labels":[],"topic":"更适合RM的控制理论"}
+{"title":"【RM2026-反无人机激光追踪】华北理工大学Horizon战队","season":"RM2026","team":"华北理工大学Horizon战队","labels":[],"topic":"反无人机激光追踪"}
+{"title":"【RM2026-工程机器人自定义控制器结构和代码开源】贵州大学 printk战队","season":"RM2026","team":"贵州大学 printk战队","labels":[],"topic":"工程机器人自定义控制器结构和代码开源"}
+{"title":"【RM2026】英雄部署模式图传开源 五大湖联合大学","season":"RM2026","team":"五大湖联合大学","labels":[],"topic":"英雄部署模式图传开源"}
+{"title":"【RM2026】五大湖联合大学 过洞吊射英雄机器人开源（机械）","season":"RM2026","team":"五大湖联合大学","labels":[],"topic":"过洞吊射英雄机器人开源（机械）"}
+{"title":"【RM2026-半舵半全向哨兵机械结构开源】盐城工学院 SaltWave战队","season":"RM2026","team":"盐城工学院 SaltWave战队","labels":[],"topic":"半舵半全向哨兵机械结构开源"}
+{"title":"【RM2026-战队官网框架开源】河北工业职业技术大学-FEver战队","season":"RM2026","team":"河北工业职业技术大学 FEver战队","labels":[],"topic":"战队官网框架开源"}
+{"title":"【RM2025-工程机器人机械结构开源】辽宁科技大学-COD战队","season":"RM2025","team":"辽宁科技大学 COD战队","labels":[],"topic":"工程机器人机械结构开源"}
+{"title":"【RM2026-哨兵机器人导航、决策、自瞄、下位机控制全开源】辽宁科技大学-COD战队","season":"RM2026","team":"辽宁科技大学 COD战队","labels":[],"topic":"哨兵机器人导航、决策、自瞄、下位机控制全开源"}
+{"title":"[RM2026][自定义客户端开源]SharkClientRust-江南大学霞客湾校区Shark战队","season":"RM2026","team":"江南大学霞客湾校区Shark战队","labels":[],"topic":"自定义客户端开源 SharkClientRust"}
+{"title":"【RM2026-过起伏路段高坚果哨兵机械结构开源】合肥工业大学（宣城校区）-WDR战队","season":"RM2026","team":"合肥工业大学（宣城校区） WDR战队","labels":[],"topic":"过起伏路段高坚果哨兵机械结构开源"}
+{"title":"[RM2026 成本低于10元的测试用飞镖触发装置自制方案分享] - 厦门大学嘉庚学院 TCR战队","season":"RM2026","team":"厦门大学嘉庚学院 TCR战队","labels":[],"topic":"成本低于10元的测试用飞镖触发装置自制方案分享"}
+{"title":"【RM2026-工程机器人自定义控制器程序开源】天津职业技术师范大学 RIEA津南虎战队","season":"RM2026","team":"天津职业技术师范大学 RIEA津南虎战队","labels":[],"topic":"工程机器人自定义控制器程序开源"}
+{"title":"MP9931 高效率通用降压模块开源","season":null,"team":null,"labels":[],"topic":"MP9931 高效率通用降压模块开源"}
+{"title":"【RM2026-COT硬件内环超级电容软硬件开源】合肥工业大学（宣城校区）-WDR战队","season":"RM2026","team":"合肥工业大学（宣城校区） WDR战队","labels":[],"topic":"COT硬件内环超级电容软硬件开源"}
+{"title":"【RM2026-一种夹爪的设计思路分享】五邑大学-IMCA战队","season":"RM2026","team":"五邑大学 IMCA战队","labels":[],"topic":"一种夹爪的设计思路分享"}
+{"title":"2026RM工程挑战赛（华南站）软件代码开源（1分20秒取到二级矿）","season":null,"team":null,"labels":[],"topic":"2026RM工程挑战赛（华南站）软件代码开源（1分20秒取到二级矿）"}
+{"title":"【RM2026 4-RRC-FSK调制解调】华南师范大学PIONEER","season":null,"team":"华南师范大学","labels":[],"topic":"RM2026 4-RRC-FSK调制解调 PIONEER"}
+{"title":"最近天气好不好？《你》好不好？","season":null,"team":null,"labels":[],"topic":"最近天气好不好？《你》好不好？"}
+{"title":"【BNBU Navigator 2026雷达射频一阶段开源】+开发计划+吐槽","season":null,"team":null,"labels":[],"topic":"BNBU Navigator 2026雷达射频一阶段开源 开发计划+吐槽"}
+{"title":"【RM2026极致降本双端自研减速箱与橡胶轮开源】合肥工业大学-苍穹战队","season":"RM2026","team":"合肥工业大学 苍穹战队","labels":[],"topic":"极致降本双端自研减速箱与橡胶轮开源"}
+{"title":"【RM2026--无人机缓启动硬件开源】华北理工大学-Horizon战队","season":"RM2026","team":"华北理工大学 Horizon战队","labels":[],"topic":"无人机缓启动硬件开源"}
+{"title":"【2026赛季-隧道英雄机械结构开源】安徽信息工程学院Artisans战队","season":"RM2026","team":"安徽信息工程学院Artisans战队","labels":[],"topic":"隧道英雄机械结构开源"}
+{"title":"【RM2026-单发限位（被动预置）发射机构开源ver.2.0】东华大学DIODE","season":"RM2026","team":"东华大学 DIODE","labels":[],"topic":"单发限位（被动预置）发射机构开源ver.2.0"}
+{"title":"[开源] ARM LiveWatch : VS Code 实时变量监视插件","season":null,"team":null,"labels":["开源"],"topic":"ARM LiveWatch : VS Code 实时变量监视插件"}
+{"title":"RM2023 交龙超级电容控制器开源 光速翼","season":"RM2023","team":null,"labels":[],"topic":"交龙超级电容控制器开源 光速翼"}
+{"title":"【一些小提示】关于工程机器人与自定义控制器的","season":null,"team":null,"labels":[],"topic":"一些小提示 关于工程机器人与自定义控制器的"}
+{"title":"倾听你的声音：RoboMaster自定义客户端功能诉求与建议征集","season":null,"team":null,"labels":[],"topic":"倾听你的声音：RoboMaster自定义客户端功能诉求与建议征集"}
+{"title":"🎯 RMUC 2026 完整形态考核指南 | 今年的变化你一定要知道！","season":null,"team":null,"labels":[],"topic":"🎯 RMUC2026 完整形态考核指南 | 今年的变化你一定要知道！"}
+{"title":"没办法和你同行了，我换个方向跟你汇合","season":null,"team":null,"labels":[],"topic":"没办法和你同行了，我换个方向跟你汇合"}
+{"title":"【RM2026-带中心区域检测前哨站装甲板开源】佛山大学醒狮战队","season":"RM2026","team":"佛山大学醒狮战队","labels":[],"topic":"带中心区域检测前哨站装甲板开源"}
+{"title":"【RM26-硬件培训分享】中南大学FYT战队","season":"RM2026","team":"中南大学FYT战队","labels":[],"topic":"硬件培训分享"}
+{"title":"RoboMaster机甲大师裁判系统搭建——无路由器单设备方案","season":null,"team":null,"labels":[],"topic":"RoboMaster机甲大师裁判系统搭建——无路由器单设备方案"}
+{"title":"【RM2026-H7主控开源】哈尔滨工业大学（深圳）南工骁鹰战队","season":"RM2026","team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"H7主控开源"}
+{"title":"RMUL2026地图开源图纸V1.2.0","season":"RMUL2026","team":null,"labels":[],"topic":"地图开源图纸V1.2.0"}
+{"title":"GM6020接口维修","season":null,"team":null,"labels":[],"topic":"GM6020接口维修"}
+{"title":"Ozone使用无线DAPlink调试的解决方案","season":null,"team":null,"labels":[],"topic":"Ozone使用无线DAPlink调试的解决方案"}
+{"title":"用Studio2.0制作自己的机器人乐高积木","season":null,"team":null,"labels":[],"topic":"用Studio2.0制作自己的机器人乐高积木"}
+{"title":"RMU 2026 圆桌 | 嵌入式专场","season":"RMU2026","team":null,"labels":[],"topic":"圆桌 | 嵌入式专场"}
+{"title":"【RM2026-中心供弹-主动供弹结构开源ver.4.2.】东华大学DIODE","season":"RM2026","team":"东华大学 DIODE","labels":[],"topic":"中心供弹-主动供弹结构开源ver.4.2."}
+{"title":"【硬件设计】USB转3路CAN+3路UART+1路DBUS协议转换器","season":null,"team":null,"labels":["硬件设计"],"topic":"USB转3路CAN+3路UART+1路DBUS协议转换器"}
+{"title":"【硬件设计】支持双头USB Type-A+C的ST-Link V2-1","season":null,"team":null,"labels":["硬件设计"],"topic":"支持双头USB Type-A+C的ST-Link V2-1"}
+{"title":"TB47 电池架及配件套件","season":null,"team":null,"labels":[],"topic":"TB47 电池架及配件套件"}
+{"title":"不止比拼，更是成长 —— 解锁 RM 赛事文化密码","season":null,"team":null,"labels":[],"topic":"不止比拼，更是成长 —— 解锁 RM 赛事文化密码"}
+{"title":"【RM2025-工程机器人机械结构开源】中南大学-FYT战队","season":"RM2025","team":"中南大学 FYT战队","labels":[],"topic":"工程机器人机械结构开源"}
+{"title":"裁判系统开箱验收Tips","season":null,"team":null,"labels":[],"topic":"裁判系统开箱验收Tips"}
+{"title":"新图传(VT03/VT13)不出图检查流程","season":null,"team":null,"labels":[],"topic":"新图传(VT03/VT13)不出图检查流程"}
+{"title":"【香港科技大学（广州） PnX战队】HPM芯片开发经验与教程","season":null,"team":"香港科技大学（广州） PnX战队","labels":[],"topic":"HPM芯片开发经验与教程"}
+{"title":"【RM2025】天津大学-英雄双级四摩擦轮发射机构设计开源","season":"RM2025","team":"天津大学","labels":[],"topic":"英雄双级四摩擦轮发射机构设计开源"}
+{"title":"YOLO数据集自动标注工具","season":null,"team":null,"labels":[],"topic":"YOLO数据集自动标注工具"}
+{"title":"CAN/FDCAN 智能参数计算器","season":null,"team":null,"labels":[],"topic":"CAN/FDCAN 智能参数计算器"}
+{"title":"RoboMaster 交流赛技术方案指南","season":null,"team":null,"labels":[],"topic":"RoboMaster 交流赛技术方案指南"}
+{"title":"【RM2026--功率计软硬件开源】华北理工大学-Horizon战队","season":"RM2026","team":"华北理工大学 Horizon战队","labels":[],"topic":"功率计软硬件开源"}
+{"title":"【RM2026-考虑质心偏移的轮腿型机器人建模开源】香港大学 HerKules战队","season":"RM2026","team":"香港大学 HerKules战队","labels":[],"topic":"考虑质心偏移的轮腿型机器人建模开源"}
+{"title":"支持外部触发/同步的超低零偏IMU模块开源","season":null,"team":null,"labels":[],"topic":"支持外部触发/同步的超低零偏IMU模块开源"}
+{"title":"【RM2026-北京理工大学-DreamChaser战队】300FPS识别帧率FPGA制导飞镖开源【1/5 硬件篇】","season":"RM2026","team":"北京理工大学 DreamChaser战队","labels":[],"topic":"300FPS识别帧率FPGA制导飞镖开源 1/5 硬件篇"}
+{"title":"26赛季地图STL格式可打印","season":"RM2026","team":null,"labels":[],"topic":"地图STL格式可打印"}
+{"title":"【RM2026-自制小弹丸捡弹器开源】南京理工大学江阴校区-Combat战队","season":"RM2026","team":"南京理工大学江阴校区 Combat战队","labels":[],"topic":"自制小弹丸捡弹器开源"}
+{"title":"【RM2026-带串口的无控镖电源板分享】北京邮电大学逐雁战队","season":"RM2026","team":"北京邮电大学逐雁战队","labels":[],"topic":"带串口的无控镖电源板分享"}
+{"title":"RoboMaster 教育背景认证攻略","season":null,"team":null,"labels":[],"topic":"RoboMaster 教育背景认证攻略"}
+{"title":"【诺丁汉大学联队】基于 EtherCAT&ROS2 的无(轻)下位机方案开源","season":null,"team":"诺丁汉大学联队","labels":[],"topic":"基于 EtherCAT&ROS2 的无(轻)下位机方案开源"}
+{"title":"经纬Matrice 100 使用注意事项","season":null,"team":null,"labels":[],"topic":"经纬Matrice 100 使用注意事项"}
+{"title":"【经验贴】万字长文预警！机甲大师宣传运营组全纪实：从入组到退役，所有经历/细节/感悟全分享","season":null,"team":null,"labels":[],"topic":"经验贴 万字长文预警！机甲大师宣传运营组全纪实：从入组到退役，所有经历/细节/感悟全分享"}
+{"title":"RM2026赛季 CRC赞助物资权益通知","season":"RM2026","team":null,"labels":[],"topic":"CRC赞助物资权益通知"}
+{"title":"[RM2026 DJI3508/DM3519 通用经济减速箱开源]-吉林大学TARS Go战队","season":"RM2026","team":"吉林大学TARS Go战队","labels":[],"topic":"DJI3508/DM3519 通用经济减速箱开源"}
+{"title":"【RM2026 旧图传的使用与连接方法】盐城工学院SaltWave战队","season":"RM2026","team":"盐城工学院SaltWave战队","labels":[],"topic":"旧图传的使用与连接方法"}
+{"title":"【RM2026-腿式麦轮＋履带底盘结构开源】华北科技学院-风暴","season":"RM2026","team":"华北科技学院 风暴","labels":[],"topic":"腿式麦轮＋履带底盘结构开源"}
+{"title":"香港科技大学ENTERPRIZE战队 - 2026赛季新生培训资料","season":"RM2026","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"新生培训资料"}
+{"title":"【WS2812控制器】LM5116+STM32F103","season":null,"team":null,"labels":[],"topic":"WS2812控制器 LM5116+STM32F103"}
+{"title":"【3D打印分体式电池架开源】TB系列轻量化电池架","season":null,"team":null,"labels":[],"topic":"3D打印分体式电池架开源 TB系列轻量化电池架"}
+{"title":"【RM2026-自制能量单元方案】西交利物浦（太仓）OmniX","season":"RM2026","team":null,"labels":[],"topic":"自制能量单元方案 西交利物浦（太仓）OmniX"}
+{"title":"【RM2026-校内赛方案开源】北京理工大学-DreamChaser战队","season":"RM2026","team":"北京理工大学 DreamChaser战队","labels":[],"topic":"校内赛方案开源"}
+{"title":"RMU 2026 圆桌 | 软件&客户端专场","season":"RMU2026","team":null,"labels":[],"topic":"圆桌 | 软件&客户端专场"}
+{"title":"3D打印低成本TB48电池架","season":null,"team":null,"labels":[],"topic":"3D打印低成本TB48电池架"}
+{"title":"【平面设计】西浦太仓OmniX 2025赛季包装盒设计文件开源","season":null,"team":null,"labels":[],"topic":"平面设计 西浦太仓OmniX 2025赛季包装盒设计文件开源"}
+{"title":"【赛季规划+北京工业大学PIP+RM2026 赛季规划开源】","season":"RM2026","team":"北京工业大学","labels":[],"topic":"赛季规划+PIP 赛季规划开源"}
+{"title":"[RM2026]一种简单便宜的自制滚子（全向，麦轮、也可用于包胶）具体实施方案分享-武汉生物工程学院LAMB","season":"RM2026","team":"武汉生物工程学院 LAMB","labels":[],"topic":"一种简单便宜的自制滚子（全向，麦轮、也可用于包胶）具体实施方案分享"}
+{"title":"RMU 2026老队员活动","season":"RMU2026","team":null,"labels":[],"topic":"老队员活动"}
+{"title":"【12路滑环云台中心板方案开源】青岛理工大学--MOVE战队","season":null,"team":"青岛理工大学 MOVE战队","labels":[],"topic":"12路滑环云台中心板方案开源"}
+{"title":"【RM2026-串联腿闭链结构高保真MJCF&USD文件开源】COD战队","season":"RM2026","team":"COD战队","labels":[],"topic":"串联腿闭链结构高保真MJCF&USD文件开源"}
+{"title":"赛季规划+南京航空航天大学金城学院Born of Fire战队+RM2026赛季规划开源","season":"RM2026","team":"南京航空航天大学金城学院Born of Fire战队","labels":[],"topic":"赛季规划 规划开源"}
+{"title":"【赛季规划+同济大学SuperPower+RM2026 赛季规划开源】","season":"RM2026","team":"同济大学","labels":[],"topic":"赛季规划+SuperPower 赛季规划开源"}
+{"title":"达妙H7的EtherCAT扩展板开源-华北理工大学-Horizon战队","season":null,"team":"华北理工大学 Horizon战队","labels":[],"topic":"达妙H7的EtherCAT扩展板开源"}
+{"title":"【个人开源】2025轮腿英雄机械结构三维图纸开源","season":null,"team":null,"labels":["个人开源"],"topic":"2025轮腿英雄机械结构三维图纸开源"}
+{"title":"【RM2025-有控制导飞镖机械结构开源】-南京航空航天大学-长空御风","season":"RM2025","team":"南京航空航天大学 长空御风","labels":[],"topic":"有控制导飞镖机械结构开源"}
+{"title":"Jlink V9","season":null,"team":null,"labels":[],"topic":"Jlink V9"}
+{"title":"滤波器设计教程","season":null,"team":null,"labels":[],"topic":"滤波器设计教程"}
+{"title":"【赛季规划+复旦大学星云EGA +RM2026赛季规划开源】","season":"RM2026","team":"复旦大学","labels":[],"topic":"赛季规划+星云EGA +规划开源"}
+{"title":"[RM2026][自定义客户端模拟数据发送&MQTT可视化数据面板开源]江南大学霞客湾校区-Shark战队","season":"RM2026","team":"江南大学霞客湾校区 Shark战队","labels":[],"topic":"自定义客户端模拟数据发送&MQTT可视化数据面板开源"}
+{"title":"RMMock-自定义客户端协议的第三方后端实现","season":null,"team":null,"labels":[],"topic":"RMMock-自定义客户端协议的第三方后端实现"}
+{"title":"北方工业大学DreamTeam战队-电控培训体系全流程开源（三个月从零基础到底盘控制）","season":null,"team":"北方工业大学DreamTeam战队","labels":[],"topic":"电控培训体系全流程开源（三个月从零基础到底盘控制）"}
+{"title":"ROS 2 多种通信方式性能测试开源（附自研消息系统对比）","season":null,"team":null,"labels":[],"topic":"ROS 2 多种通信方式性能测试开源（附自研消息系统对比）"}
+{"title":"【RM2026-复旦大学-星云EGA】低成本自制装甲支撑架开源方案","season":"RM2026","team":"复旦大学 星云EGA","labels":[],"topic":"低成本自制装甲支撑架开源方案"}
+{"title":"【RM2026赛季 达妙物资购买折扣通知】","season":"RM2026","team":null,"labels":[],"topic":"达妙物资购买折扣通知"}
+{"title":"2025长空御风空中机器人机械部分","season":null,"team":null,"labels":[],"topic":"2025长空御风空中机器人机械部分"}
+{"title":"一种便于挂置的手环架","season":null,"team":null,"labels":[],"topic":"一种便于挂置的手环架"}
+{"title":"南京邮电大学-Potential战队-RM校内赛奖杯开源","season":null,"team":"南京邮电大学 Potential战队","labels":[],"topic":"RM校内赛奖杯开源"}
+{"title":"关于RM老电池TB47、48系列的电池插接件","season":null,"team":null,"labels":[],"topic":"关于RM老电池TB47、48系列的电池插接件"}
+{"title":"【RM2026-4310夹爪开源】西交利物浦（太仓）Omnix","season":"RM2026","team":null,"labels":[],"topic":"4310夹爪开源 西交利物浦（太仓）Omnix"}
+{"title":"RM AWARD 2025 华南理工大学 华南虎战队 陈翀 机器人项目设计流程","season":null,"team":"华南理工大学 华南虎战队","labels":[],"topic":"RM AWARD 2025 陈翀 机器人项目设计流程"}
+{"title":"RM AWARD 2025 华南理工大学 华南虎战队 陈翀 招新、培养、管理三方经验分享","season":null,"team":"华南理工大学 华南虎战队","labels":[],"topic":"RM AWARD 2025 陈翀 招新、培养、管理三方经验分享"}
+{"title":"【RMUC2025-全向轮步兵机器人机械结构开源】合肥工业大学-苍穹战队","season":"RMUC2025","team":"合肥工业大学 苍穹战队","labels":[],"topic":"全向轮步兵机器人机械结构开源"}
+{"title":"【RM2026-桌面串联式轮腿调试平台开源】合肥工业大学-苍穹战队","season":"RM2026","team":"合肥工业大学 苍穹战队","labels":[],"topic":"桌面串联式轮腿调试平台开源"}
+{"title":"叠齿低阻力侧供拨盘开源","season":null,"team":null,"labels":[],"topic":"叠齿低阻力侧供拨盘开源"}
+{"title":"【RM2026】迷你JLink V9开源","season":"RM2026","team":null,"labels":[],"topic":"迷你JLink V9开源"}
+{"title":"深圳技术大学 --- 制作颠簸路段的开源","season":null,"team":"深圳技术大学","labels":[],"topic":"制作颠簸路段的开源"}
+{"title":"非侵入式变量高速采样可视化实时示波工具 HSS DataVisualizer，替代 JScope、VOFA+","season":null,"team":null,"labels":[],"topic":"非侵入式变量高速采样可视化实时示波工具 HSS DataVisualizer，替代 JScope、VOFA"}
+{"title":"新赛季英雄弹速削减到12mps，基地装甲板几乎难以触发","season":null,"team":null,"labels":[],"topic":"新赛季英雄弹速削减到12mps，基地装甲板几乎难以触发"}
+{"title":"2026赛季装甲板贴纸团购开团啦！","season":"RM2026","team":null,"labels":[],"topic":"装甲板贴纸团购开团啦！"}
+{"title":"同济大学SuperPower战队-2026赛季新生培训资料","season":"RM2026","team":"同济大学SuperPower战队","labels":[],"topic":"新生培训资料"}
+{"title":"【官方开源】RMU 2026 场地图纸&可移动道具开源","season":"RMU2026","team":null,"labels":[],"topic":"官方开源 场地图纸&可移动道具开源"}
+{"title":"【RM AWARD 2025】中国矿业大学 CUBOT 李腾宇 工程与轮腿机器人部分技术报告","season":null,"team":"中国矿业大学 CUBOT","labels":[],"topic":"RM AWARD 2025 李腾宇 工程与轮腿机器人部分技术报告"}
+{"title":"关于 RoboMaster 2025 机甲大师超级对抗赛·全国总决赛赛事调研—研发产品板块反馈说明","season":"RM2025","team":null,"labels":[],"topic":"关于 机甲大师超级对抗赛·全国总决赛赛事调研—研发产品板块反馈说明"}
+{"title":"【非侵入式变量高速采样 HSS_DataVisualizer工具分享】+无线JlinkV9项目","season":null,"team":null,"labels":[],"topic":"非侵入式变量高速采样 HSS_DataVisualizer工具分享 无线JlinkV9项目"}
+{"title":"【RM Extension - 扩展 RM 无限可能】软件说明书","season":null,"team":null,"labels":[],"topic":"RM Extension - 扩展 RM 无限可能 软件说明书"}
+{"title":"【RM2025-Xbox临时遥控器及A板拓展板开源】盐城工学院 SlatWave战队","season":"RM2025","team":"盐城工学院 SlatWave战队","labels":[],"topic":"Xbox临时遥控器及A板拓展板开源"}
+{"title":"【RM2025-双向无线串口收发器软硬件开源】基于ESP32-S3的双向无线串口收发器-吉林大学 TARS_Go战队","season":"RM2025","team":"吉林大学 TARS","labels":[],"topic":"双向无线串口收发器软硬件开源 基于ESP32-S3的双向无线串口收发器 Go战队"}
+{"title":"【RM2025-工程机器人自定义控制器及附属无线串口开源】吉林大学 TARS_Go战队","season":"RM2025","team":"吉林大学 TARS","labels":[],"topic":"工程机器人自定义控制器及附属无线串口开源 Go战队"}
+{"title":"【RM AWARD 2025】电子科技大学中山学院 RoboBraver战队 许博 管理经验分享","season":null,"team":"电子科技大学中山学院 RoboBraver战队","labels":[],"topic":"RM AWARD 2025 许博 管理经验分享"}
+{"title":"【RM2025-35HZ中心供弹拨盘开源】合肥工业大学/西浦（太仓） 苍穹/Omnix","season":"RM2025","team":"合肥工业大学","labels":[],"topic":"35HZ中心供弹拨盘开源 西浦（太仓） 苍穹/Omnix"}
+{"title":"【RM2025-滑轨自适应悬挂底盘开源】合肥工业大学 苍穹竞技机器人队","season":"RM2025","team":"合肥工业大学 苍穹竞技机器人队","labels":[],"topic":"滑轨自适应悬挂底盘开源"}
+{"title":"【RM2025赛季--招商】吉林大学TARS_Go战队招商工作总结以及招商经验分享","season":"RM2025","team":"吉林大学","labels":[],"topic":"招商 TARS_Go战队招商工作总结以及招商经验分享"}
+{"title":"【RM2025优秀招商小组经验分享】南京理工大学 Alliance战队","season":"RM2025","team":"南京理工大学 Alliance战队","labels":[],"topic":"优秀招商小组经验分享"}
+{"title":"[RM25赛季优秀队长经验分享]大连理工大学- 凌BUG战队 - 队长廖兴乐","season":"RM2025","team":"大连理工大学 凌BUG战队","labels":[],"topic":"优秀队长经验分享 队长廖兴乐"}
+{"title":"【RM2025项目管理经验分享-管理】-东莞理工学院-ACE战队","season":"RM2025","team":"东莞理工学院 ACE战队","labels":[],"topic":"项目管理经验分享-管理"}
+{"title":"[RM25赛季优秀队长经验分享]山东科技大学- SmartRobot战队 - 队长赵翠翠","season":"RM2025","team":"山东科技大学 SmartRobot战队","labels":[],"topic":"优秀队长经验分享 队长赵翠翠"}
+{"title":"[RM25赛季优秀队长经验分享]中国石油大学（华东）- RPS战队 - 队长张淄栋","season":"RM2025","team":"中国石油大学（华东） RPS战队","labels":[],"topic":"优秀队长经验分享 队长张淄栋"}
+{"title":"[RM25赛季优秀队长经验分享]香港科技大学-ENTERPRIZE战队-甘泽森","season":"RM2025","team":"香港科技大学 ENTERPRIZE战队","labels":[],"topic":"优秀队长经验分享 甘泽森"}
+{"title":"[RM2025赛季优秀队长经验分享]华南农业大学-Taurus战队-队长曾竟源","season":"RM2025","team":"华南农业大学 Taurus战队","labels":[],"topic":"优秀队长经验分享 队长曾竟源"}
+{"title":"【RM25赛季优秀项目管理经验分享】首都师范大学-PIE战队-项目管理王文婕","season":"RM2025","team":"首都师范大学 PIE战队","labels":[],"topic":"优秀项目管理经验分享 项目管理王文婕"}
+{"title":"[RM25赛季优秀项目管理经验分享]五邑大学-IMCA战队-项目管理林伟鹏","season":"RM2025","team":"五邑大学 IMCA战队","labels":[],"topic":"优秀项目管理经验分享 项目管理林伟鹏"}
+{"title":"【可上场DT7遥控器替代方案】FS-i6x控车使用文档","season":null,"team":null,"labels":[],"topic":"可上场DT7遥控器替代方案 FS-i6x控车使用文档"}
+{"title":"[RM25赛季优秀队长经验分享]武汉工程大学-Nautilus战队-队长辛宏涛","season":"RM2025","team":"武汉工程大学 Nautilus战队","labels":[],"topic":"优秀队长经验分享 队长辛宏涛"}
+{"title":"[RM-2025电控步兵教程代码开源]","season":"RM2025","team":null,"labels":[],"topic":"电控步兵教程代码开源"}
+{"title":"关于缓启动模块的相关问题整理","season":null,"team":null,"labels":[],"topic":"关于缓启动模块的相关问题整理"}
+{"title":"25年太工火线工程开源","season":"RM2025","team":null,"labels":[],"topic":"太工火线工程开源"}
+{"title":"【RM2025-空中机器人机械开源】四川大学火锅战队","season":"RM2025","team":"四川大学火锅战队","labels":[],"topic":"空中机器人机械开源"}
+{"title":"【RM2025——基于电流检测的气泵控制板开源】中南大学—FYT战队","season":"RM2025","team":"中南大学 FYT战队","labels":[],"topic":"基于电流检测的气泵控制板开源"}
+{"title":"【RM2025】西安电子科技大学IRobot战队 优秀招商经验分享","season":"RM2025","team":"西安电子科技大学IRobot战队","labels":[],"topic":"优秀招商经验分享"}
+{"title":"6020联轴器","season":null,"team":null,"labels":[],"topic":"6020联轴器"}
+{"title":"【RM26赛季定位算法开源-东莞理工学院-ACE战队】Small Point-LIO，一个比 Point-LIO 快 2 - 3 倍的里程计","season":"RM2026","team":"东莞理工学院 ACE战队","labels":[],"topic":"定位算法开源 Small Point-LIO，一个比 Point-LIO 快 2 - 3 倍的里程计"}
+{"title":"开源一个利用串口，更方便地对ADC进行拟合操作的功能库","season":null,"team":null,"labels":[],"topic":"开源一个利用串口，更方便地对ADC进行拟合操作的功能库"}
+{"title":"【RM2025赛季-招商】中南大学 FYT 战队招商工作总结与经验分享-开源","season":"RM2025","team":"中南大学","labels":[],"topic":"招商 FYT 战队招商工作总结与经验分享-开源"}
+{"title":"【RM2025-英雄机器人发射器设计及调试方法开源】华南农业大学Taurus战队","season":"RM2025","team":"华南农业大学Taurus战队","labels":[],"topic":"英雄机器人发射器设计及调试方法开源"}
+{"title":"[RM25赛季优秀队长经验分享]北方工业大学-DreamTeam战队-队长潘佳俊","season":"RM2025","team":"北方工业大学 DreamTeam战队","labels":[],"topic":"优秀队长经验分享 队长潘佳俊"}
+{"title":"老图传使用经验","season":null,"team":null,"labels":[],"topic":"老图传使用经验"}
+{"title":"［RMUC2025］天津大学松正北洋机甲战队工程机器人机械机构开源","season":"RMUC2025","team":"天津大学松正北洋机甲战队","labels":[],"topic":"工程机器人机械机构开源"}
+{"title":"MP2639C电池充放电芯片【哈尔滨工业大学（威海）】","season":null,"team":"哈尔滨工业大学（威海）","labels":[],"topic":"MP2639C电池充放电芯片"}
+{"title":"[RM25赛季优秀队长经验分享]西藏农牧大学——雪域雄鹰战队队长达娃次仁","season":"RM2025","team":"西藏农牧大学","labels":[],"topic":"优秀队长经验分享 雪域雄鹰战队队长达娃次仁"}
+{"title":"基于成品模块的EtherCAT入门教程-华北理工大学-Horizon战队","season":null,"team":"华北理工大学 Horizon战队","labels":[],"topic":"基于成品模块的EtherCAT入门教程"}
+{"title":"【RM2025超级电容控制板与超级电容组开源】哈尔滨工业大学威海HERO战队","season":"RM2025","team":"哈尔滨工业大学威海HERO战队","labels":[],"topic":"超级电容控制板与超级电容组开源"}
+{"title":"【RM2025-皮筋类飞镖系统技术开源】关于飞镖兵种所进行的皮筋特性总结 五邑大学IMCA战队","season":"RM2025","team":"五邑大学IMCA战队","labels":[],"topic":"皮筋类飞镖系统技术开源 关于飞镖兵种所进行的皮筋特性总结"}
+{"title":"[已验证]ROBOCON无缝换电分电板","season":null,"team":null,"labels":[],"topic":"已验证 ROBOCON无缝换电分电板"}
+{"title":"【RM2025-飞镖系统开源】机械结构与测试标定方案 广州城市理工学院野狼战队","season":"RM2025","team":"广州城市理工学院野狼战队","labels":[],"topic":"飞镖系统开源 机械结构与测试标定方案"}
+{"title":"山东科技大学SmartRobot战队120W无线充电系统开源","season":null,"team":"山东科技大学SmartRobot战队","labels":[],"topic":"120W无线充电系统开源"}
+{"title":"南京邮电大学Potential战队N630电调","season":null,"team":"南京邮电大学Potential战队","labels":[],"topic":"N630电调"}
+{"title":"[RM2025山海机甲半舵步兵开源]","season":"RM2025","team":null,"labels":[],"topic":"山海机甲半舵步兵开源"}
+{"title":"山东科技大学SmartRobot战队工程机械开源","season":null,"team":"山东科技大学SmartRobot战队","labels":[],"topic":"工程机械开源"}
+{"title":"山东科技大学SmartRobot战队英雄机械开源","season":null,"team":"山东科技大学SmartRobot战队","labels":[],"topic":"英雄机械开源"}
+{"title":"南京邮电大学Potential战队 机甲小师壹号开源","season":null,"team":"南京邮电大学Potential战队","labels":[],"topic":"机甲小师壹号开源"}
+{"title":"中科大robowalker飞镖系统机械开源","season":null,"team":null,"labels":[],"topic":"中科大robowalker飞镖系统机械开源"}
+{"title":"【RM2025-关于机械参数对性能影响的探索】哈尔滨工业大学（威海）HERO战队","season":"RM2025","team":"哈尔滨工业大学（威海）HERO战队","labels":[],"topic":"关于机械参数对性能影响的探索"}
+{"title":"【RM2024-2025 个人开源】山海机甲各兵种电控代码开源","season":"RM2024-25","team":null,"labels":["个人开源"],"topic":"山海机甲各兵种电控代码开源"}
+{"title":"【RMUC 2025】中国石油大学（华东）RPS战队—校内赛省钱方案开源分享","season":"RMUC2025","team":"中国石油大学（华东）RPS战队","labels":[],"topic":"校内赛省钱方案开源分享"}
+{"title":"关于无人机更换动力系统给参赛队带来经费压力的探讨","season":null,"team":null,"labels":[],"topic":"关于无人机更换动力系统给参赛队带来经费压力的探讨"}
+{"title":"17MM中心供弹拨盘设计说明及经验分享","season":null,"team":null,"labels":[],"topic":"17MM中心供弹拨盘设计说明及经验分享"}
+{"title":"【RM2025 个人开源】山海机甲平衡步兵完全开源","season":"RM2025","team":null,"labels":["个人开源"],"topic":"山海机甲平衡步兵完全开源"}
+{"title":"线上取经指南","season":null,"team":null,"labels":[],"topic":"线上取经指南"}
+{"title":"提问的艺术（RM版)","season":null,"team":null,"labels":[],"topic":"提问的艺术（RM版)"}
+{"title":"【RM2025-哨兵导航算法开源】哈尔滨工业大学I Hiter战队 哨兵导航代码及其仿真 2024ver 开源","season":"RM2025","team":"哈尔滨工业大学I Hiter战队","labels":[],"topic":"哨兵导航算法开源 哨兵导航代码及其仿真 2024ver 开源"}
+{"title":"【RM2025-飞镖技术报告开源】西北工业大学 WMJ","season":"RM2025","team":"西北工业大学 WMJ","labels":[],"topic":"飞镖技术报告开源"}
+{"title":"【分享】宣运培训资料—公众号制作秀米教程","season":null,"team":null,"labels":["分享"],"topic":"宣运培训资料—公众号制作秀米教程"}
+{"title":"RM2025 东北大学 TDT 雷达 开源","season":"RM2025","team":"东北大学 TDT","labels":[],"topic":"雷达 开源"}
+{"title":"【运营】自动发送面试邮件机器人","season":null,"team":null,"labels":[],"topic":"运营 自动发送面试邮件机器人"}
+{"title":"【RM2025-空中机器人机械结构开源及经验分享】 南华大学 MA战队","season":"RM2025","team":"南华大学 MA战队","labels":[],"topic":"空中机器人机械结构开源及经验分享"}
+{"title":"【RM2025 小企鹅经验分享】深圳北理莫斯科大学-北极熊战队","season":"RM2025","team":"深圳北理莫斯科大学 北极熊战队","labels":[],"topic":"小企鹅经验分享"}
+{"title":"【RM2025-一键买弹自定义控制器开源】首都师范大学-PIE战队","season":"RM2025","team":"首都师范大学 PIE战队","labels":[],"topic":"一键买弹自定义控制器开源"}
+{"title":"【RM2025-成本控制】首都师范大学PIE战队","season":"RM2025","team":"首都师范大学PIE战队","labels":[],"topic":"成本控制"}
+{"title":"【RM2025-空中机器人机械设计及电源方案开源】首都师范大学-PIE战队","season":"RM2025","team":"首都师范大学 PIE战队","labels":[],"topic":"空中机器人机械设计及电源方案开源"}
+{"title":"【RM2025-弹射英雄机械结构开源】北方工业大学-DreamTeam战队","season":"RM2025","team":"北方工业大学 DreamTeam战队","labels":[],"topic":"弹射英雄机械结构开源"}
+{"title":"关于超级电容控制板的电感电流采样问题","season":null,"team":null,"labels":[],"topic":"关于超级电容控制板的电感电流采样问题"}
+{"title":"【RM2025-飞镖系统开源】飞镖系统综合设计与调试方法 大连理工大学凌BUG战队","season":"RM2025","team":"大连理工大学凌BUG战队","labels":[],"topic":"飞镖系统开源 飞镖系统综合设计与调试方法"}
+{"title":"【RM2025-飞镖系统机械结构开源】四川大学 火锅战队","season":"RM2025","team":"四川大学 火锅战队","labels":[],"topic":"飞镖系统机械结构开源"}
+{"title":"【RM2025-串联腿步兵机器人机械结构开源】上海交通大学-交龙战队","season":"RM2025","team":"上海交通大学 交龙战队","labels":[],"topic":"串联腿步兵机器人机械结构开源"}
+{"title":"【RM2025-飞镖系统全站仪上位机开源】四川大学 火锅战队","season":"RM2025","team":"四川大学 火锅战队","labels":[],"topic":"飞镖系统全站仪上位机开源"}
+{"title":"【RM2025-空中机器人机械结构开源】中国科学技术大学 RoboWalker战队","season":"RM2025","team":"中国科学技术大学 RoboWalker战队","labels":[],"topic":"空中机器人机械结构开源"}
+{"title":"【RM2025-成本报告开源】太原理工大学TRoMaC战队","season":"RM2025","team":"太原理工大学TRoMaC战队","labels":[],"topic":"成本报告开源"}
+{"title":"【RM2025-四轮足底盘工程机器人机械结构开源】——太原理工大学TRoMaC战队","season":"RM2025","team":"太原理工大学TRoMaC战队","labels":[],"topic":"四轮足底盘工程机器人机械结构开源"}
+{"title":"【RM2025超级电容控制板软件硬件开源】北京科技大学-Reborn战队","season":"RM2025","team":"北京科技大学 Reborn战队","labels":[],"topic":"超级电容控制板软件硬件开源"}
+{"title":"【RM2025-能量机关自瞄算法开源】【神符多角点识别方案】华南理工大学 华南虎战队","season":"RM2025","team":"华南理工大学 华南虎战队","labels":[],"topic":"能量机关自瞄算法开源 神符多角点识别方案"}
+{"title":"【哨兵导航技术报告+中国科学技术大学RoboWalker+RM2025技术报告开源】","season":"RM2025","team":"中国科学技术大学","labels":[],"topic":"哨兵导航技术报告+RoboWalker+技术报告开源"}
+{"title":"【RM2025-哨兵机器人算法及技术报告开源】中国科学技术大学 RoboWalker","season":"RM2025","team":"中国科学技术大学 RoboWalker","labels":[],"topic":"哨兵机器人算法及技术报告开源"}
+{"title":"【RM2025-空中机器人机械结构开源及经验分享】香港大学 HerKules战队","season":"RM2025","team":"香港大学 HerKules战队","labels":[],"topic":"空中机器人机械结构开源及经验分享"}
+{"title":"【RM2025-飞镖系统开源】西安交通大学笃行战队","season":"RM2025","team":"西安交通大学笃行战队","labels":[],"topic":"飞镖系统开源"}
+{"title":"【RM2025-应星工程机器人机械结构开源】华南理工大学 华南虎战队","season":"RM2025","team":"华南理工大学 华南虎战队","labels":[],"topic":"应星工程机器人机械结构开源"}
+{"title":"【RM2025-NW构型减速器结构开源】南京理工大学-Alliance战队","season":"RM2025","team":"南京理工大学 Alliance战队","labels":[],"topic":"NW构型减速器结构开源"}
+{"title":"【RM2025-MiniPC 24V-19Vbuck开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"MiniPC 24V-19Vbuck开源"}
+{"title":"【RM2025-英雄机器人机械结构开源】华南理工大学 华南虎战队","season":"RM2025","team":"华南理工大学 华南虎战队","labels":[],"topic":"英雄机器人机械结构开源"}
+{"title":"[5.8s四级矿] RM2025-香港科技大学-ENTERPRIZE战队轮式机械臂工程开源","season":"RM2025","team":"香港科技大学","labels":[],"topic":"5.8s四级矿 ENTERPRIZE战队轮式机械臂工程开源"}
+{"title":"【RM2025-空中机器人机械结构开源】华南理工大学 华南虎战队","season":"RM2025","team":"华南理工大学 华南虎战队","labels":[],"topic":"空中机器人机械结构开源"}
+{"title":"【RM2025-轮足步兵机器人机械结构开源】华南理工大学 华南虎战队","season":"RM2025","team":"华南理工大学 华南虎战队","labels":[],"topic":"轮足步兵机器人机械结构开源"}
+{"title":"【RM2025-主动摇臂悬挂工程机器人 机械&算法&硬件开源】南京理工大学 Alliance战队","season":"RM2025","team":"南京理工大学 Alliance战队","labels":[],"topic":"主动摇臂悬挂工程机器人 机械&算法&硬件开源"}
+{"title":"【RM2025 可动串腿周边开源】深圳北理莫斯科大学-北极熊战队","season":"RM2025","team":"深圳北理莫斯科大学 北极熊战队","labels":[],"topic":"可动串腿周边开源"}
+{"title":"【RM2025-次骞哨兵机器人机械结构开源】华南理工大学 华南虎战队","season":"RM2025","team":"华南理工大学 华南虎战队","labels":[],"topic":"次骞哨兵机器人机械结构开源"}
+{"title":"NCST工程机器人两年技术储备与突破+模块化设计","season":null,"team":null,"labels":[],"topic":"NCST工程机器人两年技术储备与突破+模块化设计"}
+{"title":"【RM2025-基于尼龙烧结3D打印的新电池架开源】哈尔滨工业大学（深圳）南工骁鹰战队","season":"RM2025","team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"基于尼龙烧结3D打印的新电池架开源"}
+{"title":"【RM2025-六摩擦轮过洞舵轮双yaw 英雄机械设计开源】西安交通大学笃行战队","season":"RM2025","team":"西安交通大学笃行战队","labels":[],"topic":"六摩擦轮过洞舵轮双yaw 英雄机械设计开源"}
+{"title":"【RM2025-英雄机器人机械设计思路开源】大连理工大学-凌BUG战队","season":"RM2025","team":"大连理工大学 凌BUG战队","labels":[],"topic":"英雄机器人机械设计思路开源"}
+{"title":"【RM2025 北极熊电控体系开源】深圳北理莫斯科大学","season":"RM2025","team":"深圳北理莫斯科大学","labels":[],"topic":"北极熊电控体系开源"}
+{"title":"【RM2025-自瞄算法开源】同济大学SuperPower战队","season":"RM2025","team":"同济大学SuperPower战队","labels":[],"topic":"自瞄算法开源"}
+{"title":"基于知识库的战队责任划分尝试","season":null,"team":null,"labels":[],"topic":"基于知识库的战队责任划分尝试"}
+{"title":"【六寸充气轮胎开源】盐城工学院SALTWAVE战队","season":null,"team":"盐城工学院SALTWAVE战队","labels":[],"topic":"六寸充气轮胎开源"}
+{"title":"【RM2025-无线JLink烧录器开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"无线JLink烧录器开源"}
+{"title":"[厦门理工单目雷达魔改]四川大学火锅战队2025赛季雷达站系统开源","season":null,"team":"四川大学火锅战队","labels":[],"topic":"厦门理工单目雷达魔改 2025赛季雷达站系统开源"}
+{"title":"【RM2025-高仿真3D打印手持装甲板开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"高仿真3D打印手持装甲板开源"}
+{"title":"【RM2025-串联腿步兵机器人机械结构开源】中国石油大学（华东）-RPS战队","season":"RM2025","team":"中国石油大学（华东） RPS战队","labels":[],"topic":"串联腿步兵机器人机械结构开源"}
+{"title":"【RM2025 - RM Search】 华南理工大学 华南虎开源报告","season":"RM2025","team":"华南理工大学","labels":[],"topic":"RM Search 华南虎开源报告"}
+{"title":"【RM2025】三种矿石的纸模型图纸","season":"RM2025","team":null,"labels":[],"topic":"三种矿石的纸模型图纸"}
+{"title":"【西南交大helios战队】2025赛季17mm中心供弹拨盘TypeB结构开源（旋转拨叉式拨盘设计思路分析）","season":"RM2025","team":"西南交大helios战队","labels":[],"topic":"17mm中心供弹拨盘TypeB结构开源（旋转拨叉式拨盘设计思路分析）"}
+{"title":"NEC 开源（一）：项目管理的一种可追踪方式","season":null,"team":null,"labels":[],"topic":"NEC 开源（一）：项目管理的一种可追踪方式"}
+{"title":"【RM2025 裁判系统、电机电调、其他官方元器件、Solidworks插件及说明书汇总集合】仲恺农业工程学院-奇点战队","season":"RM2025","team":"仲恺农业工程学院 奇点战队","labels":[],"topic":"裁判系统、电机电调、其他官方元器件、Solidworks插件及说明书汇总集合"}
+{"title":"【RM2025分区赛——软定心双级摩擦轮枪管设计及定心参数调试方法】中南大学FYT战队","season":"RM2025","team":"中南大学FYT战队","labels":[],"topic":"分区赛——软定心双级摩擦轮枪管设计及定心参数调试方法"}
+{"title":"【RM2024-全直驱过洞麦轮步兵机械开源】香港科技大学ENTERPRIZE战队","season":"RM2024","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"全直驱过洞麦轮步兵机械开源"}
+{"title":"【讨论】一种无距离测量的吊射预瞄方案","season":null,"team":null,"labels":[],"topic":"讨论 一种无距离测量的吊射预瞄方案"}
+{"title":"【RM2025-通用鹅颈弹链设计开源】西安交通大学笃行战队","season":"RM2025","team":"西安交通大学笃行战队","labels":[],"topic":"通用鹅颈弹链设计开源"}
+{"title":"【开链四连杆轮腿步兵技术报告+同济大学SuperPower+RM2025 技术报告开源】","season":"RM2025","team":"同济大学","labels":[],"topic":"开链四连杆轮腿步兵技术报告+SuperPower 技术报告开源"}
+{"title":"【赛季规划+同济大学SuperPower+RM2025赛季规划开源】","season":"RM2025","team":"同济大学","labels":[],"topic":"赛季规划+SuperPower+规划开源"}
+{"title":"【RM2025-操作手宏键盘设计开源】西安交通大学笃行战队","season":"RM2025","team":"西安交通大学笃行战队","labels":[],"topic":"操作手宏键盘设计开源"}
+{"title":"STM32H723片式变压器以太网测试板开源","season":null,"team":null,"labels":[],"topic":"STM32H723片式变压器以太网测试板开源"}
+{"title":"【RM2025-五口双雷达供电交换机开源】哈尔滨工业大学（深圳）南工骁鹰战队","season":"RM2025","team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"五口双雷达供电交换机开源"}
+{"title":"“闪电战”因果的说明","season":null,"team":null,"labels":[],"topic":"“闪电战”因果的说明"}
+{"title":"优质开源内容收录征集活动 👏","season":null,"team":null,"labels":[],"topic":"优质开源内容收录征集活动 👏"}
+{"title":"【发光的MCU】如何点亮一块MCU","season":null,"team":null,"labels":[],"topic":"发光的MCU 如何点亮一块MCU"}
+{"title":"【RM2025-复合构型隧道工程开源】东莞理工学院ACE战队","season":"RM2025","team":"东莞理工学院ACE战队","labels":[],"topic":"复合构型隧道工程开源"}
+{"title":"【RM2025-串联腿步兵机械开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"串联腿步兵机械开源"}
+{"title":"【RM2025-超级电容与无线充电系统开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"超级电容与无线充电系统开源"}
+{"title":"[RM2025-提瓦特大学 飞镖硬件]基于RV1126的视觉制导飞镖主控设计","season":"RM2025","team":"提瓦特大学 飞镖硬件","labels":[],"topic":"基于RV1126的视觉制导飞镖主控设计"}
+{"title":"【RM2025-G4主控板V2开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"G4主控板V2开源"}
+{"title":"【南方科技大学】ARTINX-2025赛季运营(宣传)资料开源","season":"RM2025","team":"南方科技大学","labels":[],"topic":"ARTINX-运营(宣传)资料开源"}
+{"title":"[局均易伤时间1618.3s, 单局易伤时间最高1912.1s !] RM2025-香港科技大学-ENTERPRIZE战队单目雷达站算法开源","season":"RM2025","team":"香港科技大学","labels":[],"topic":"局均易伤时间1618.3s, 单局易伤时间最高1912.1s ! ENTERPRIZE战队单目雷达站算法开源"}
+{"title":"【RM2024赛季-识别模型】深圳大学 -RobotPilots","season":"RM2024","team":"深圳大学 RobotPilots","labels":[],"topic":"识别模型"}
+{"title":"【手持装甲板】老版本裁判系统改装--硬件开源","season":null,"team":null,"labels":[],"topic":"手持装甲板 老版本裁判系统改装--硬件开源"}
+{"title":"一、速度致胜？","season":null,"team":null,"labels":[],"topic":"一、速度致胜？"}
+{"title":"小白飞手养成经验分享","season":null,"team":null,"labels":[],"topic":"小白飞手养成经验分享"}
+{"title":"【RM2021-麦轮舵轮全向轮底盘解算开源】杭州电子科技大学","season":"RM2021","team":"杭州电子科技大学","labels":[],"topic":"麦轮舵轮全向轮底盘解算开源"}
+{"title":"比赛规则建议-反陀螺暴击机制、禁区犯规机制、工程观赏性","season":null,"team":null,"labels":[],"topic":"比赛规则建议-反陀螺暴击机制、禁区犯规机制、工程观赏性"}
+{"title":"【RM2025-小弹丸拨盘设计思路分享】五邑大学-IMCA战队","season":"RM2025","team":"五邑大学 IMCA战队","labels":[],"topic":"小弹丸拨盘设计思路分享"}
+{"title":"【RM2025-中供弹过洞舵轮英雄机械开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"中供弹过洞舵轮英雄机械开源"}
+{"title":"【RM2025-更适合RM宝宝体质的交换机开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"更适合RM宝宝体质的交换机开源"}
+{"title":"【超级电容Lite & Plus模组维护手册】桂林理工大学-群星战队","season":null,"team":"桂林理工大学 群星战队","labels":[],"topic":"超级电容Lite & Plus模组维护手册"}
+{"title":"【RM2025-多通道无线功率计开源】广东工业大学DynamicX战队","season":"RM2025","team":"广东工业大学DynamicX战队","labels":[],"topic":"多通道无线功率计开源"}
+{"title":"【南方科技大学】RM2025+飞镖系统组规划开源","season":"RM2025","team":"南方科技大学","labels":[],"topic":"飞镖系统组规划开源"}
+{"title":"宣传组一站式素材服务中心","season":null,"team":null,"labels":[],"topic":"宣传组一站式素材服务中心"}
+{"title":"【RM2025-易打印可动并联腿周边开源】华东理工大学起源战队","season":"RM2025","team":"华东理工大学起源战队","labels":[],"topic":"易打印可动并联腿周边开源"}
+{"title":"【RM2025-面向铨洲智造设计的减速箱，全CNC舵轮组图纸开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"面向铨洲智造设计的减速箱，全CNC舵轮组图纸开源"}
+{"title":"【RM2024-工程机器人自定义控制器结构开源】中南大学FYT战队","season":"RM2024","team":"中南大学FYT战队","labels":[],"topic":"工程机器人自定义控制器结构开源"}
+{"title":"关于RoboMaster（计划篇）","season":null,"team":null,"labels":[],"topic":"关于RoboMaster（计划篇）"}
+{"title":"【RM2025-飞镖系统开源】华北科技学院-风暴","season":"RM2025","team":"华北科技学院 风暴","labels":[],"topic":"飞镖系统开源"}
+{"title":"【RM2025—串联步兵、并联步兵通用结构设计开源】黑河学院-武六壹-第二版","season":"RM2025","team":"黑河学院 武六壹","labels":[],"topic":"串联步兵、并联步兵通用结构设计开源 第二版"}
+{"title":"【RM2025-开源1：16.5 3508减速箱】合肥工业大学 苍穹竞技机器人队","season":"RM2025","team":"合肥工业大学 苍穹竞技机器人队","labels":[],"topic":"开源1：16.5 3508减速箱"}
+{"title":"[记录]7串3V60F1890J超级电容组多品牌横向测试对比","season":null,"team":null,"labels":[],"topic":"记录 7串3V60F1890J超级电容组多品牌横向测试对比"}
+{"title":"青科中供小全向","season":null,"team":null,"labels":[],"topic":"青科中供小全向"}
+{"title":"【RM2025-空中机器人机械设计开源】太原工业学院-火线战队","season":"RM2025","team":"太原工业学院 火线战队","labels":[],"topic":"空中机器人机械设计开源"}
+{"title":"【RM2025-无线充电站机械结构思路分享】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"无线充电站机械结构思路分享"}
+{"title":"【RM2025-地表最小 JLink 开源】香港科技大学 ENTERPRIZE 战队","season":"RM2025","team":"香港科技大学 ENTERPRIZE 战队","labels":["开源"],"topic":"地表最小 JLink"}
+{"title":"【RM2025-超小体积1980J电容组开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"超小体积1980J电容组开源"}
+{"title":"【RM2025-无人机48V转24V模块开源】香港科技大学ENTERPRIZE战队","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"无人机48V转24V模块开源"}
+{"title":"【RM2024-2025硬件组开源-管理】-东莞理工学院-ACE战队","season":"RM2024-25","team":"东莞理工学院 ACE战队","labels":[],"topic":"硬件组开源-管理"}
+{"title":"对“完美重力平衡方案中相似三角形的原理“的使用存疑，及采用扭矩平衡方程得出原有结论的简易推导过程","season":null,"team":null,"labels":[],"topic":"对“完美重力平衡方案中相似三角形的原理“的使用存疑，及采用扭矩平衡方程得出原有结论的简易推导过程"}
+{"title":"针对轮腿连杆轴系中“拧的太死又会出现两个连杆无法相对旋转”问题的解决","season":null,"team":null,"labels":[],"topic":"针对轮腿连杆轴系中“拧的太死又会出现两个连杆无法相对旋转”问题的解决"}
+{"title":"山西工商学院TB-Power战队手册","season":null,"team":"山西工商学院","labels":[],"topic":"TB-Power战队手册"}
+{"title":"【RM2025-24转19小电脑降压开源】哈尔滨工业大学（深圳）南工骁鹰战队","season":"RM2025","team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"24转19小电脑降压开源"}
+{"title":"STM32H7芯片使用外部Vcore供电的方法","season":null,"team":null,"labels":[],"topic":"STM32H7芯片使用外部Vcore供电的方法"}
+{"title":"【RM2025-27V主动均衡电容组开源】哈尔滨工业大学（深圳）南工骁鹰战队","season":"RM2025","team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"27V主动均衡电容组开源"}
+{"title":"[RM2025赛季-高校联盟赛视觉算法开源] 浙江师范大学-浙狮战队","season":"RM2025","team":"浙江师范大学 浙狮战队","labels":[],"topic":"高校联盟赛视觉算法开源"}
+{"title":"DC-DC反馈电阻一键计算器","season":null,"team":null,"labels":[],"topic":"DC-DC反馈电阻一键计算器"}
+{"title":"【RM2025超级电容模组Plus使用手册】桂林理工大学-群星战队","season":"RM2025","team":"桂林理工大学 群星战队","labels":[],"topic":"超级电容模组Plus使用手册"}
+{"title":"RM2025-东莞理工学院ACE战队哨兵开源","season":"RM2025","team":"东莞理工学院ACE战队","labels":[],"topic":"哨兵开源"}
+{"title":"关于飞镖反导识别与锁定的一些想法","season":null,"team":null,"labels":[],"topic":"关于飞镖反导识别与锁定的一些想法"}
+{"title":"【RM2024-超级电容控制板开源】哈尔滨工业大学（深圳）南工骁鹰战队","season":"RM2024","team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"超级电容控制板开源"}
+{"title":"【已完结】RMU 2025 圆桌分享 07：测试及测试开发职业发展规划","season":"RMU2025","team":null,"labels":["已完结"],"topic":"圆桌分享 07：测试及测试开发职业发展规划"}
+{"title":"关于 RoboMaster 2025 机甲大师超级对抗赛·区域赛赛事调研—研发产品板块反馈说明","season":"RM2025","team":null,"labels":[],"topic":"关于 机甲大师超级对抗赛·区域赛赛事调研—研发产品板块反馈说明"}
+{"title":"关于RM系列电调与Takyon电调升级器的情况说明","season":null,"team":null,"labels":[],"topic":"关于RM系列电调与Takyon电调升级器的情况说明"}
+{"title":"10010电机3d打印保护罩","season":null,"team":null,"labels":[],"topic":"10010电机3d打印保护罩"}
+{"title":"【云台模块快拆思路开源】成都信息工程大学-风信子战队","season":null,"team":"成都信息工程大学 风信子战队","labels":[],"topic":"云台模块快拆思路开源"}
+{"title":"【RM2025-无线充电装置软硬件开源】北京理工大学DreamChaser战队","season":"RM2025","team":"北京理工大学DreamChaser战队","labels":[],"topic":"无线充电装置软硬件开源"}
+{"title":"RM2023-北京信息科技大学-星辰-平衡步兵（板凳）机械结构","season":"RM2023","team":"北京信息科技大学 星辰","labels":[],"topic":"平衡步兵（板凳）机械结构"}
+{"title":"RM2022-北京信息科技大学-星辰-步兵机器人机械结构","season":"RM2022","team":"北京信息科技大学 星辰","labels":[],"topic":"步兵机器人机械结构"}
+{"title":"【分享】一位非技术er的RM经历和收获","season":null,"team":null,"labels":["分享"],"topic":"一位非技术er的RM经历和收获"}
+{"title":"【RM2025-17mm单发限位（被动预置）开源】东华大学DIODE战队","season":"RM2025","team":"东华大学DIODE战队","labels":[],"topic":"17mm单发限位（被动预置）开源"}
+{"title":"无人机用中心供弹开源","season":null,"team":null,"labels":[],"topic":"无人机用中心供弹开源"}
+{"title":"小队伍生存手册","season":null,"team":null,"labels":[],"topic":"小队伍生存手册"}
+{"title":"【RM2025-六摩擦轮吊射英雄开源】上海科技大学Magician战队","season":"RM2025","team":"上海科技大学Magician战队","labels":[],"topic":"六摩擦轮吊射英雄开源"}
+{"title":"ACE战队 2024-2025赛季轮腿机器人技术文档-机械","season":"RM2025","team":"ACE战队","labels":[],"topic":"2024-轮腿机器人技术文档-机械"}
+{"title":"【RM2025-电控培训资料开源】中国科学技术大学 RoboWalker战队","season":"RM2025","team":"中国科学技术大学 RoboWalker战队","labels":[],"topic":"电控培训资料开源"}
+{"title":"【RM2025-单目雷达站开源】成都大学Ultra战队","season":"RM2025","team":"成都大学Ultra战队","labels":[],"topic":"单目雷达站开源"}
+{"title":"【RM2025-空中机器人机械结构开源】成都信息工程大学-风信子战队","season":"RM2025","team":"成都信息工程大学 风信子战队","labels":[],"topic":"空中机器人机械结构开源"}
+{"title":"【RM2025-超级电容控制器开源】五邑大学-IMCA战队","season":"RM2025","team":"五邑大学 IMCA战队","labels":[],"topic":"超级电容控制器开源"}
+{"title":"【RM2025-超级电容硬件开源】香港科技大学（广州）【更新软件】","season":"RM2025","team":"香港科技大学（广州）","labels":[],"topic":"超级电容硬件开源 更新软件"}
+{"title":"鹿的笑话创作指南","season":null,"team":null,"labels":[],"topic":"鹿的笑话创作指南"}
+{"title":"非正式分享 25赛季形态考核视频评审经验","season":"RM2025","team":null,"labels":[],"topic":"非正式分享 形态考核视频评审经验"}
+{"title":"[RM2025-动能回收超级电容控制器-主动均衡电容组-软硬件全套开源]-吉林大学TARS_Go","season":"RM2025","team":"吉林大学","labels":[],"topic":"动能回收超级电容控制器-主动均衡电容组-软硬件全套开源 TARS_Go"}
+{"title":"轮腿关节轴系设计——自行车碗组的应用","season":null,"team":null,"labels":[],"topic":"轮腿关节轴系设计——自行车碗组的应用"}
+{"title":"使用 Typst 编写论坛文档","season":null,"team":null,"labels":[],"topic":"使用 Typst 编写论坛文档"}
+{"title":"【RM2025-空中机器人机械结构开源】辽宁科技大学-COD战队","season":"RM2025","team":"辽宁科技大学 COD战队","labels":[],"topic":"空中机器人机械结构开源"}
+{"title":"RoboMaster 2025机甲大师超级对抗赛战场申领结果说明","season":"RM2025","team":null,"labels":[],"topic":"机甲大师超级对抗赛战场申领结果说明"}
+{"title":"【官方开源】RMU 2025场地图纸&装甲贴纸开源","season":"RMU2025","team":null,"labels":[],"topic":"官方开源 场地图纸&装甲贴纸开源"}
+{"title":"RM2024~25-北京信息科技大学-星辰-步兵机器人机械结构开源","season":"RM2024-25","team":"北京信息科技大学 星辰","labels":[],"topic":"步兵机器人机械结构开源"}
+{"title":"【RM2025-麦轮四摩擦英雄机械结构开源】山东理工大学-齐奇战队","season":"RM2025","team":"山东理工大学 齐奇战队","labels":[],"topic":"麦轮四摩擦英雄机械结构开源"}
+{"title":"【RM2021~2023-机械图纸全开源】北京信息科技大学","season":"RM2021-23","team":"北京信息科技大学","labels":[],"topic":"机械图纸全开源"}
+{"title":"【RM2021-中心供弹英雄机械开源】北京理工大学","season":"RM2021","team":"北京理工大学","labels":[],"topic":"中心供弹英雄机械开源"}
+{"title":"【RM2025-全向轮中供步兵机械方案开源】沈阳理工大学 Ambition","season":"RM2025","team":"沈阳理工大学 Ambition","labels":[],"topic":"全向轮中供步兵机械方案开源"}
+{"title":"山东理工大学-齐奇战队-25赛季飞镖系统","season":"RM2025","team":"山东理工大学 齐奇战队","labels":[],"topic":"飞镖系统"}
+{"title":"【RM2025-全向步兵机械结构开源】山东理工大学-齐奇战队","season":"RM2025","team":"山东理工大学 齐奇战队","labels":[],"topic":"全向步兵机械结构开源"}
+{"title":"【技术报告 山东理工大学 RM2024技术报告开源】内附工程机器人图纸","season":"RM2024","team":"山东理工大学","labels":["技术报告"],"topic":"技术报告开源 内附工程机器人图纸"}
+{"title":"【RM2025-联盟赛哨兵机械结构开源】山东理工大学-齐奇战队","season":"RM2025","team":"山东理工大学 齐奇战队","labels":[],"topic":"联盟赛哨兵机械结构开源"}
+{"title":"【个人开源】2025英雄三摩擦轮开源","season":null,"team":null,"labels":["个人开源"],"topic":"2025英雄三摩擦轮开源"}
+{"title":"本人的集章册","season":null,"team":null,"labels":[],"topic":"本人的集章册"}
+{"title":"🔥 你的创意，影响万千！赛事引擎学生版【愿望许愿池】第一期开放！","season":null,"team":null,"labels":[],"topic":"🔥 你的创意，影响万千！赛事引擎学生版 愿望许愿池 第一期开放！"}
+{"title":"山东理工大学-齐奇战队-24赛季舵轮步兵","season":"RM2024","team":"山东理工大学 齐奇战队","labels":[],"topic":"舵轮步兵"}
+{"title":"【RM2025-步兵机器人机械开源】湘潭大学-逐曦战队","season":"RM2025","team":"湘潭大学 逐曦战队","labels":[],"topic":"步兵机器人机械开源"}
+{"title":"【十周年】最全的参赛名单&社交媒体信息收集","season":null,"team":null,"labels":[],"topic":"十周年 最全的参赛名单&社交媒体信息收集"}
+{"title":"【厦门大学RCS】当你希望使用C板或者达妙H7来接收ELRS模块的CRSF信息","season":null,"team":"厦门大学","labels":[],"topic":"RCS 当你希望使用C板或者达妙H7来接收ELRS模块的CRSF信息"}
+{"title":"【RM2025-弹射英雄机械结构开源】西南石油大学-铁人战队","season":"RM2025","team":"西南石油大学 铁人战队","labels":[],"topic":"弹射英雄机械结构开源"}
+{"title":"【RM Search】励志做全 RM 最好用的搜索引擎","season":null,"team":null,"labels":[],"topic":"RM Search 励志做全 RM 最好用的搜索引擎"}
+{"title":"【RM2025 哨兵开源】 基于安全走廊和4阶BSpline优化的规划方法","season":"RM2025","team":null,"labels":[],"topic":"哨兵开源 基于安全走廊和4阶BSpline优化的规划方法"}
+{"title":"[分享]Mid360线材制作指南","season":null,"team":null,"labels":["分享"],"topic":"Mid360线材制作指南"}
+{"title":"【RM2025-STM32H7电控通用控制系统开源】辽宁科技大学COD战队 20250612更新CLion版本","season":"RM2025","team":"辽宁科技大学COD战队","labels":[],"topic":"STM32H7电控通用控制系统开源 20250612更新CLion版本"}
+{"title":"【分享帖】RoboMaster DT7&DR16遥控接收系统 使用与维护手册","season":null,"team":null,"labels":[],"topic":"分享帖 RoboMaster DT7&DR16遥控接收系统 使用与维护手册"}
+{"title":"RM新电池(Matrice 4D电池)第三方充电器方案","season":null,"team":null,"labels":[],"topic":"RM新电池(Matrice 4D电池)第三方充电器方案"}
+{"title":"【RM 仿真开源】Uniy ROS Component","season":null,"team":null,"labels":[],"topic":"RM 仿真开源 Uniy ROS Component"}
+{"title":"【已完结】RMUC 2025区域赛青年工程师大会&复活赛全国赛规则预告","season":"RMUC2025","team":null,"labels":["已完结"],"topic":"区域赛青年工程师大会&复活赛全国赛规则预告"}
+{"title":"双12V&单5V低噪线性电源","season":null,"team":null,"labels":[],"topic":"双12V&单5V低噪线性电源"}
+{"title":"论不同小组赛赛制对战队晋级的影响","season":null,"team":null,"labels":[],"topic":"论不同小组赛赛制对战队晋级的影响"}
+{"title":"[RM2025步兵机器人开源]-吉林大学-TARS-Go战队","season":"RM2025","team":"吉林大学 TARS","labels":[],"topic":"步兵机器人开源 Go战队"}
+{"title":"【RM2021-英雄机器人机械开源】哈尔滨工业大学（深圳）南工骁鹰","season":"RM2021","team":"哈尔滨工业大学（深圳） 南工骁鹰","labels":[],"topic":"英雄机器人机械开源"}
+{"title":"哈威硬件合集1：小电脑电源升级（19V6.8A）四开关buck-boost升降压，MP2980GR开源","season":null,"team":null,"labels":[],"topic":"哈威硬件合集1：小电脑电源升级（19V6.8A）四开关buck-boost升降压，MP2980GR开源"}
+{"title":"【RM2025-英雄机器人机械结构开源】合肥工业大学-苍穹战队","season":"RM2025","team":"合肥工业大学 苍穹战队","labels":[],"topic":"英雄机器人机械结构开源"}
+{"title":"【RM2025-串联腿髋关节模块开源】青岛大学 未来战队","season":"RM2025","team":"青岛大学 未来战队","labels":[],"topic":"串联腿髋关节模块开源"}
+{"title":"[RM2025-工程IO扩展板硬件开源]-吉林大学TARS_Go","season":"RM2025","team":"吉林大学","labels":[],"topic":"工程IO扩展板硬件开源 TARS_Go"}
+{"title":"【RM2025-舵轮PCB滑环开源-mg4005舵轮硬件开源】-吉林大学TARS_Go战队","season":"RM2025","team":"吉林大学","labels":[],"topic":"舵轮PCB滑环开源-mg4005舵轮硬件开源 TARS_Go战队"}
+{"title":"【RM2025-can报文融合翎控mf7010电调硬件开源】-吉林大学TRAS_Go","season":"RM2025","team":"吉林大学","labels":[],"topic":"can报文融合翎控mf7010电调硬件开源 TRAS_Go"}
+{"title":"【RM2025-英雄机器人机械结构开源】辽宁科技大学-COD战队","season":"RM2025","team":"辽宁科技大学 COD战队","labels":[],"topic":"英雄机器人机械结构开源"}
+{"title":"【RM2025-钢琴曲谱《你》】中国科学技术大学RoboWalker战队","season":"RM2025","team":"中国科学技术大学RoboWalker战队","labels":[],"topic":"钢琴曲谱《你》"}
+{"title":"【RM2025-多线程架构开源】基于c#+ros2的多线程自动并行化控制系统","season":"RM2025","team":null,"labels":[],"topic":"多线程架构开源 基于c#+ros2的多线程自动并行化控制系统"}
+{"title":"【RM2025-哨兵顶层算法开源】南京理工大学 哨兵顶层代码 技术细节 2024ver","season":"RM2025","team":"南京理工大学","labels":[],"topic":"哨兵顶层算法开源 哨兵顶层代码 技术细节 2024ver"}
+{"title":"超级电容组选型工具","season":null,"team":null,"labels":[],"topic":"超级电容组选型工具"}
+{"title":"NetDebugToolkit：上位机+多硬件串口无线调试方案（软件开源）","season":null,"team":null,"labels":[],"topic":"NetDebugToolkit：上位机+多硬件串口无线调试方案（软件开源）"}
+{"title":"【RM2025-ROS2交叉编译套件开源】东南大学3SE战队 ROS2交叉编译套件开源","season":"RM2025","team":"东南大学3SE战队","labels":[],"topic":"ROS2交叉编译套件开源 ROS2交叉编译套件开源"}
+{"title":"【RM2025-中心供弹-主动供弹结构开源】东华大学DIODE战队","season":"RM2025","team":"东华大学DIODE战队","labels":[],"topic":"中心供弹-主动供弹结构开源"}
+{"title":"【RM2025-Ambition雷达录制视频分享】","season":"RM2025","team":null,"labels":[],"topic":"Ambition雷达录制视频分享"}
+{"title":"【RM2025-电源模块开源】MP9931大功率电源模块 华中科技大学-狼牙战队","season":"RM2025","team":"华中科技大学 狼牙战队","labels":[],"topic":"电源模块开源 MP9931大功率电源模块"}
+{"title":"【RM2025-电源模块开源】MP2980超小BUCK-BOOST升降压模块 华中科技大学-狼牙战队","season":"RM2025","team":"华中科技大学 狼牙战队","labels":[],"topic":"电源模块开源 MP2980超小BUCK-BOOST升降压模块"}
+{"title":"【分享】LEGO英雄积木","season":null,"team":null,"labels":["分享"],"topic":"LEGO英雄积木"}
+{"title":"【RM2025 dji RC-N2遥控协议解包开源】桂林信息科技学院 GIRT战队","season":"RM2025","team":"桂林信息科技学院 GIRT战队","labels":[],"topic":"dji RC-N2遥控协议解包开源"}
+{"title":"【RM2025-气动英雄开源】浙江纺织服装职业技术学院 RoboFuture战队","season":"RM2025","team":"浙江纺织服装职业技术学院 RoboFuture战队","labels":[],"topic":"气动英雄开源"}
+{"title":"RoboMaster2015-2025赛果资料汇总（2025.6.5）","season":"RM2015","team":null,"labels":[],"topic":"2025赛果资料汇总（2025.6.5）"}
+{"title":"【RM2025-飞镖系统裁判串口测试用例开源】东南大学3SE战队 飞镖系统裁判串口测试用例","season":"RM2025","team":"东南大学3SE战队","labels":[],"topic":"飞镖系统裁判串口测试用例开源 飞镖系统裁判串口测试用例"}
+{"title":"（抢先体验版）「RM-2025-无线充电装置开源」南京理工大学-Alliance战队","season":"RM2025","team":"南京理工大学 Alliance战队","labels":[],"topic":"（抢先体验版） 无线充电装置开源"}
+{"title":"【RM2025-机械臂逆运算与碰撞空间下位机方案】福建理工大学苍侠战队 卢志明","season":"RM2025","team":"福建理工大学苍侠战队","labels":[],"topic":"机械臂逆运算与碰撞空间下位机方案 卢志明"}
+{"title":"【RM2025-制导飞镖开源】西南交通大学Helios战队","season":"RM2025","team":"西南交通大学Helios战队","labels":[],"topic":"制导飞镖开源"}
+{"title":"【RM2025-飞镖上位机开源】西南交通大学Helios战队","season":"RM2025","team":"西南交通大学Helios战队","labels":[],"topic":"飞镖上位机开源"}
+{"title":"【RM2025-北京理工大学-DreamChaser战队】通用开发板开源","season":"RM2025","team":"北京理工大学 DreamChaser战队","labels":[],"topic":"通用开发板开源"}
+{"title":"【RM2025-手持装甲板场地道具开源】西南交通大学Helios战队","season":"RM2025","team":"西南交通大学Helios战队","labels":[],"topic":"手持装甲板场地道具开源"}
+{"title":"【RM2024-英雄机器人机械结构开源】广东工业大学-DynamicX战队","season":"RM2024","team":"广东工业大学 DynamicX战队","labels":[],"topic":"英雄机器人机械结构开源"}
+{"title":"【缓启动模块原理图开源】哈尔滨工业大学（深圳）南工骁鹰战队","season":null,"team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"缓启动模块原理图开源"}
+{"title":"RM新电池使用时的若干问题","season":null,"team":null,"labels":[],"topic":"RM新电池使用时的若干问题"}
+{"title":"RM2025-北京信息科技大学-星辰-全向轮步兵开源","season":"RM2025","team":"北京信息科技大学 星辰","labels":[],"topic":"全向轮步兵开源"}
+{"title":"《RoboMaster竞赛步兵机器人设计》勘误专用","season":null,"team":null,"labels":[],"topic":"《RoboMaster竞赛步兵机器人设计》勘误专用"}
+{"title":"试图进行一些物资和结构件收购","season":null,"team":null,"labels":[],"topic":"试图进行一些物资和结构件收购"}
+{"title":"【官方】图片直播链接汇总","season":null,"team":null,"labels":[],"topic":"官方 图片直播链接汇总"}
+{"title":"本贴为华北理工大学Horizon战队2025赛季工程机器人机械开源贴","season":null,"team":"本贴为华北理工大学Horizon战队","labels":[],"topic":"2025赛季工程机器人机械开源贴"}
+{"title":"【RM2025-摩擦轮飞镖系统机械设计指南--从理论到实战】哈尔滨工程大学创梦之翼战队","season":"RM2025","team":"哈尔滨工程大学创梦之翼战队","labels":[],"topic":"摩擦轮飞镖系统机械设计指南--从理论到实战"}
+{"title":"【2024赛季-空中机器人开源】哈尔滨工程大学","season":"RM2024","team":"哈尔滨工程大学","labels":[],"topic":"空中机器人开源"}
+{"title":"【RM2025-飞镖无控电源板开源】四川大学-火锅战队","season":"RM2025","team":"四川大学 火锅战队","labels":[],"topic":"飞镖无控电源板开源"}
+{"title":"【RM2024赛季-UI设计器开源】南京航空航天大学","season":"RM2024","team":"南京航空航天大学","labels":[],"topic":"UI设计器开源"}
+{"title":"DJI Matrice 4D电池说明书及应用在RM比赛中的注意事项","season":null,"team":null,"labels":[],"topic":"DJI Matrice 4D电池说明书及应用在RM比赛中的注意事项"}
+{"title":"机器人交互","season":null,"team":null,"labels":[],"topic":"机器人交互"}
+{"title":"【RM2025-能量机关数据集】香港科技大学ENTERPRIZE战队能量机关仿真数据集研究","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"能量机关数据集 能量机关仿真数据集研究"}
+{"title":"【RM2025-双轮足式串联机器人开源】中南大学-荷叶饭","season":"RM2025","team":"中南大学 荷叶饭","labels":[],"topic":"双轮足式串联机器人开源"}
+{"title":"【RM2025-云台各部件滑模控制器开源】四川大学-火锅战队","season":"RM2025","team":"四川大学 火锅战队","labels":[],"topic":"云台各部件滑模控制器开源"}
+{"title":"自制基地引导灯靶分享","season":null,"team":null,"labels":[],"topic":"自制基地引导灯靶分享"}
+{"title":"[RM2026-低成本3508P15.76减速箱开源(轻型/重型)] 青岛大学-未来","season":"RM2026","team":"青岛大学 未来","labels":[],"topic":"低成本3508P15.76减速箱开源(轻型/重型)"}
+{"title":"厦理PFA2025雷达开源项目","season":null,"team":null,"labels":[],"topic":"厦理PFA2025雷达开源项目"}
+{"title":"RoboMaster竞赛步兵机器人设计 书籍勘误集合","season":null,"team":null,"labels":[],"topic":"RoboMaster竞赛步兵机器人设计 书籍勘误集合"}
+{"title":"[开源]【RM2024超级电容控制板Lite「硬件篇」】桂林理工大学-群星战队","season":"RM2024","team":"桂林理工大学 群星战队","labels":["开源"],"topic":"超级电容控制板Lite「硬件篇」"}
+{"title":"【RM2024超级电容Lite模组使用手册】桂林理工大学-群星战队","season":"RM2024","team":"桂林理工大学 群星战队","labels":[],"topic":"超级电容Lite模组使用手册"}
+{"title":"【已完结】RMU 2025 圆桌分享 06：嵌入式系统框架及开发调试技巧&嵌入式职业发展规划","season":"RMU2025","team":null,"labels":["已完结"],"topic":"圆桌分享 06：嵌入式系统框架及开发调试技巧&嵌入式职业发展规划"}
+{"title":"【已完结】RMU 2025 圆桌分享 05：机械开发流程& 机械职业发展规划","season":"RMU2025","team":null,"labels":["已完结"],"topic":"圆桌分享 05：机械开发流程& 机械职业发展规划"}
+{"title":"【RM2025-复旦大学-星云EGA】云台yaw轴滑模控制器设计过程及算法开源","season":"RM2025","team":"复旦大学 星云EGA","labels":[],"topic":"云台yaw轴滑模控制器设计过程及算法开源"}
+{"title":"【RM2025-新电池低成本轻量化电池架开源】辽宁科技大学COD战队","season":"RM2025","team":"辽宁科技大学COD战队","labels":[],"topic":"新电池低成本轻量化电池架开源"}
+{"title":"《智能对抗机器人设计基础》大作业题目与答案","season":null,"team":null,"labels":[],"topic":"《智能对抗机器人设计基础》大作业题目与答案"}
+{"title":"《智能对抗机器人设计基础》实践类课程介绍","season":null,"team":null,"labels":[],"topic":"《智能对抗机器人设计基础》实践类课程介绍"}
+{"title":"《智能对抗机器人设计基础》实践类课程介绍","season":null,"team":null,"labels":[],"topic":"《智能对抗机器人设计基础》实践类课程介绍"}
+{"title":"《智能对抗机器人设计基础》课程大纲","season":null,"team":null,"labels":[],"topic":"《智能对抗机器人设计基础》课程大纲"}
+{"title":"如何科学的解决飞坡问题","season":null,"team":null,"labels":[],"topic":"如何科学的解决飞坡问题"}
+{"title":"RM2025-北京信息科技大学-星辰-空中机器人机械结构开源","season":"RM2025","team":"北京信息科技大学 星辰","labels":[],"topic":"空中机器人机械结构开源"}
+{"title":"目前队伍预算1500买什么机载电脑比较好","season":null,"team":null,"labels":[],"topic":"目前队伍预算1500买什么机载电脑比较好"}
+{"title":"【RM2025赛季-哨兵导航算法开源】东莞理工学院 ACE战队","season":"RM2025","team":"东莞理工学院 ACE战队","labels":[],"topic":"哨兵导航算法开源"}
+{"title":"【RM2025-飞镖镖体飞控硬件V2.0开源】华南师范大学-PIONEER战队","season":"RM2025","team":"华南师范大学 PIONEER战队","labels":[],"topic":"飞镖镖体飞控硬件V2.0开源"}
+{"title":"华北理工大学Horizon工程组培训开源","season":null,"team":"华北理工大学","labels":[],"topic":"Horizon工程组培训开源"}
+{"title":"【RM2025-西南石油大学-铁人】CAN负载计算器和提高CAN总线利用率技巧分享","season":"RM2025","team":"西南石油大学 铁人","labels":[],"topic":"CAN负载计算器和提高CAN总线利用率技巧分享"}
+{"title":"【RM2025-哈尔滨工程大学-创梦之翼战队】轻量级电脑降压模块","season":"RM2025","team":"哈尔滨工程大学 创梦之翼战队","labels":[],"topic":"轻量级电脑降压模块"}
+{"title":"【RM2025-北方工业大学-DreamTeam战队-新电池缓启动】无人机缓启动模块开源","season":"RM2025","team":"北方工业大学 DreamTeam战队","labels":[],"topic":"新电池缓启动 无人机缓启动模块开源"}
+{"title":"【RM2025-深圳北理莫斯科大学-北极熊战队】Sim2Real 导航及整车建模开源分享","season":"RM2025","team":"深圳北理莫斯科大学 北极熊战队","labels":[],"topic":"Sim2Real 导航及整车建模开源分享"}
+{"title":"【RM2025-湘潭大学-逐曦战队】部分图纸开源-持续更新中","season":"RM2025","team":"湘潭大学 逐曦战队","labels":[],"topic":"部分图纸开源-持续更新中"}
+{"title":"【RM2025-自定义控制器串口编码器硬件开源】哈尔滨工业大学（深圳）南工骁鹰战队","season":"RM2025","team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"自定义控制器串口编码器硬件开源"}
+{"title":"6020小云台","season":null,"team":null,"labels":[],"topic":"6020小云台"}
+{"title":"【RM2025-空中机器人新电池（Matrice 4D电池）问题现象汇总与预充电使用方案分享】电子科技大学中山学院 RoboBraver战队","season":"RM2025","team":"电子科技大学中山学院 RoboBraver战队","labels":[],"topic":"空中机器人新电池（Matrice 4D电池）问题现象汇总与预充电使用方案分享"}
+{"title":"【RM2025-大YAW轴步兵机械开源】- 广东轻工职业技术大学-Inventor战队","season":"RM2025","team":"广东轻工职业技术大学 Inventor战队","labels":[],"topic":"大YAW轴步兵机械开源"}
+{"title":"【RM2024-深圳大学-RobotPilots战队-工程机器人机械结构开源】","season":"RM2024","team":"深圳大学 RobotPilots战队","labels":[],"topic":"工程机器人机械结构开源"}
+{"title":"【RM2025-北京理工大学-DreamChaser战队】平衡步兵底盘主控板开源","season":"RM2025","team":"北京理工大学 DreamChaser战队","labels":[],"topic":"平衡步兵底盘主控板开源"}
+{"title":"【华南理工】LIBDRV v1.0 无刷电机驱动器开源","season":null,"team":null,"labels":[],"topic":"华南理工 LIBDRV v1.0 无刷电机驱动器开源"}
+{"title":"【RM2025-飞镖镖体飞控硬件开源】华南师范大学-PIONEER战队","season":"RM2025","team":"华南师范大学 PIONEER战队","labels":[],"topic":"飞镖镖体飞控硬件开源"}
+{"title":"属于RMer自己的机械课程设计","season":null,"team":null,"labels":[],"topic":"属于RMer自己的机械课程设计"}
+{"title":"雷达 小地图标点","season":null,"team":null,"labels":[],"topic":"雷达 小地图标点"}
+{"title":"机器人零件非标定制CNC加工打样支持","season":null,"team":null,"labels":[],"topic":"机器人零件非标定制CNC加工打样支持"}
+{"title":"科学馆往事之一（RM2022）","season":null,"team":null,"labels":[],"topic":"科学馆往事之一（RM2022）"}
+{"title":"大疆TB47/48系列电池自动开关机","season":null,"team":null,"labels":[],"topic":"大疆TB47/48系列电池自动开关机"}
+{"title":"DT7 遥控器拨杆保护件","season":null,"team":null,"labels":[],"topic":"DT7 遥控器拨杆保护件"}
+{"title":"【RM2025-西南石油大学-铁人】达妙DM-MC02 H7开发板TPU保护壳开源","season":"RM2025","team":"西南石油大学 铁人","labels":[],"topic":"达妙DM-MC02 H7开发板TPU保护壳开源"}
+{"title":"【RM2024-同济大学-SuperPower】一版简单的枪口热量控制策略","season":"RM2024","team":"同济大学 SuperPower","labels":[],"topic":"一版简单的枪口热量控制策略"}
+{"title":"[RM2025 平衡步兵电控开源]山海机甲战队完整形态技术文档软件设计开源","season":"RM2025","team":null,"labels":[],"topic":"平衡步兵电控开源 山海机甲战队完整形态技术文档软件设计开源"}
+{"title":"如何在论坛中输入公式？","season":null,"team":null,"labels":[],"topic":"如何在论坛中输入公式？"}
+{"title":"新电池相关问题","season":null,"team":null,"labels":[],"topic":"新电池相关问题"}
+{"title":"【RM2025-广东海洋大学-浪潮】基于ros2control的无下位机控制方案阶段性成果分享","season":"RM2025","team":"广东海洋大学 浪潮","labels":[],"topic":"基于ros2control的无下位机控制方案阶段性成果分享"}
+{"title":"0326文章二","season":null,"team":null,"labels":[],"topic":"0326文章二"}
+{"title":"【RM2024-深圳技术大学-悍匠】能量机关识别思路开源","season":"RM2024","team":"深圳技术大学 悍匠","labels":[],"topic":"能量机关识别思路开源"}
+{"title":"【南方科技大学】RM2024-17mm弹丸拨弹系统机械设计开源-Hermlok拨弹系统","season":"RM2024","team":"南方科技大学","labels":[],"topic":"17mm弹丸拨弹系统机械设计开源-Hermlok拨弹系统"}
+{"title":"【RM2023-英雄机器人云台机械结构开源】北京科技大学-Reborn","season":"RM2023","team":"北京科技大学 Reborn","labels":[],"topic":"英雄机器人云台机械结构开源"}
+{"title":"模拟环路超级电容开源【RM2025-同济大学-SuperPower】LT8708方案","season":"RM2025","team":"同济大学 SuperPower","labels":[],"topic":"模拟环路超级电容开源 LT8708方案"}
+{"title":"南航UI设计器动态版完整使用指南","season":null,"team":null,"labels":[],"topic":"南航UI设计器动态版完整使用指南"}
+{"title":"【平面设计】西浦太仓OmniX 2025赛季工牌设计文件开源","season":null,"team":null,"labels":[],"topic":"平面设计 西浦太仓OmniX 2025赛季工牌设计文件开源"}
+{"title":"【RM2024/25-哨兵机器人结构开源】-哈尔滨工业大学-I Hiter战队","season":"RM2024","team":"哈尔滨工业大学 I Hiter战队","labels":[],"topic":"25-哨兵机器人结构开源"}
+{"title":"南航UI设计器静态版完整使用指南","season":null,"team":null,"labels":[],"topic":"南航UI设计器静态版完整使用指南"}
+{"title":"通用型超级电容模组短路保护板","season":null,"team":null,"labels":[],"topic":"通用型超级电容模组短路保护板"}
+{"title":"23年国赛 侧置鹅颈 十字双级 英雄云台","season":"RM2023","team":null,"labels":[],"topic":"国赛 侧置鹅颈 十字双级 英雄云台"}
+{"title":"【传承故事征集】2.7.5 根本放不下","season":null,"team":null,"labels":[],"topic":"传承故事征集 2.7.5 根本放不下"}
+{"title":"[RM2025]无人机三轴云台开源","season":"RM2025","team":null,"labels":[],"topic":"无人机三轴云台开源"}
+{"title":"省钱小窍门—RoboMaster产品返厂维修指南","season":null,"team":null,"labels":[],"topic":"省钱小窍门—RoboMaster产品返厂维修指南"}
+{"title":"LibXR-支持STM32的C++代码生成工具","season":null,"team":null,"labels":[],"topic":"LibXR-支持STM32的C++代码生成工具"}
+{"title":"【RM2025-仲恺农业工程学院-LC】CAN 总线负载计算器网页版分享","season":"RM2025","team":"仲恺农业工程学院 LC","labels":[],"topic":"CAN 总线负载计算器网页版分享"}
+{"title":"MP5048电源保护缓启动模块开源","season":null,"team":null,"labels":[],"topic":"MP5048电源保护缓启动模块开源"}
+{"title":"【RM2025-全向轮步兵3D打印周边的开源】武汉科技大学崇实战队","season":"RM2025","team":"武汉科技大学崇实战队","labels":[],"topic":"全向轮步兵3D打印周边的开源"}
+{"title":"【RM2024-真空吸盘气路设计经验总结开源】华南理工大学 华南虎战队","season":"RM2024","team":"华南理工大学 华南虎战队","labels":[],"topic":"真空吸盘气路设计经验总结开源"}
+{"title":"电源管理模块“电源96：通道0过载”的触发阈值以及如何恢复","season":null,"team":null,"labels":[],"topic":"电源管理模块“电源96：通道0过载”的触发阈值以及如何恢复"}
+{"title":"【熵火翼战队+AI助力裁判系统考试与电控代码编写】使用AI工具的场景 #AI","season":null,"team":"熵火翼战队","labels":[],"topic":"AI助力裁判系统考试与电控代码编写 使用AI工具的场景 #AI"}
+{"title":"关于雷迅飞控使用的注意事项","season":null,"team":null,"labels":[],"topic":"关于雷迅飞控使用的注意事项"}
+{"title":"关于6020电机串级时速度环精度不够的问题","season":null,"team":null,"labels":[],"topic":"关于6020电机串级时速度环精度不够的问题"}
+{"title":"1200w超级电容开源【五大湖/英属哥伦比亚大学】附技术指南【RM2024】","season":"RM2024","team":"英属哥伦比亚大学","labels":[],"topic":"1200w超级电容开源 五大湖 附技术指南"}
+{"title":"【RM2025-无线充电带ASK通信仿真】华南师范大学-PIONEER战队","season":"RM2025","team":"华南师范大学 PIONEER战队","labels":[],"topic":"无线充电带ASK通信仿真"}
+{"title":"RoboMaster 软件实习招募","season":null,"team":null,"labels":[],"topic":"RoboMaster 软件实习招募"}
+{"title":"【已完结】RMU 2025 圆桌分享 03：无线充电技术与硬件组职业发展规划分享","season":"RMU2025","team":null,"labels":["已完结"],"topic":"圆桌分享 03：无线充电技术与硬件组职业发展规划分享"}
+{"title":"「DJI_RMer」机械结构岗位揭秘","season":null,"team":null,"labels":[],"topic":"DJI_RMer 机械结构岗位揭秘"}
+{"title":"MP2980小电脑供电模块开源","season":null,"team":null,"labels":[],"topic":"MP2980小电脑供电模块开源"}
+{"title":"「DJI_RMer」项目管理岗位揭秘","season":null,"team":null,"labels":[],"topic":"DJI_RMer 项目管理岗位揭秘"}
+{"title":"「DJI_RMer」测试开发岗位揭秘","season":null,"team":null,"labels":[],"topic":"DJI_RMer 测试开发岗位揭秘"}
+{"title":"「DJI_RMer」嵌入式岗位揭秘","season":null,"team":null,"labels":[],"topic":"DJI_RMer 嵌入式岗位揭秘"}
+{"title":"「DJI_RMer」硬件工程师岗位揭秘","season":null,"team":null,"labels":[],"topic":"DJI_RMer 硬件工程师岗位揭秘"}
+{"title":"「DJI_RMer」DJI Inspire3 研发故事","season":null,"team":null,"labels":[],"topic":"DJI_RMer DJI Inspire3 研发故事"}
+{"title":"「DJI_RMer」探秘 DJI My Story 功能设计","season":null,"team":null,"labels":[],"topic":"DJI_RMer 探秘 DJI My Story 功能设计"}
+{"title":"RoboMaster 裁判系统使用心得","season":null,"team":null,"labels":[],"topic":"RoboMaster 裁判系统使用心得"}
+{"title":"【分享帖】[24赛季已更]机甲大师赛发展史/赛果/群/资料汇总~","season":"RM2024","team":null,"labels":[],"topic":"分享帖 已更 机甲大师赛发展史/赛果/群/资料汇总~"}
+{"title":"【活动进行中】RMU 2025 圆桌分享 04：AI 专题分享——大语言模型应用","season":"RMU2025","team":null,"labels":[],"topic":"活动进行中 圆桌分享 04：AI 专题分享——大语言模型应用"}
+{"title":"Deepseek官网服务器繁忙？利用硅基流动API部署，提高效率。","season":null,"team":null,"labels":[],"topic":"Deepseek官网服务器繁忙？利用硅基流动API部署，提高效率。"}
+{"title":"【RM2024-半下供弹麦轮步兵机械开源】北京理工大学-追梦战队","season":"RM2024","team":"北京理工大学 追梦战队","labels":[],"topic":"半下供弹麦轮步兵机械开源"}
+{"title":"一种成本(相对)较低的读取电池信息的方案","season":null,"team":null,"labels":[],"topic":"一种成本(相对)较低的读取电池信息的方案"}
+{"title":"RM2025-华南理工大学-华南虎-氩弧焊焊接技术分享","season":"RM2025","team":"华南理工大学 华南虎","labels":[],"topic":"氩弧焊焊接技术分享"}
+{"title":"[开源]【RM24-25超级电容组】桂林理工大学-群星战队","season":"RM2024-25","team":"桂林理工大学 群星战队","labels":["开源"],"topic":"超级电容组"}
+{"title":"【RM2024-英雄视觉开源】华中科技大学-狼牙","season":"RM2024","team":"华中科技大学 狼牙","labels":[],"topic":"英雄视觉开源"}
+{"title":"关于缓启动模块在新电池场景下的应用","season":null,"team":null,"labels":[],"topic":"关于缓启动模块在新电池场景下的应用"}
+{"title":"太原科技大学杨起硕开源汇总","season":null,"team":"太原科技大学","labels":[],"topic":"杨起硕开源汇总"}
+{"title":"归档【RM2023-超级电容模块完整开源】桂林理工大学-群星战队","season":"RM2023","team":"桂林理工大学 群星战队","labels":[],"topic":"归档 超级电容模块完整开源"}
+{"title":"分享【南华大学_MA战队】好盈X6Plus电机座拆卸方法——补充修改","season":null,"team":"南华大学 MA战队","labels":[],"topic":"分享 好盈X6Plus电机座拆卸方法——补充修改"}
+{"title":"【RM2024赛季-自定义控制器开源】厦门理工学院PFA战队","season":"RM2024","team":"厦门理工学院PFA战队","labels":[],"topic":"自定义控制器开源"}
+{"title":"【RM2024 雷达站算法开源】哈尔滨工业大学（深圳） 南工骁鹰战队","season":"RM2024","team":"哈尔滨工业大学（深圳） 南工骁鹰战队","labels":[],"topic":"雷达站算法开源"}
+{"title":"【RM AWARD 2024】哈工大（深圳） 陈希峻 雷达站点云定位模块 先行开源","season":null,"team":null,"labels":[],"topic":"RM AWARD 2024 哈工大（深圳） 陈希峻 雷达站点云定位模块 先行开源"}
+{"title":"RM新电池(Matrice 4D电池)充放电及端子相关说明","season":null,"team":null,"labels":[],"topic":"RM新电池(Matrice 4D电池)充放电及端子相关说明"}
+{"title":"如何打包自己的工程让一台没有开发环境的电脑也能烧写机器人代码？","season":null,"team":null,"labels":[],"topic":"如何打包自己的工程让一台没有开发环境的电脑也能烧写机器人代码？"}
+{"title":"【分享帖】为什么硬件设计需要DFM?(广工DynamicX战队电路组)","season":null,"team":null,"labels":[],"topic":"分享帖 为什么硬件设计需要DFM?(广工DynamicX战队电路组)"}
+{"title":"关于新论坛搜索功能问题的具体说明","season":null,"team":null,"labels":[],"topic":"关于新论坛搜索功能问题的具体说明"}
+{"title":"【分享帖】关于弹道的一系列经验分享","season":null,"team":null,"labels":[],"topic":"分享帖 关于弹道的一系列经验分享"}
+{"title":"手搓联轴器方案（本文意在提供一种解决自己diy加工件加工侧孔的思路）","season":null,"team":null,"labels":[],"topic":"手搓联轴器方案（本文意在提供一种解决自己diy加工件加工侧孔的思路）"}
+{"title":"分享一个DSP库矩阵运算函数的文档","season":null,"team":null,"labels":[],"topic":"分享一个DSP库矩阵运算函数的文档"}
+{"title":"RM2025-吉林大学TARS-Go战队文化建设分享","season":"RM2025","team":"吉林大学","labels":[],"topic":"TARS-Go战队文化建设分享"}
+{"title":"RMU 2025 圆桌分享 02：吉林大学&太原理工大学，如何用「文化」管理战队？（附25赛季运营经理职务介绍","season":"RMU2025","team":"吉林大学&太原理工大学","labels":[],"topic":"圆桌分享 02 如何用 文化 管理战队？（附25赛季运营经理职务介绍"}
+{"title":"【RM2024赛季-哨兵导航算法开源】西安电子科技大学-IRobot战队","season":"RM2024","team":"西安电子科技大学 IRobot战队","labels":[],"topic":"哨兵导航算法开源"}
+{"title":"RM内录通","season":null,"team":null,"labels":[],"topic":"RM内录通"}
+{"title":"25赛季场地（v1.1）沙盘打印模型","season":"RM2025","team":null,"labels":[],"topic":"场地（v1.1）沙盘打印模型"}
+{"title":"哈尔滨工业大学 I Hiter 战队 2024 年雷达站算法开源","season":null,"team":"哈尔滨工业大学 I Hiter 战队","labels":[],"topic":"2024 年雷达站算法开源"}
+{"title":"哈尔滨工业大学 I Hiter 战队 2023 年能量机关识别算法开源","season":null,"team":"哈尔滨工业大学 I Hiter 战队","labels":[],"topic":"2023 年能量机关识别算法开源"}
+{"title":"一种RM2024能量机关的识别与角度拟合方法","season":null,"team":null,"labels":[],"topic":"一种RM2024能量机关的识别与角度拟合方法"}
+{"title":"【RM2024-空中机器人机械结构开源】武汉工程大学-Nautilus战队","season":"RM2024","team":"武汉工程大学 Nautilus战队","labels":[],"topic":"空中机器人机械结构开源"}
+{"title":"【分享贴】低成本通用电池架开源","season":null,"team":null,"labels":[],"topic":"分享贴 低成本通用电池架开源"}
+{"title":"【RM AWARD 2024】东南大学3SE 程浩 无线键轴大能量机关系统开源","season":null,"team":"东南大学","labels":[],"topic":"RM AWARD 2024 3SE 程浩 无线键轴大能量机关系统开源"}
+{"title":"【RM2025-英雄机器人-中心供弹结构开源】同济大学SuperPower战队","season":"RM2025","team":"同济大学SuperPower战队","labels":[],"topic":"英雄机器人-中心供弹结构开源"}
+{"title":"【RMUC2025+合肥工业大学（宣城校区）+WDR+赛季规划】开源","season":"RMUC2025","team":"合肥工业大学（宣城校区）","labels":[],"topic":"WDR+赛季规划 开源"}
+{"title":"【RMUC2025南昌航空大学洪鹰战队赛季规划】","season":"RMUC2025","team":"南昌航空大学洪鹰战队","labels":[],"topic":"赛季规划"}
+{"title":"[开源]【RM24-25超级电容控制板Lite & Plus「CubeMX篇」】桂林理工大学-群星战队","season":"RM2024-25","team":"桂林理工大学 群星战队","labels":["开源"],"topic":"超级电容控制板Lite & Plus「CubeMX篇」"}
+{"title":"RoboMasters电机使用手册整理","season":null,"team":null,"labels":[],"topic":"RoboMasters电机使用手册整理"}
+{"title":"【RM2025-机械组纳新及新成员培训经验&资料】中南大学_胡元峰","season":"RM2025","team":"中南大学 胡元峰","labels":[],"topic":"机械组纳新及新成员培训经验&资料"}
+{"title":"安徽工程大学 安凤战队 反螺旋式双层底盘结构","season":null,"team":"安徽工程大学 安凤战队","labels":[],"topic":"反螺旋式双层底盘结构"}
+{"title":"【RM2024-飞翼制导飞镖机械设计开源】南京航空航天大学","season":"RM2024","team":"南京航空航天大学","labels":[],"topic":"飞翼制导飞镖机械设计开源"}
+{"title":"【RM2024-自适应下供弹全向轮机械机构开源】中南大学FYT战队2024全国赛","season":"RM2024","team":"中南大学FYT战队","labels":[],"topic":"自适应下供弹全向轮机械机构开源 2024全国赛"}
+{"title":"首都师范大学PIE战队-2025赛季新生培训资料","season":"RM2025","team":"首都师范大学PIE战队","labels":[],"topic":"新生培训资料"}
+{"title":"基于韭菜的菜开源模型的平步仿真","season":null,"team":null,"labels":[],"topic":"基于韭菜的菜开源模型的平步仿真"}
+{"title":"北京信息科技大学星辰战队-2025赛季新生培训资料","season":"RM2025","team":"北京信息科技大学星辰战队","labels":[],"topic":"新生培训资料"}
+{"title":"哈尔滨理工大学A.I.R.战队-2025赛季新生培训资料","season":"RM2025","team":"哈尔滨理工大学A.I.R.战队","labels":[],"topic":"新生培训资料"}
+{"title":"贵阳人文科技学院BIU战队-2025赛季新生培训资料","season":"RM2025","team":"贵阳人文科技学院BIU战队","labels":[],"topic":"新生培训资料"}
+{"title":"关于 RoboMaster 2024 机甲大师超级对抗赛复活赛&全国赛赛事调研—研发产品板块反馈说明","season":"RM2024","team":null,"labels":[],"topic":"关于 机甲大师超级对抗赛复活赛&全国赛赛事调研—研发产品板块反馈说明"}
+{"title":"RM新队员培训资料汇总征集活动","season":null,"team":null,"labels":[],"topic":"RM新队员培训资料汇总征集活动"}
+{"title":"【RMUC2025常州大学Climber战队赛季规划】","season":"RMUC2025","team":"常州大学Climber战队","labels":[],"topic":"赛季规划"}
+{"title":"赛季规划+中国民航大学&天津工业大学＋Triple i +RM2025赛季规划开源","season":"RM2025","team":"中国民航大学","labels":[],"topic":"赛季规划+&天津工业大学＋Triple i +规划开源"}
+{"title":"进度安排","season":null,"team":null,"labels":[],"topic":"进度安排"}
+{"title":"1.团队目标","season":null,"team":null,"labels":[],"topic":"1.团队目标"}
+{"title":"成都大学Ultra战队-2025赛季新生培训资料","season":"RM2025","team":"成都大学Ultra战队","labels":[],"topic":"新生培训资料"}
+{"title":"中国民航大学因特雷战队 - 2025赛季新生培训资料","season":"RM2025","team":"中国民航大学因特雷战队","labels":[],"topic":"新生培训资料"}
+{"title":"哈尔滨工业大学（深圳）南工骁鹰战队-2025赛季新生培训资料","season":"RM2025","team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"新生培训资料"}
+{"title":"大疆A3/N3系列飞控刷机操作说明","season":null,"team":null,"labels":[],"topic":"大疆A3/N3系列飞控刷机操作说明"}
+{"title":"成都工业学院success战队-2025赛季新生培训资料","season":"RM2025","team":"成都工业学院success战队","labels":[],"topic":"新生培训资料"}
+{"title":"同济大学SuperPower战队-2025赛季新生培训资料","season":"RM2025","team":"同济大学SuperPower战队","labels":[],"topic":"新生培训资料"}
+{"title":"江苏航空职业技术学院飞凡创新战队-2025赛季新生培训资料","season":"RM2025","team":"江苏航空职业技术学院飞凡创新战队","labels":[],"topic":"新生培训资料"}
+{"title":"【运营资源】找字体资源还不错的网站 免费商用字体网站","season":null,"team":null,"labels":[],"topic":"运营资源 找字体资源还不错的网站 免费商用字体网站"}
+{"title":"中北大学606战队-2025赛季新生培训资料","season":"RM2025","team":"中北大学606战队","labels":[],"topic":"新生培训资料"}
+{"title":"香港科技大学ENTERPRIZE战队-2025赛季新生培训资料","season":"RM2025","team":"香港科技大学ENTERPRIZE战队","labels":[],"topic":"新生培训资料"}
+{"title":"深圳北理莫斯科大学大学北极熊战队-2025赛季新生培训资料（算法组）","season":"RM2025","team":"深圳北理莫斯科大学大学北极熊战队","labels":[],"topic":"新生培训资料（算法组）"}
+{"title":"【RM2024赛季-Scara机械臂仿真开源】首都师范大学PIE战队","season":"RM2024","team":"首都师范大学PIE战队","labels":[],"topic":"Scara机械臂仿真开源"}
+{"title":"2025赛季哨兵规则理解","season":"RM2025","team":null,"labels":[],"topic":"哨兵规则理解"}
+{"title":"如果遇到遥控器连不上操作手的问题的话可以试试下面这种方案","season":null,"team":null,"labels":[],"topic":"如果遇到遥控器连不上操作手的问题的话可以试试下面这种方案"}
+{"title":"新赛季规则解读与团队目标","season":null,"team":null,"labels":[],"topic":"新赛季规则解读与团队目标"}
+{"title":"【RM2024 步兵电控代码开源】河北工业大学山海Mas战队","season":"RM2024","team":"河北工业大学山海Mas战队","labels":[],"topic":"步兵电控代码开源"}
+{"title":"【自制兑换框分享】-南昌大学-Passion","season":null,"team":"南昌大学 Passion","labels":[],"topic":"自制兑换框分享"}
+{"title":"能量机关","season":null,"team":null,"labels":[],"topic":"能量机关"}
+{"title":"【RM2024-最佳创意设计奖设计心得】山东理工大学齐奇飞镖系统","season":"RM2024","team":"山东理工大学 齐奇飞镖系统","labels":[],"topic":"最佳创意设计奖设计心得"}
+{"title":"【诺丁汉大学联队】电控最应该看的课程，机械组入门教程01——如何导出URDF（维护TF树）","season":null,"team":"诺丁汉大学联队","labels":[],"topic":"电控最应该看的课程，机械组入门教程01——如何导出URDF（维护TF树）"}
+{"title":"【RM2026】1:4比例微缩串联腿挂件开源","season":"RM2026","team":null,"labels":[],"topic":"1:4比例微缩串联腿挂件开源"}
+{"title":"【RM2026-厦门大学嘉庚学院-TCR战队】过洞折叠全向步兵机械结构开源","season":"RM2026","team":"厦门大学嘉庚学院 TCR战队","labels":[],"topic":"过洞折叠全向步兵机械结构开源"}
+{"title":"【RM2026 全向过洞步兵结构开源】山东理工大学 齐奇战队","season":"RM2026","team":"山东理工大学 齐奇战队","labels":[],"topic":"全向过洞步兵结构开源"}
+{"title":"RM2026-复旦大学-星云 EGA 战队】自定义客户端与模拟器开源","season":"RM2026","team":"复旦大学 星云","labels":[],"topic":"EGA 战队 自定义客户端与模拟器开源"}
+{"title":"【RC2026 太原工业学院机器人队 算法】马术任务赛的任务与路径规划开源","season":"RC2026","team":"太原工业学院机器人队","labels":[],"topic":"算法 马术任务赛的任务与路径规划开源"}
+{"title":"【RM2026-飞镖系统技术报告开源】大连理工大学-凌Bug战队","season":"RM2026","team":"大连理工大学 凌Bug战队","labels":[],"topic":"飞镖系统技术报告开源"}
+{"title":"【哨兵机器人技术报告-哈尔滨工业大学（威海）HERO战队-RM2026技术报告开源】","season":"RM2026","team":"哈尔滨工业大学（威海）HERO战队","labels":[],"topic":"哨兵机器人技术报告 技术报告开源"}
+{"title":"【RM2026-哈尔滨工业大学（深圳）-南工骁鹰】2026赛季项目管理经验开源","season":"RM2026","team":"哈尔滨工业大学（深圳） 南工骁鹰","labels":[],"topic":"2026赛季项目管理经验开源"}
+{"title":"【RM2026 华南理工大学 华南虎战队】轮足步兵强化学习运动控制训练与部署框架开源","season":"RM2026","team":"华南理工大学 华南虎战队","labels":[],"topic":"轮足步兵强化学习运动控制训练与部署框架开源"}
+{"title":"一文读懂如何提交参赛名单","season":null,"team":null,"labels":[],"topic":"一文读懂如何提交参赛名单"}
+{"title":"技术评审全攻略","season":null,"team":null,"labels":[],"topic":"技术评审全攻略"}
+{"title":"M3508 P19 电机关于润滑脂选型的一些心得","season":null,"team":null,"labels":[],"topic":"M3508 P19 电机关于润滑脂选型的一些心得"}
+{"title":"[RM24赛季优秀队长经验分享]中石油（华东）——RPS战队队长廉浩东","season":"RM2024","team":null,"labels":[],"topic":"优秀队长经验分享 中石油（华东）——RPS战队队长廉浩东"}
+{"title":"【RM2024-优秀队长经验分享】山东理工大学-齐奇战队（于丽敏）","season":"RM2024","team":"山东理工大学","labels":[],"topic":"优秀队长经验分享 齐奇战队（于丽敏）"}
+{"title":"【分享帖】RM-大疆智能电池使用手册","season":null,"team":null,"labels":[],"topic":"分享帖 RM-大疆智能电池使用手册"}
+{"title":"关于在ROBOMASTER赛场上进行四足机器人构型的机器人设计的讨论","season":null,"team":null,"labels":[],"topic":"关于在ROBOMASTER赛场上进行四足机器人构型的机器人设计的讨论"}
+{"title":"RM2024 中南大学FYT战队 优秀队长工作总结","season":"RM2024","team":"中南大学FYT战队","labels":[],"topic":"优秀队长工作总结"}
+{"title":"RM2024 东北大学TDT战队 优秀队长工作总结","season":"RM2024","team":"东北大学TDT战队","labels":[],"topic":"优秀队长工作总结"}
+{"title":"【RM2024-优秀项管经验分享】山东理工大学齐奇李国瑞","season":"RM2024","team":"山东理工大学 齐奇李国瑞","labels":[],"topic":"优秀项管经验分享"}
+{"title":"【RM2024-优秀队长陈加昊经验分享】华东理工大学-起源","season":"RM2024","team":"华东理工大学 起源","labels":[],"topic":"优秀队长陈加昊经验分享"}
+{"title":"【RM2024-48V降24V降压模块开源】哈尔滨工业大学（深圳）南工骁鹰战队","season":"RM2024","team":"哈尔滨工业大学（深圳）南工骁鹰战队","labels":[],"topic":"48V降24V降压模块开源"}
+{"title":"2025赛季装甲板贴纸团购开团啦！","season":"RM2025","team":null,"labels":[],"topic":"装甲板贴纸团购开团啦！"}
+{"title":"【分享】RM2024 华南农业大学 Taurus 优秀队长工作总结","season":"RM2024","team":"华南农业大学 Taurus","labels":["分享"],"topic":"优秀队长工作总结"}
+{"title":"【RM AWARD 2024】首都师范大学+周柯伊+管理成果说明|优秀队长（团）","season":null,"team":"首都师范大学","labels":[],"topic":"RM AWARD 2024 周柯伊+管理成果说明|优秀队长（团）"}
+{"title":"串联机构平衡机器人demo机械开源","season":null,"team":null,"labels":[],"topic":"串联机构平衡机器人demo机械开源"}
+{"title":"[分享]【魔法电子教程「零」】电子常识扫盲","season":null,"team":null,"labels":["分享"],"topic":"魔法电子教程「零」 电子常识扫盲"}
+{"title":"【分享】如何使用VScode+git进行本地代码版本管理及远程仓库保存","season":null,"team":null,"labels":["分享"],"topic":"如何使用VScode+git进行本地代码版本管理及远程仓库保存"}
+{"title":"【RM2024-开源哨兵底盘主控板+自研裁判系统上下位机方案】","season":"RM2024","team":null,"labels":[],"topic":"开源哨兵底盘主控板+自研裁判系统上下位机方案"}
+{"title":"使用C610驱动航模电机的可能性探讨","season":null,"team":null,"labels":[],"topic":"使用C610驱动航模电机的可能性探讨"}

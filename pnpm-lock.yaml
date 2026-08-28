@@ -285,6 +285,9 @@ importers:
       hono:
         specifier: ^4.13.5
         version: 4.13.5
+      htmlparser2:
+        specifier: ^10.1.0
+        version: 10.1.0
       markdown-it:
         specifier: ^14.1.0
         version: 14.3.0

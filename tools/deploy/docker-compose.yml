@@ -64,11 +64,13 @@ services:
     mem_limit: 256m
     restart: unless-stopped
 
-  # apps/bbs: API + MCP + SPA over its own database `bbs` (created at boot).
-  # First load / weekly refresh: docker compose run --rm bbs import /import/app.db
-  bbs:
+  # apps/bbs: one image, three commands (apps/bbs/FRAME.md Frame 2).
+  # bbs-migrate is a one-shot: applies apps/bbs/drizzle and rederives when corpus_versions differs;
+  # both long-running bbs containers wait for it. Re-runs on every `up`.
+  bbs-migrate:
     image: ${IMAGE_PREFIX}/bbs:${IMAGE_TAG:-latest}
-    environment:
+    command: ["migrate"]
+    environment: &bbs-env
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
       APP_ORIGIN: ${BBS_ORIGIN:?set BBS_ORIGIN in .env, e.g. https://bbs.herkules.dev}
       AUTH_INTERNAL_URL: http://auth:3001
@@ -78,15 +80,46 @@ services:
       WEB_DIR: /app/dist/client
       PORT: "3003"
       NODE_ENV: production
-    volumes:
-      - ./import:/import:ro
+    healthcheck:
+      disable: true # the image HEALTHCHECK probes :3003; nothing listens here
     depends_on:
       postgres:
         condition: service_healthy
+    mem_limit: 256m
+    restart: "no"
+
+  # API + MCP + SPA. `bbs import` is deprecated but remains the cutover tool:
+  # docker compose run --rm bbs import /import/app.db
+  bbs:
+    image: ${IMAGE_PREFIX}/bbs:${IMAGE_TAG:-latest}
+    environment: *bbs-env
+    volumes:
+      - ./import:/import:ro
+    depends_on:
+      bbs-migrate:
+        condition: service_completed_successfully
       auth:
         condition: service_healthy
     mem_limit: 384m
     restart: unless-stopped
+
+  # The crawler. Scaled to 0 until cutover: `docker compose up -d --scale bbs-worker=1`.
+  # Manual check: docker compose run --rm bbs work --once
+  # A second worker against the same database exits 3 (advisory lock) before sending any request.
+  bbs-worker:
+    image: ${IMAGE_PREFIX}/bbs:${IMAGE_TAG:-latest}
+    command: ["work"]
+    environment: *bbs-env
+    healthcheck:
+      disable: true # no port; liveness is max(poll_runs.started_at) on /api/status
+    depends_on:
+      bbs-migrate:
+        condition: service_completed_successfully
+    deploy:
+      replicas: 0
+    mem_limit: 256m
+    restart: unless-stopped
+    stop_grace_period: 30s # SIGTERM aborts sleeps; a fetch in flight (<=15 s) finishes; transactions are atomic
 
   postgres:
     image: postgres:17-alpine

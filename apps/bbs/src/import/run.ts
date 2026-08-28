@@ -1,6 +1,11 @@
 /**
  * `bbs import <app.db>` — the whole operation, in one function.
  *
+ * DEPRECATED since Frame 2 (2026-08-28): the corpus is now written by `bbs-worker`
+ * (crawl/corpus.ts). This stays as the cutover tool and the dev loader, untouched.
+ * It TRUNCATEs every imported table — including everything the worker wrote —
+ * so never run it against a database the worker is crawling.
+ *
  * It runs on the repo's DATABASE_URL pattern: herkules-old's migrator was
  * written against `pg` (`pool.connect()`, explicit BEGIN/COMMIT, `result.rows`);
  * this repo runs postgres.js in prod and PGlite in tests. Rewriting the four
