@@ -38,7 +38,9 @@ Browser sessions are stateless in the app. Rotating its cookie secret signs all 
 4. The issuer returns a 15-minute, EdDSA-signed token whose `aud` names that resource.
 5. The resource server verifies the token against JWKS without calling auth on every request.
 
-CIMD remains unadvertised because the current callback matcher rejects Claude Code's `localhost` port variation. DCR is the supported dynamic path.
+Per-client commands and configuration for the MCP clients this platform is known to work with live in [`../apps/bbs/README.md`](../apps/bbs/README.md#connecting-an-mcp-client).
+
+Claude Code registers through DCR by its own choice: it withholds client-ID metadata (CIMD) whenever its loopback redirect carries a port, which is always. VS Code and Codex would use CIMD, but CIMD requires the authorization server to fetch each client's metadata document, and `claude.ai` and `chatgpt.com` are unreachable from the Hong Kong host. CIMD therefore stays unmounted until auth runs from a host that can reach them, which means Singapore. DCR is the supported dynamic path.
 
 ## Admission and revocation
 

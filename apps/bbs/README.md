@@ -25,6 +25,17 @@ The config default is port 3003. The checked-in `.env.example` sets Hono to 3103
 - Browser sessions use the `api/bbs` audience through `@herkules/oauth-client`. Agents use the `mcp/bbs` audience through `@herkules/auth-middleware`. Both produce the same `Principal`.
 - Reads are anonymous. `/api/me` and future user-owned writes require membership. Per-user data keys only on `principal.subject`.
 
+## Connecting an MCP client
+
+`https://herkules.dev/mcp/bbs` is the read-only MCP endpoint. `web/src/account/McpGuide.tsx` renders the same instructions in Chinese on the account page.
+
+- **Claude Code** — `claude mcp add --transport http rm-wenku https://herkules.dev/mcp/bbs`, then `/mcp` in a session. OAuth via DCR; no token to paste. Cursor takes the same URL the same way.
+- **VS Code 1.106+** — put `{ "servers": { "rm-wenku": { "type": "http", "url": "https://herkules.dev/mcp/bbs" } } }` in the workspace's `.vscode/mcp.json` or in the profile opened by the "MCP: Open User Configuration" command (or answer "MCP: Add Server" → HTTP), then sign in from the server's entry. OAuth, CIMD or DCR at VS Code's choice.
+- **Codex** — `codex mcp add rm-wenku --url https://herkules.dev/mcp/bbs` then `codex mcp login rm-wenku`. The `~/.codex/config.toml` equivalent is a `[mcp_servers.rm-wenku]` table with `url`. The IDE extension: gear → MCP servers → Add server → Streamable HTTP → URL → Save → restart the extension → authenticate. OAuth, CIMD or DCR.
+- **GitHub Copilot CLI** — `/mcp add` → name → HTTP → URL → headers → tools `*`, or the same as `~/.copilot/mcp-config.json` `{ "mcpServers": { "rm-wenku": { "type": "http", "url": "https://herkules.dev/mcp/bbs", "tools": ["*"] } } }`. No auth path.
+
+Copilot CLI is not supported: it has no OAuth flow for remote servers and can only send static headers, while this platform issues no long-lived tokens. The only stopgap is a 15-minute JWT from [`/dev-token`](https://herkules.dev/dev-token) for the `mcp/bbs` audience, passed as `"headers": { "Authorization": "Bearer <token>" }` — enough for one test, not for daily use. The Copilot coding agent on github.com does not support remote OAuth MCP at all.
+
 ## Corpus and search
 
 - `src/db/schema.ts` owns the Postgres schema. Timestamps use `timestamptz(3)`, structured payloads use `jsonb`, title labels use `text[]`, and `ai_usage.user_id` stores the issuer `sub`.

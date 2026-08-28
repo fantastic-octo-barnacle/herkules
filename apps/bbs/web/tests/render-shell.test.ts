@@ -65,10 +65,20 @@ describe("StatusTiles", () => {
 });
 
 describe("McpGuide", () => {
+  const html = renderToString(createElement(McpGuide));
+
   it("prints the claude mcp add line against the platform origin", () => {
-    const html = renderToString(createElement(McpGuide));
     expect(html).toContain("claude mcp add --transport http rm-wenku");
-    expect(html).toContain("/mcp/bbs");
+    expect(html).toContain("https://herkules.dev/mcp/bbs");
+  });
+
+  it("covers every documented client and the Copilot CLI stopgap", () => {
+    for (const client of ["Claude Code", "VS Code", "Codex", "GitHub Copilot CLI"]) {
+      expect(html).toContain(client);
+    }
+    expect(html).toContain("codex mcp login rm-wenku");
+    expect(html).toContain(".vscode/mcp.json");
+    expect(html).toContain("https://herkules.dev/dev-token"); // the only manual-token path
   });
 });
 
