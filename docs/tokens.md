@@ -17,8 +17,8 @@ a token the authorization server minted and decides, from the claims inside,
 what the caller may do.
 
 A server is **conformant** when it satisfies every MUST in §15 and passes the
-three checks FRAME.md's done predicate names: it rejects a token minted for
-another resource (§7), it answers the §12 responses byte for byte, and a
+conformance checks: it rejects a token minted for another resource (§7), it
+answers the §12 responses byte for byte, and a
 ~30-line verifier written from this document alone (`docs/verify_token.py` is
 the reference) passes `docs/tokens-vectors.json`.
 

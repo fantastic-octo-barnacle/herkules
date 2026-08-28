@@ -61,7 +61,7 @@ docker compose logs -f auth  # migrations run at boot; "listening on :3001"
 
 Roll back: `IMAGE_TAG=sha-<short> docker compose up -d` (or set it in `.env`).
 
-## Verify (the FRAME done predicate, item 5 and the parts it enables)
+## Verify
 
 ```sh
 curl -fsS https://herkules.dev/auth/healthz                      # {"ok":true}
@@ -76,7 +76,7 @@ Then the kill-criterion run: `claude mcp add --transport http directory https://
 
 ## bbs (RM 文库)
 
-One image, three commands (`apps/bbs/FRAME.md` Frame 2): `bbs-migrate` (one-shot: creates the
+One image, three commands (see `apps/bbs/README.md`): `bbs-migrate` (one-shot: creates the
 database with `ensureDatabase` — set `BBS_CREATE_DATABASE=false` and `createdb -U herkules bbs`
 yourself if the role ever loses CREATEDB — applies migrations, rederives derived columns when
 `corpus_versions` differs), `bbs` (API + MCP + SPA) and `bbs-worker` (the crawler, `replicas: 0`
