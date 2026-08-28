@@ -1,0 +1,354 @@
+/*
+ * The knowledge-base screens. Structure ported from rm-wenku's `styles/kb.css`
+ * (card grid + sticky summary column, 960px collapse, datasheet tables) and
+ * re-tokened onto the shell's tokens; every colour here is a token, so dark
+ * mode needs no rules of its own.
+ */
+
+/* ---------- browse ---------- */
+.kb-page {
+  /* `width`, not `max-width`: `.page` already sets `width: min(100% - 2.5rem, 64rem)`, which a max-width cannot raise. */
+  width: min(100% - 2.5rem, 1120px);
+}
+.kb-lede {
+  max-width: var(--measure);
+  color: var(--ink-2);
+  line-height: 1.75;
+}
+
+.kb-search {
+  display: flex;
+  gap: 8px;
+  max-width: 560px;
+  margin: 16px 0 4px;
+}
+.kb-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.kb-search input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.kb-facets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 20px 0 4px;
+}
+.kb-facet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.kb-facet-lead {
+  min-width: 3em;
+}
+.kb-facet .chip {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.kb-facet .chip small,
+.kb-cloud .chip small,
+.kb-rest summary small {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 5px;
+}
+.kb-facet .chip.is-active small {
+  color: inherit;
+}
+.kb-total {
+  margin: 10px 0 0;
+}
+
+.kb-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 48px;
+  align-items: start;
+  margin-top: 14px;
+}
+/* The summary column comes FIRST in the DOM (it is the page's teaser) but sits
+   in the right rail on wide screens; the grid placement, not `order`, so the
+   reading order on a narrow screen is the DOM order. */
+.kb-cards {
+  grid-column: 1;
+  grid-row: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.kb-side {
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.kb-side h2 {
+  margin: 0 0 10px;
+}
+
+.kb-pitfalls {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.kb-pitfalls li {
+  padding-left: 12px;
+  border-left: 2px solid var(--warn);
+}
+.kb-ref {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.kb-ref a {
+  color: inherit;
+}
+.kb-ref a:hover {
+  color: var(--accent);
+}
+
+.kb-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kb-cloud .chip {
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: var(--mono);
+}
+.kb-rest summary {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* Cards are rules on paper, not floating boxes: the shell's `.card` gives the
+   surface, this strips the box back to the datasheet idiom. */
+.kb-card {
+  display: grid;
+  gap: 6px;
+  padding: 18px 0;
+  border: 0;
+  border-top: 1px solid var(--line-2);
+  border-radius: 0;
+  background: none;
+}
+.kb-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.kb-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.kb-card-title a {
+  color: var(--ink);
+}
+.kb-card-title a:hover {
+  color: var(--accent);
+}
+.kb-card-tldr {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.kb-card-problem {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.kb-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+}
+.kb-card-foot .chip {
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: var(--mono);
+}
+.kb-card-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--line);
+}
+
+@media (max-width: 960px) {
+  .kb-grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .kb-cards,
+  .kb-side {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .kb-side {
+    position: static;
+    max-height: none;
+  }
+}
+
+/* ---------- entity ---------- */
+.kb-entity {
+  max-width: 900px;
+}
+.kb-back {
+  display: inline-block;
+  margin-bottom: 14px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.kb-back:hover {
+  color: var(--accent);
+}
+.kb-entity .eyebrow {
+  display: block;
+  margin-bottom: 4px;
+}
+.kb-entity .page-title {
+  margin-bottom: 8px;
+}
+
+.kb-panel {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-2);
+}
+.kb-panel-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.kb-table-wrap {
+  overflow-x: auto;
+}
+.kb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.kb-table th,
+.kb-table td {
+  padding: 7px 12px 7px 0;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line-2);
+}
+.kb-table th {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.kb-table td:first-child {
+  min-width: 8em;
+}
+.kb-table .kb-num {
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+/* Article references wrap: a nowrap column clips the long forum titles. */
+.kb-table td:last-child {
+  min-width: 14em;
+}
+.kb-table td:last-child a {
+  white-space: normal;
+}
+
+.kb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.kb-list-pitfalls li {
+  padding-left: 12px;
+  border-left: 2px solid var(--warn);
+}
+.kb-fine {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.kb-articles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.kb-articles li a {
+  font-weight: 600;
+  color: var(--ink);
+}
+.kb-articles li a:hover {
+  color: var(--accent);
+}
+.kb-articles li .meta {
+  display: block;
+  margin-top: 2px;
+}
+.kb-articles li p {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+@media (max-width: 720px) {
+  .kb-search {
+    max-width: none;
+  }
+  .kb-card-top {
+    flex-direction: column;
+    gap: 2px;
+  }
+}

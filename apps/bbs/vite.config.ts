@@ -12,10 +12,12 @@ export default defineConfig({
   pack: {
     entry: ["src/main.ts"],
     platform: "node",
-    external: [/^drizzle-orm/, "postgres", "@electric-sql/pglite", "node:sqlite"],
+    // `dist/client` (the SPA) lives beside main.mjs; a bare `vp pack` must not delete it.
+    clean: false,
+    external: [/^drizzle-orm/, "postgres", /^@electric-sql\/pglite/, "node:sqlite"],
   },
   test: {
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.ts", "web/tests/**/*.test.ts"],
     testTimeout: 20_000,
   },
   lint: { options: { typeAware: true, typeCheck: true } },

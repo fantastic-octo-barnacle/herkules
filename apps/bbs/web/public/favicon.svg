@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="RM 文库">
+  <!-- Two colours only, both from the light palette: a favicon has no theme to follow. -->
+  <rect width="32" height="32" rx="6" fill="#1d6b5a" />
+  <path
+    d="M8 9h9.5a4.5 4.5 0 0 1 1.2 8.84L22.5 23h-3.6l-3.3-4.9H11V23H8V9zm3 2.7v4.1h6.2a2.05 2.05 0 0 0 0-4.1H11z"
+    fill="#f2f5f3"
+  />
+</svg>

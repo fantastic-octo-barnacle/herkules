@@ -1,0 +1,9 @@
+# The archive is meant to be found; only the API and the auth endpoints are noise for crawlers.
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /mcp/
+Disallow: /login
+Disallow: /callback
+Disallow: /logout
+Disallow: /account

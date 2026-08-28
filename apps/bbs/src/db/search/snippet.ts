@@ -74,7 +74,7 @@ export function snippet(
 function findHits(folded: string, terms: readonly Term[]): Hit[] {
   const hits: Hit[] = [];
   const order = terms
-    .map((t, i) => i)
+    .map((_, i) => i)
     .sort((a, b) => terms[b]!.text.length - terms[a]!.text.length);
   for (const term of order) {
     const text = terms[term]!.text;

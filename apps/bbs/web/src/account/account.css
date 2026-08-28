@@ -1,0 +1,28 @@
+/* Account: identity row, panels, and the MCP snippet. */
+.account-panel + .account-panel {
+  margin-top: 1rem;
+}
+.account-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+.account-name {
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+.account-error {
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  margin: 0 0 1rem;
+  color: var(--ink);
+}
+.account-signout {
+  margin: 1rem 0 0;
+}
+.account-guide pre {
+  margin: 0.6rem 0 0;
+}

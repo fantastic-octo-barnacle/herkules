@@ -17,5 +17,6 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "erasableSyntaxOnly": true
-  }
+  },
+  "exclude": ["web", "dist", "node_modules"]
 }

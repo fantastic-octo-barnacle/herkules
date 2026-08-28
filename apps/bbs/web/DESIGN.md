@@ -1111,3 +1111,71 @@ import { createQueries } from "../src/api/queries.ts";
 // renderToString(<ArticleRow article={FIXTURE.summary} />) contains the topic; <AiOverview ai={pending|failed|ready}/> renders each branch;
 // <KbPanel kb={…}/> renders only when hasContent; <Snippet segments={…}/> emits one <mark> per hit.
 ```
+
+---
+
+## As built (round 2, 2026-08-28)
+
+Implemented after the checkpoint (ranked search; services/web tokens; system dark mode **plus** the
+three-state toggle). Every deviation from the sketch above, with the reason:
+
+- **`screen()` helper dropped.** `Parameters<typeof createRoute>[0]` plus the cast erased the
+  path/search generics, collapsing `Link`/`useSearch` typing. Each route is an explicit `createRoute({
+getParentRoute, errorComponent, … })` with the two shared values as module consts; a probe confirmed
+  `<Link to="/kbb">` and `search={{ scope: "bogus" }}` are compile errors.
+- **`groupOf` mirrors the generated column**: `article_tags.group_name` is `split_part(tag, '/', 1)`,
+  so everything before the _first_ slash.
+- **`limit` is a string on the wire** (`InferRequestType` says `string | string[]`); `q.kbBrowse`
+  sends `"300"`, the lists send none.
+- `ApiError` uses declared fields, not constructor parameter properties (`erasableSyntaxOnly`);
+  `notFoundComponent: () => <NotFound />` because a weak-typed props component is rejected as-is.
+- One server edit for the web tsconfig's `noUnusedParameters`: `src/db/search/snippet.ts` `(_, i)`.
+- **Pure modules**: `sectionLabels` also returns `appliesWhen` (rm-wenku's overrides differ mostly
+  there); `formatDate(null)` → `"—"` (`NO_DATE`) and `formatCount(0, …)` → `""` so callers drop the
+  segment; `roundRobin` is generic over lists, the KB page pairs card+text; `normalizeEntity` exported
+  for chip↔key matching; the theme boot script is compiled with `node:vm` in its test (`new Function`
+  trips `no-implied-eval`).
+- **Test files are `.ts` with `createElement`**: `test.include` is `web/tests/**/*.test.ts`.
+- **Styling**: one cascade, several source sheets (`styles.css` tokens/primitives/shell, then
+  `feed.css`, `search.css`, `reader.css`, `kb.css`, `status.css`, `tags.css`, `account.css`, each
+  imported by its page module; Vite emits one file). `.pill.{ok,info,warn}` (from `maturityClass`) are
+  shared primitives in `styles.css` since the reader's AI card and the KB cards both render them.
+  `index-html.test.ts` pins the boot script whitespace-insensitively because oxfmt reindents inline
+  scripts.
+- **Feed rows are `<article>`s, not a wrapping `<Link>`** — headline and tag chips are both links.
+  Excerpt precedence `tldr ?? excerpt ?? introduction`. The scope switch is `ScopeLinks`, separate from
+  `SearchBar` (whose `to` is the submit target). `<Link search>` updater callbacks must stay
+  unannotated (`ParamsReducerFn`).
+- **Reader**: `Prose` takes `onImage` (the lightbox state lives in the page); the scroll-spy is
+  `useActiveHeading()` beside a pure `Toc`; `KbPanelBody` is the router-free half; `Resources` lists
+  images as captions rather than a thumbnail grid (it pushed the sheet's content off-screen ≤ 960 px);
+  the 内容 section is gated on `sectionLabels().package !== null`; `ready` with a null overview renders
+  尚未生成.
+- **KB**: section order 参数对比 → 其他参数 → 作为组件 → 相关取舍 → 相关踩坑 → articles; cards use
+  raw `title` (no `titleParts` on `KbCard`); 作为组件 rows carry `role`/`spec` only.
+- **Shell**: `StatusTiles` and `McpGuide` are split out because importing any page pulls
+  `routes.tsx` and therefore every screen; `MCP_URL` has one definition. Status tile 3 shows
+  `crawler.lastCheckedAt` + backfill; the import stamp is a full Shanghai datetime.
+- **Pack config**: `external` now matches `/^@electric-sql\/pglite/` (the exact string let
+  `contrib/pg_trgm` be bundled and its tarball lookup broke a PGlite boot of `dist/main.mjs`), and
+  `clean: false` so a bare `vp pack` cannot delete `dist/client`.
+- **Independent review** (a second model over the whole tree, with SSR renders of every route through
+  the real router against the built server on the real corpus — no crashes, no empty renders): fixed
+  `usePageTitle(article.title)` (the server injects `title`, not `topic`; the sketch was wrong), the
+  blank-`/search` redirect dropping `q`, seven `--accent-ink` link colours in the reader (invisible in
+  light mode), `.page.reader` / `.kb-page` widths (`.page` sets `width`, so a `max-width` above 64rem
+  was a no-op), and the feed's double `aria-current` (`Link` stamps `page` last and partial matching
+  made 全部 + the tab both active → `activeOptions={{ exact: true }}` and `[aria-current]` selectors).
+  From its judgement list, adopted: a search middleware (`url.ts` `stripDerived`) so hrefs never show
+  `scope=all` or a `group` equal to `groupOf(tag)`; the search box keeps `tag`/`group` on submit; an
+  "AI 概览加载失败" line when the AI read errors; the closed bottom sheet is `inert` ≤ 960 px
+  (`matchMedia`); a visible lightbox close button; `leafOf` in `url.ts` replacing three copies. Left as
+  is: `formatCount` spacing (inherited), scope switch on a query-less `/` changing only the URL (server
+  contract), `useTheme` reading storage in the state initializer (guarded, SSR-safe).
+- **Coverage**: 30 files / 217 tests (119 server + 96 web). Router-bearing components
+  (`FeedPage`, `SearchPage`, `ArticlePage`, `KbPage`, `EntityPage`, `App`, `AccountChip`, `NotFound`,
+  `RouteError`) have no smoke render; the contract test covers every `q.*` against the real app.
+- **Proven end to end**: `vp run build` → `dist/main.mjs` + `dist/client/`; the built server on the
+  real corpus (PGlite) serves `/` with the boot script and hashed assets, injects the real
+  `<title>`/`og:title`/canonical/description for `/articles/:id`, 404s an unknown id, and answers
+  `/api/search?q=步兵`.

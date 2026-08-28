@@ -6,6 +6,20 @@
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="/favicon.svg" />
     <!--
+      Pre-paint theme: applies the stored override before first paint so a dark reader never sees a
+      white flash. Deliberately OUTSIDE the head-marker block below, which the server rewrites
+      wholesale; the text is `THEME_BOOT_SCRIPT` from src/shell/theme.ts, pinned (whitespace-insensitively — oxfmt reindents inline scripts) by tests/index-html.test.ts.
+    -->
+    <script>
+      try {
+        var t = localStorage.getItem("bbs:theme");
+        if (t === "light" || t === "dark") {
+          document.documentElement.dataset.theme = t;
+          document.documentElement.style.colorScheme = t;
+        }
+      } catch (e) {}
+    </script>
+    <!--
       Head-injection contract with src/spa/head.ts, byte for byte: the server reads the BUILT copy of
       this file once at boot and, for /articles/:id and /kb/:name, replaces everything between the two
       markers with <title>, description, canonical and og/twitter tags. The defaults live INSIDE the

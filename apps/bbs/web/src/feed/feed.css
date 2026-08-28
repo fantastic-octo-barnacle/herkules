@@ -1,0 +1,335 @@
+/* The feed's layout: search head, category tabs, the dense row list and the
+   pager. Ported from rm-wenku's browse.css (structure and breakpoints) and
+   re-tokened onto herkules.dev's palette; primitives (.chip .btn .empty .meta
+   .eyebrow) come from styles.css and are not redefined here. */
+
+/* ---------- head: query box + scope switch ---------- */
+.feed-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 8px;
+}
+.feed-search {
+  display: flex;
+  flex: 1 1 420px;
+  min-width: 0;
+  gap: 8px;
+}
+.feed-search-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 44px;
+  padding: 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.feed-search-field:focus-within {
+  border-color: var(--accent);
+}
+.feed-search-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--ink);
+  outline: none;
+}
+.feed-search-field input::placeholder {
+  color: var(--muted);
+}
+.feed-scope {
+  display: flex;
+  flex: none;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.feed-scope a {
+  padding: 0 16px;
+  font-size: 14px;
+  line-height: 42px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.feed-scope a + a {
+  border-left: 1px solid var(--line);
+}
+.feed-scope a:hover {
+  color: var(--ink);
+}
+.feed-scope a[aria-current] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- category tabs + sub-tag chips ---------- */
+.feed-cats {
+  margin-top: 22px;
+}
+.feed-tabs {
+  display: flex;
+  gap: 26px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line);
+}
+.feed-tabs::-webkit-scrollbar {
+  display: none;
+}
+.feed-tab {
+  position: relative;
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  padding: 10px 2px;
+  font-size: 15px;
+  white-space: nowrap;
+  color: var(--muted);
+  text-decoration: none;
+}
+.feed-tab:hover {
+  color: var(--ink);
+}
+.feed-tab[aria-current] {
+  color: var(--ink);
+  font-weight: 500;
+}
+.feed-tab[aria-current]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: var(--accent);
+}
+.feed-n {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.feed-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+/* ---------- the active-query line ---------- */
+.feed-filter {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+/* ---------- rows ----------
+   Three lines each: eyebrow chips + headline on one baseline, a mono meta line
+   (date, author, counts, tags), a one-line excerpt. */
+.feed-rows {
+  margin-top: 16px;
+}
+.feed-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 14px 12px;
+  border-top: 1px solid var(--line);
+  /* Long lists: rows far off-screen are neither laid out nor painted. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
+.feed-rows > .feed-row:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.feed-row:hover,
+.feed-row:focus-within {
+  background: var(--surface);
+  content-visibility: visible;
+}
+.feed-row-head {
+  min-width: 0;
+  line-height: 1.5;
+}
+.feed-headline {
+  display: inline;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: inherit;
+}
+.feed-headline-link {
+  color: inherit;
+  text-decoration: none;
+}
+.feed-headline-link:hover {
+  text-decoration: underline;
+}
+.feed-eyebrow {
+  display: inline;
+  margin-right: 6px;
+}
+.feed-eyebrow > * {
+  display: inline-block;
+  vertical-align: baseline;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.feed-season,
+.feed-team {
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 19px;
+}
+.feed-season {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+.feed-label {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.feed-pin {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+/* Line 2: mono facts, tags to the right; one line, ellipsis on overflow. */
+.feed-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+}
+.feed-facts {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.feed-facts > span + span::before {
+  content: "·";
+  margin: 0 7px;
+  color: var(--line-2);
+}
+.feed-tags {
+  display: flex;
+  flex: 0 1 auto;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+.feed-tag {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  font-family: var(--body);
+  font-size: 11.5px;
+  line-height: 17px;
+  white-space: nowrap;
+  color: var(--muted);
+  text-decoration: none;
+}
+a.feed-tag:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Line 3: one clamped line of prose. */
+.feed-excerpt {
+  margin: 1px 0 0;
+  max-width: var(--measure);
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 22px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.feed-row:hover .feed-excerpt {
+  white-space: normal;
+  overflow: visible;
+}
+
+/* ---------- pager ---------- */
+.feed-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 0 48px;
+}
+.feed-more-end {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.feed-sentinel {
+  height: 1px;
+}
+
+/* ---------- narrow ---------- */
+@media (max-width: 720px) {
+  .feed-scope {
+    flex: 1 1 auto;
+  }
+  .feed-scope a {
+    flex: 1;
+    text-align: center;
+  }
+  .feed-row {
+    padding: 12px 8px 13px;
+  }
+  /* Headline first, chips wrap underneath. */
+  .feed-row-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .feed-eyebrow {
+    order: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    margin: 0;
+  }
+  .feed-eyebrow > * {
+    margin: 0;
+  }
+  /* One line: facts then tags, whatever overflows is cut with an ellipsis. */
+  .feed-row-meta {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .feed-facts {
+    display: inline;
+  }
+  .feed-tags {
+    display: inline;
+    margin-left: 10px;
+  }
+  .feed-tag {
+    display: inline-block;
+    vertical-align: -1px;
+  }
+}
