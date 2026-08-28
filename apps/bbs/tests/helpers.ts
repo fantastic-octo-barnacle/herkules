@@ -260,7 +260,11 @@ const status: LibraryStatus = {
   site: { name: "RM 论坛", url: "https://bbs.robomaster.com" },
   articles: { total: 2, fetched: 2, skipped: 0, tags: 2, images: 1, links: 1 },
   ai: { ready: 1, missing: 1, entities: 1 },
-  crawler: { lastCheckedAt: new Date("2026-03-07T00:00:00.000Z"), backfillCompletedAt: null },
+  crawler: {
+    lastCheckedAt: new Date("2026-03-07T00:00:00.000Z"),
+    lastCheckedAgeSeconds: 600,
+    backfillCompletedAt: null,
+  },
   importedAt: new Date("2026-03-08T00:00:00.000Z"),
 };
 

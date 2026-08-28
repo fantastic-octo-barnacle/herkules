@@ -11,3 +11,12 @@ for db in ${DATABASES:-herkules}; do
 	echo "backup: ${dest}/${db}-${stamp}.dump"
 done
 rclone delete "$dest" --min-age "${BACKUP_KEEP_DAYS:-30}d"
+
+# Heartbeat to the status page (tools/deploy/gatus.yaml "Backups", key platform_backups):
+# only reached after every dump uploaded (set -e), so silence = a missed night. busybox
+# wget: no curl in this image. Best effort — a status-page hiccup must not fail the backup.
+if [ -n "${GATUS_URL:-}" ] && [ -n "${GATUS_BACKUP_TOKEN:-}" ]; then
+	wget -q -O /dev/null --header "Authorization: Bearer ${GATUS_BACKUP_TOKEN}" --post-data "" \
+		"${GATUS_URL}/api/v1/endpoints/platform_backups/external?success=true" \
+		|| echo "backup: status-page heartbeat failed (ignored)" >&2
+fi

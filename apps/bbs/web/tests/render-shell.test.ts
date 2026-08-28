@@ -32,6 +32,7 @@ const STATUS: LibraryStatusDTO = {
   ai: { ready: 1100, missing: 80, entities: 420 },
   crawler: {
     lastCheckedAt: "2026-08-27T02:30:00.000Z",
+    lastCheckedAgeSeconds: 3600,
     backfillCompletedAt: "2026-05-01T00:00:00.000Z",
   },
   importedAt: "2026-08-28T01:00:00.000Z",
@@ -56,7 +57,10 @@ describe("StatusTiles", () => {
   it("says so when the backfill never finished", () => {
     const open = renderToString(
       createElement(StatusTiles, {
-        status: { ...STATUS, crawler: { lastCheckedAt: null, backfillCompletedAt: null } },
+        status: {
+          ...STATUS,
+          crawler: { lastCheckedAt: null, lastCheckedAgeSeconds: null, backfillCompletedAt: null },
+        },
       }),
     );
     expect(open).toContain("尚未完成");

@@ -349,9 +349,11 @@ export interface LibraryStatus {
     readonly missing: number;
     readonly entities: number;
   };
-  /** The crawler still runs on the old box: the newest `poll_runs` row we imported, in ITS clock. */
+  /** The newest `poll_runs` row (this box's crawler since the 2026-08-28 cutover). */
   readonly crawler: {
     readonly lastCheckedAt: Date | null;
+    /** Seconds since `lastCheckedAt` at response time; null when the crawler has never run. */
+    readonly lastCheckedAgeSeconds: number | null;
     readonly backfillCompletedAt: Date | null;
   };
   /** From `import_runs`: when this corpus arrived. Replaces rm-wenku's live SSE console. */

@@ -68,6 +68,14 @@ export const configSchema = z.object({
   BBS_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
   /** The `bbs` client's secret (>= 32 chars), stored hashed; the same value goes in apps/bbs's env. */
   BBS_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
+  /**
+   * The Beszel hub's origin, e.g. https://ops.herkules.dev (tools/deploy). Set: the
+   * confidential first-party `beszel` OIDC client is seeded with PocketBase's fixed
+   * redirect `${OPS_ORIGIN}/api/oauth2-redirect`. Unset: not seeded. Both or neither.
+   */
+  OPS_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  /** The `beszel` client's secret (>= 32 chars), stored hashed; pasted into the hub's OIDC provider settings. */
+  BESZEL_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
 });
 
 function emptyToUndefined(value: unknown): unknown {
@@ -90,10 +98,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if ((parsed.BBS_ORIGIN === undefined) !== (parsed.BBS_CLIENT_SECRET === undefined)) {
     throw new TypeError("BBS_ORIGIN and BBS_CLIENT_SECRET must be set together or not at all");
   }
+  if ((parsed.OPS_ORIGIN === undefined) !== (parsed.BESZEL_CLIENT_SECRET === undefined)) {
+    throw new TypeError("OPS_ORIGIN and BESZEL_CLIENT_SECRET must be set together or not at all");
+  }
   return Object.freeze({
     ...parsed,
     PUBLIC_ORIGIN: origin,
     BBS_ORIGIN: parsed.BBS_ORIGIN === undefined ? undefined : new URL(parsed.BBS_ORIGIN).origin,
+    OPS_ORIGIN: parsed.OPS_ORIGIN === undefined ? undefined : new URL(parsed.OPS_ORIGIN).origin,
     issuer: `${origin}/auth`,
     isProduction: parsed.NODE_ENV === "production",
   });

@@ -50,3 +50,23 @@
 	import common_headers
 	reverse_proxy bbs:3003
 }
+
+# ── monitoring (docker-compose.yml gatus / beszel; README "Monitoring") ──────
+# The defaults keep this file valid in dev, where neither host is configured.
+# Public status page: no auth (gatus.yaml only checks public URLs).
+{$STATUS_HOST:status.localhost} {
+	encode zstd gzip
+	import common_headers
+	reverse_proxy gatus:8080
+}
+
+# Beszel hub. Its own sign-in is the herkules auth service (OIDC), so no edge auth
+# here — a basic_auth in front would also break the agents' WebSocket handshake.
+# PocketBase's superuser UI (/_/) is break-glass: blocked at the edge, reach it with
+# `ssh -L 8090:127.0.0.1:8090` + `docker compose port beszel 8090` (README).
+{$OPS_HOST:ops.localhost} {
+	import common_headers
+	@superuser path /_/*
+	respond @superuser 403
+	reverse_proxy beszel:8090
+}

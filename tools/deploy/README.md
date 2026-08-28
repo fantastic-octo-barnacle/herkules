@@ -1,12 +1,13 @@
 # tools/deploy — running herkules
 
 One HK VPS (2 vCPU / 4 GB), Docker Compose, one container per service, one
-platform origin plus the bbs subdomain. Four containers serve traffic: `caddy`,
-`auth`, `bbs` and `postgres`, plus `bbs-worker` (scaled to 0) and `backup`.
-Images are built by GitHub Actions and pulled by the box; the box holds only
-`~/herkules/{docker-compose.yml, Caddyfile, caddy/services/, .env, .env.auth,
-.env.backup, import/}` and four volumes (`pgdata`, `avatars`, `caddy_data`,
-`caddy_config`).
+platform origin plus the bbs, status and ops subdomains. Four containers serve
+traffic: `caddy`, `auth`, `bbs` and `postgres`, plus `bbs-worker` (the crawler),
+`backup`, and the monitoring trio `gatus`, `beszel`, `beszel-agent` (see
+"Monitoring"). Images are built by GitHub Actions and pulled by the box; the box
+holds only `~/herkules/{docker-compose.yml, Caddyfile, gatus.yaml,
+caddy/services/, .env, .env.auth, .env.backup, import/}` and its volumes
+(`pgdata`, `avatars`, `caddy_data`, `caddy_config`, `gatus_data`, `beszel_*`).
 
 The edge Caddy is **our image**, not the stock one: `services/web`'s SPA is baked
 into it at `/srv` and served straight off disk, so there is no separate web
@@ -20,6 +21,8 @@ container. The Caddyfile is still bind-mounted, so a routing change is `scp` +
                        │   /mcp/bbs*                → bbs       │
                        │   /*                       → /srv      │
                        │ bbs.herkules.dev/*         → bbs       │
+                       │ status.herkules.dev/*      → gatus     │
+                       │ ops.herkules.dev/*         → beszel    │  ◄── team NUCs/Jetsons (agents, WebSocket)
                        └────────────────────────────────────────┘
                    auth, bbs ──► postgres (herkules, bbs) ◄── backup (03:00 HKT pg_dump → R2)
                    bbs ──► auth (JWKS, token, user-info; in-network)
@@ -31,8 +34,8 @@ container. The Caddyfile is still bind-mounted, so a routing change is `scp` +
    OAuth Apps). Callback URL `https://herkules.dev/auth/callback/github`
    (prod) / `http://localhost:3000/auth/callback/github` (dev). The auth
    service asks for `read:org` itself.
-2. **DNS** — A/AAAA records for `herkules.dev` and `bbs.herkules.dev` to the
-   box, DNS-only (Caddy issues the certificates; a proxy in front would break
+2. **DNS** — A/AAAA records for `herkules.dev`, `bbs.herkules.dev`,
+   `status.herkules.dev` and `ops.herkules.dev` to the box, DNS-only (Caddy issues the certificates; a proxy in front would break
    TLS-ALPN/HTTP challenges and the IDE flows' `Origin` checks).
 3. **R2** — a bucket and an API token with object read/write; the endpoint is
    `https://<account-id>.r2.cloudflarestorage.com`.
@@ -161,6 +164,100 @@ is a full replacement, so restoring its dump is only faster, never necessary.
 
 Avatars (`avatars` volume) are a cache: lost avatars are re-fetched at the
 user's next sign-in.
+
+After every successful upload `backup.sh` pings the status page's **Backups**
+row (`GATUS_URL` + `GATUS_BACKUP_TOKEN`); 26 h of silence turns it red. The
+monitoring volumes themselves (`gatus_data`, `beszel_data`) are not backed up:
+the hub's settings are re-created from the section below in minutes.
+
+## Monitoring
+
+Two hosts, both served by the edge Caddy from the same compose file:
+
+- **`https://status.herkules.dev`** — Gatus, public. Eight rows in `gatus.yaml`,
+  one per thing somebody would act on: Site (+ certificate), Sign-in (the AS
+  metadata document), RM 文库 Web / API & database / Crawler (`/api/status`,
+  `crawler.lastCheckedAgeSeconds < 1800`) / MCP (the 401 challenge), Backups
+  (pushed by `backup.sh`), Monitoring (the hub). Editing `gatus.yaml` is a push;
+  on the box: `docker compose up -d --no-deps --force-recreate gatus`.
+- **`https://ops.herkules.dev`** — the Beszel hub: metrics for this box and for
+  every team machine (NUCs, Jetsons, servers), which dial in over WebSocket.
+  Sign-in is the herkules auth service, so org membership is the access
+  control; password login is off; `/_/` (PocketBase's superuser UI) is blocked
+  at the edge.
+
+Decisions that bind (framed 2026-08-28, built 2026-08-29):
+
+- Monitoring lives in this one compose file and ships with the same deploy job;
+  no ops overlay, no hand-managed services on the box.
+- The hub's only gate is the herkules OIDC sign-in: no edge `basic_auth` or
+  `forward_auth` (either would break the agents' handshake), no GitHub OAuth
+  configured inside PocketBase. `services/auth` seeds the `beszel` client from
+  `OPS_ORIGIN` + `BESZEL_CLIENT_SECRET`; `tests/oidc-client.test.ts` is the
+  contract PocketBase relies on (`sub`, `email`, `email_verified`).
+- Eight status rows, no more: one per thing somebody would act on. The forum
+  itself is never probed (the crawler row already reports it, and extra
+  requests risk the 403 kill criterion). Gatus cannot diff timestamps, which is
+  why `/api/status` carries `crawler.lastCheckedAgeSeconds`.
+- Fleet agents dial out with one universal token; `minipc-deploy`'s
+  `beszel_agent` role owns the NUCs, the snippet below covers everything else.
+- Monitoring data is not backed up; nothing here alerts anyone yet.
+
+No alerting channel is configured (the team has not picked one). The external
+"is the box dead" check is Better Stack Free, set up by hand (below).
+
+### Hub first run
+
+1. `.env`: `STATUS_HOST`, `OPS_HOST`, `GATUS_BACKUP_TOKEN`; `.env.auth`:
+   `OPS_ORIGIN=https://ops.herkules.dev` and a `BESZEL_CLIENT_SECRET`. Deploy
+   (auth re-seeds its clients at boot and logs `beszel` as seeded).
+2. Create the PocketBase superuser (break-glass account, password manager) and
+   open `/_/` through a tunnel — it is blocked at the edge, never over the internet:
+   ```sh
+   docker compose exec beszel /beszel superuser upsert <email> '<password>'
+   ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' herkules-beszel-1)
+   # from the laptop:  ssh -L 8090:$ip:8090 <box>   →   http://127.0.0.1:8090/_/
+   ```
+3. In `/_/` → Collections → `users` → Options → OAuth2: add provider **OpenID
+   Connect** with client id `beszel`, the `BESZEL_CLIENT_SECRET`, and
+   - Auth URL `https://herkules.dev/auth/oauth2/authorize`
+   - Token URL `https://herkules.dev/auth/oauth2/token`
+   - User info URL `https://herkules.dev/auth/oauth2/userinfo`
+   - Display name `herkules`, PKCE on.
+     Every org member who signs in now gets an account (`USER_CREATION=true`) with
+     role `user`. **Flip each new member to `readonly`** in Users → role: with
+     `SHARE_ALL_SYSTEMS=true` everyone sees every system, and `readonly` keeps a
+     teammate from deleting one.
+4. Sign in yourself at `https://ops.herkules.dev` (this creates your account),
+   then promote it to `admin` in `/_/` → users.
+5. This box's agent: copy the hub's public key (Add system dialog, or
+   `docker compose exec beszel cat /beszel_data/id_ed25519.pub`) into `.env`
+   as `BESZEL_KEY`, `docker compose up -d beszel-agent`, then **Add system** in
+   the hub with host `/beszel_socket/beszel.sock`, name `herkules-hk`.
+6. Settings → Tokens: enable the **universal token** and put it in the team
+   password manager. Every fleet agent registers itself with it.
+7. Optional dead-man switch: in Better Stack (free) create an HTTP monitor on
+   `https://status.herkules.dev/` (email alert) and a **heartbeat** with a 2-min
+   period / 5-min grace; put its URL in `.env` as `BESZEL_HEARTBEAT_URL` and
+   `docker compose up -d beszel`.
+
+### Enrolling a team machine
+
+Agents dial out to the hub — no inbound port, works behind NAT and from
+competition venues (`ALL_PROXY=socks5://…` if the venue needs a proxy).
+
+- **NUCs provisioned by `minipc-deploy`**: the `beszel_agent` role does this in
+  `converge.yml`; pass the universal token once:
+  `rmctl host apply <name> --host-only --beszel-token-file ~/.rm/beszel.token`.
+- **Jetsons and servers** (Ubuntu, arm64 or amd64), as root:
+  ```sh
+  curl -sL https://get.beszel.dev -o /tmp/install-agent.sh
+  sh /tmp/install-agent.sh -url https://ops.herkules.dev -t <universal token> -k "<hub public key>"
+  ```
+  The hub's public key is shown in the Add system dialog. GPU stats need
+  `nvidia-smi` on the path (Jetson: `tegrastats` is picked up automatically).
+- The system appears in the hub under its hostname within a minute. Windows and
+  macOS installs: <https://beszel.dev/guide/agent-installation>.
 
 ## Local stack (the same compose, built here)
 

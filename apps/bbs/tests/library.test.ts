@@ -333,7 +333,11 @@ describe("status()", () => {
       site: { name: "RM 论坛", url: "https://bbs.robomaster.com" },
       articles: { total: 12, fetched: 10, skipped: 1, tags: 12, images: 3, links: 3 },
       ai: { ready: 3, missing: 7, entities: 3 },
-      crawler: { lastCheckedAt: day(10), backfillCompletedAt: day(9) },
+      crawler: {
+        lastCheckedAt: day(10),
+        lastCheckedAgeSeconds: expect.any(Number),
+        backfillCompletedAt: day(9),
+      },
       importedAt: day(11),
     });
   });

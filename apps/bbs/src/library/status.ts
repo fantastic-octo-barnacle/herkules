@@ -30,6 +30,9 @@ import { FETCHED, date, num, str } from "./articles.ts";
 import type { LibraryDeps } from "./index.ts";
 import type { LibraryStatus } from "./types.ts";
 
+const ageSeconds = (d: Date | null): number | null =>
+  d ? Math.max(0, Math.round((Date.now() - d.getTime()) / 1000)) : null;
+
 export async function getStatus(deps: LibraryDeps): Promise<LibraryStatus> {
   const r = rowsOf(
     await deps.db.execute(sql`
@@ -62,6 +65,8 @@ export async function getStatus(deps: LibraryDeps): Promise<LibraryStatus> {
     ai: { ready: num(r?.ai_ready), missing: num(r?.ai_missing), entities: num(r?.entities) },
     crawler: {
       lastCheckedAt: date(r?.last_checked_at),
+      // Gatus conditions cannot diff timestamps; the status page checks this number (tools/deploy/gatus.yaml).
+      lastCheckedAgeSeconds: ageSeconds(date(r?.last_checked_at)),
       backfillCompletedAt: date(r?.backfill_completed_at),
     },
     importedAt: date(r?.imported_at),

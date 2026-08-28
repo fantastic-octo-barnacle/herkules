@@ -159,6 +159,24 @@ export const FIRST_PARTY_CLIENTS = [
     grantTypes: ["authorization_code", "refresh_token"],
     secret: (c) => c.BBS_CLIENT_SECRET,
   },
+  {
+    /**
+     * The Beszel hub (tools/deploy, ops.<domain>): PocketBase's generic OIDC provider.
+     * The first OIDC relying party of this issuer — it requests `openid email profile`
+     * with no `resource`, so the token carries an id_token and `/oauth2/userinfo`
+     * answers with `sub`/`email`/`email_verified` (tests/oidc-client.test.ts).
+     * `web`: the redirect is https-only and fixed by PocketBase. No refresh grant:
+     * PocketBase exchanges the code once and keeps its own session.
+     */
+    clientId: "beszel",
+    name: "Beszel (ops)",
+    redirectUris: (c) => (c.OPS_ORIGIN ? [`${c.OPS_ORIGIN}/api/oauth2-redirect`] : []),
+    skipConsent: true,
+    tokenEndpointAuthMethod: "client_secret_basic",
+    applicationType: "web",
+    grantTypes: ["authorization_code"],
+    secret: (c) => c.BESZEL_CLIENT_SECRET,
+  },
 ] as const satisfies readonly FirstPartyClient[];
 
 /** True for the first-party dev-token client, read from the oauthClient.metadata the token callbacks receive. */
