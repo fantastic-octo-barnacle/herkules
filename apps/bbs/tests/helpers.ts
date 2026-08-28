@@ -43,6 +43,7 @@ import type { FakeIssuer } from "@herkules/oauth-client/testing";
 import type { Hono } from "hono";
 
 import { createApp } from "../src/app.ts";
+import type { AppDeps } from "../src/app.ts";
 import type {
   Article,
   ArticleAi,
@@ -376,7 +377,9 @@ export function fakeLibrary(): Library & { readonly calls: string[] } {
 // ── createFakeApp ───────────────────────────────────────────────────────────
 
 /** The whole HTTP app over fakeLibrary() and the fake issuer: what the API and MCP contract tests exercise. */
-export async function createFakeApp(options?: { readonly ping?: () => Promise<void> }) {
+export async function createFakeApp(
+  options?: Partial<Pick<AppDeps, "onArticleRead" | "onError" | "ping">>,
+) {
   const fake = await createFakeIssuer({
     issuer: ISSUER,
     client: { id: "bbs", secret: CLIENT_SECRET, redirectUri: `${APP_ORIGIN}/callback` },
@@ -402,6 +405,8 @@ export async function createFakeApp(options?: { readonly ping?: () => Promise<vo
     spa: await createSpaHandler({ webDir: null, library, appOrigin: APP_ORIGIN }),
     appOrigin: APP_ORIGIN,
     ping: options?.ping ?? (async () => {}),
+    onArticleRead: options?.onArticleRead,
+    onError: options?.onError,
   });
   return {
     app: built.app,

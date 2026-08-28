@@ -3,7 +3,7 @@
  * errors, the 404 envelope, content negotiation, and the two identity routes
  * (`/api/viewer` 200-null for nobody, `/api/me` 401 for nobody).
  */
-import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { FAKE, ORIGIN, createFakeApp } from "./helpers.ts";
 
@@ -53,6 +53,29 @@ describe("api", () => {
     expect(miss.status).toBe(404);
     expect(await miss.json()).toEqual({ error: "not_found", error_description: "no such row" });
     expect((await t.fetch(`/api/articles/${FAKE.unknownId}/ai`)).status).toBe(404);
+  });
+
+  it("reports onArticleRead failures at most once per minute", async () => {
+    const error = new Error("refresh request failed");
+    const onError = vi.fn();
+    const app = await createFakeApp({
+      onArticleRead: async () => Promise.reject(error),
+      onError,
+    });
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    try {
+      expect((await app.fetch(`/api/articles/${FAKE.id}`)).status).toBe(200);
+      expect((await app.fetch(`/api/articles/${FAKE.id}`)).status).toBe(200);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenLastCalledWith(error);
+
+      now.mockReturnValue(1_060_000);
+      expect((await app.fetch(`/api/articles/${FAKE.id}`)).status).toBe(200);
+      expect(onError).toHaveBeenCalledTimes(2);
+    } finally {
+      now.mockRestore();
+      await app.close();
+    }
   });
 
   it("serves raw content with the negotiated type and X-Content-Format", async () => {

@@ -28,6 +28,8 @@ export type BbsDb = Omit<Drizzle, "transaction"> & {
   transaction<T>(fn: (tx: BbsDb) => Promise<T>): Promise<T>;
 };
 
+const EXPECTED_MIGRATION_NOTICE_CODES = new Set(["42P06", "42P07", "42710"]);
+
 function attach(d: Drizzle, host: BbsDb["host"], close: () => Promise<void>): BbsDb {
   const nativeTransaction = d.transaction.bind(d);
   const db = d as unknown as BbsDb;
@@ -59,7 +61,12 @@ export async function createDb(databaseUrl: string): Promise<BbsDb> {
     const { default: postgres } = await import("postgres");
     const { drizzle } = await import("drizzle-orm/postgres-js");
     // max 5: the import's batches and the API share one pool; one container in v1.
-    const client = postgres(databaseUrl, { max: 5 });
+    const client = postgres(databaseUrl, {
+      max: 5,
+      onnotice: (notice) => {
+        if (!EXPECTED_MIGRATION_NOTICE_CODES.has(notice.code)) console.log(notice);
+      },
+    });
     return attach(drizzle(client, { schema }) as unknown as Drizzle, "postgres", () =>
       client.end(),
     );

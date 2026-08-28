@@ -55,6 +55,7 @@ const CONTENT_TYPES = {
 } as const;
 
 const notFound = { error: "not_found", error_description: "no such row" } as const;
+const ARTICLE_READ_ERROR_LOG_INTERVAL_MS = 60_000;
 
 /** The repo's error envelope for a validation failure, instead of zValidator's default body. */
 const query = <T extends z.ZodType>(schema: T) =>
@@ -77,6 +78,20 @@ const nameParam = z.object({ name: s.entityNameParam });
 export function createApi(deps: ApiDeps) {
   const lib = deps.library;
   const id = (raw: string) => raw.toUpperCase() as ArticleId;
+  let lastArticleReadErrorAt: number | undefined;
+
+  const reportArticleReadError = (error: Error) => {
+    if (!deps.onError) return;
+    const now = Date.now();
+    if (
+      lastArticleReadErrorAt === undefined ||
+      now < lastArticleReadErrorAt ||
+      now - lastArticleReadErrorAt >= ARTICLE_READ_ERROR_LOG_INTERVAL_MS
+    ) {
+      lastArticleReadErrorAt = now;
+      deps.onError(error);
+    }
+  };
 
   return new Hono<ViewerEnv>()
     .basePath("/api")
@@ -99,7 +114,7 @@ export function createApi(deps: ApiDeps) {
         try {
           await deps.onArticleRead(article.id);
         } catch (e) {
-          deps.onError?.(e as Error);
+          reportArticleReadError(e as Error);
         }
       }
       return c.json(article);
