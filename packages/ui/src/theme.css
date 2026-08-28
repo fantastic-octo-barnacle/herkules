@@ -4,11 +4,10 @@
  * block maps them onto Tailwind's namespace so `bg-paper`, `text-ink`,
  * `border-line`, `font-display` and the shadcn names (`bg-background`,
  * `text-muted-foreground`, …) resolve to the same variables and follow the
- * same dark switch. Preflight is deliberately NOT imported: both apps style
- * base elements (h1–h3, pre, a, lists) themselves and stay pixel-neutral.
+ * same dark switch. Preflight is on; app sheets are unlayered so anything they
+ * still style wins over it.
  */
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
+@import "tailwindcss";
 @source "./";
 
 :root {

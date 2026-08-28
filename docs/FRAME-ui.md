@@ -29,7 +29,13 @@ screen to either app means re-deciding things the other app already decided.
 ## Decision
 
 **B — one workspace package `@herkules/ui` on Tailwind v4 + shadcn (Radix),
-adopted in stages, pixel-neutral.** Plus TanStack Query in `services/web`.
+adopted in stages.** Plus TanStack Query in `services/web`.
+
+_Amended 2026-08-29 after the primitives landed:_ the user dropped the
+pixel-neutral constraint. shadcn's own look on the herkules palette is the
+target; hand-written CSS is deleted wherever a component or utility replaces
+it, area sheets included. Tailwind preflight is on. `lucide-react` stays
+because the shadcn select/dialog/sheet output uses it.
 
 - `packages/ui` exports source (like `packages/utils`): `src/theme.css` (the
   existing tokens as a Tailwind `@theme` block, the guarded two-way dark
@@ -43,10 +49,10 @@ adopted in stages, pixel-neutral.** Plus TanStack Query in `services/web`.
 - Primitives in v1: button, input, textarea, select, label, badge, alert
   (= `Notice`), table, skeleton, dialog (bbs lightbox), sheet (bbs reader
   sheet), tooltip (bbs dock), avatar. Each replaces its hand-written twin in
-  both apps in the same commit.
-- Area sheets (`feed.css`, `kb.css`, `reader.css`, `.prose`) stay as CSS.
-  They convert to utilities only when that screen is next edited for another
-  reason. This frame does not touch them.
+  both apps. shadcn's default classes are kept; only tokens are mapped.
+- Area sheets convert to utilities screen by screen. `.prose` (rendered
+  article HTML) stays a stylesheet — utilities cannot reach markup the
+  sanitizer emits.
 - `services/web` pages move to `useQuery` / `useMutation`; `session.tsx`
   becomes a query. react-router stays.
 - **TanStack Router unification is evaluated, not decided.** After Query lands,
@@ -75,14 +81,14 @@ Alternatives considered:
 - Each v1 primitive replacing its hand-written equivalent in both apps.
 - `services/web`: TanStack Query for every page load and action.
 - `services/web`: the TanStack Router evaluation (branch + a recorded verdict).
-- Tests kept green; screenshot comparison before/after for each replaced screen.
+- Tests kept green; every screen eyeballed in light and dark after the swap.
 
 ## Out of scope
 
-- Rewriting `feed.css`, `kb.css`, `reader.css`, `account.css`, `.prose`
-  into utilities.
-- Any visual redesign, new colours, new type, motion, or fonts.
-- Icon library (lucide) — no icons are used today; not added speculatively.
+- Rewriting `.prose` into utilities.
+- A deliberate visual redesign: new colours, new type, new fonts. shadcn's
+  spacing, radii, focus rings and motion are accepted as they come.
+- Icons beyond what the shadcn components themselves import.
 - New screens or features in either app.
 - Form libraries (react-hook-form, zod-resolver) — the forms are one field each.
 - Storybook or a component gallery.
@@ -109,6 +115,6 @@ Alternatives considered:
 .textarea .field .table-wrap .skel .skel-line .chip`) is gone from both
   apps' CSS.
 - `vp run ready` passes (build, check, test for every package).
-- Before/after screenshots of `/`, `/settings`, `/admin`, bbs `/`, an
-  article, and a KB page show no unintended difference in light and dark.
+- Screenshots of `/`, `/settings`, `/admin`, bbs `/`, an article, and a KB
+  page reviewed in light and dark: nothing unreadable, overlapping, or unstyled.
 - `docs/FRAME-ui.md` carries the TanStack Router verdict, either way.
