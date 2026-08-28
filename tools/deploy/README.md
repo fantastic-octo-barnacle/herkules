@@ -82,7 +82,17 @@ docker compose ps            # every service healthy/running
 docker compose logs -f auth  # migrations run at boot; "listening on :3001"
 ```
 
-Roll back: `IMAGE_TAG=sha-<short> docker compose up -d` (or set it in `.env`).
+Roll back from GitHub Actions with **Rollback production**. Enter the full SHA of
+a previously successful production deployment and type `rollback-production` to
+confirm. The workflow verifies that all four `sha-<short>` images exist, restores
+that commit's deployment files, waits for the Compose stack to become healthy,
+and checks the public endpoints. It serializes with normal deployments through
+the same `deploy-production` concurrency group.
+
+The rollback changes containers and deployment configuration only. It does not
+reverse database migrations, so an older image must remain compatible with the
+current schema. By hand on the box, the equivalent image selection is
+`IMAGE_TAG=sha-<short> docker compose up -d`.
 
 ## Verify
 
@@ -181,7 +191,8 @@ Two hosts, both served by the edge Caddy from the same compose file:
   metadata document), RM 文库 Web / API & database / Crawler (`/api/status`,
   `crawler.lastCheckedAgeSeconds < 1800`) / MCP (the 401 challenge), Backups
   (pushed by `backup.sh`), Monitoring (the hub). Editing `gatus.yaml` is a push;
-  on the box: `docker compose up -d --no-deps --force-recreate gatus`.
+  the deploy and rollback jobs force-recreate Gatus so it reads the changed bind mount. On
+  the box, use `docker compose up -d --no-deps --force-recreate gatus`.
 - **`https://ops.herkules.dev`** — the Beszel hub: metrics for this box and for
   every team machine (NUCs, Jetsons, servers), which dial in over WebSocket.
   Sign-in is the herkules auth service, so org membership is the access

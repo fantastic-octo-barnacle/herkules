@@ -80,7 +80,9 @@ jobs:
     # what the branches filter above already restricted to.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: production
+    environment:
+      name: production
+      url: https://herkules.dev
     concurrency: deploy-production
     steps:
       - uses: actions/checkout@v6
@@ -108,4 +110,9 @@ jobs:
           ssh -i ~/.ssh/deploy "$TARGET" 'unlink ~/herkules/caddy/services/directory.caddy 2>/dev/null || true'
           scp -i ~/.ssh/deploy -r tools/deploy/docker-compose.yml tools/deploy/Caddyfile tools/deploy/gatus.yaml tools/deploy/caddy/services "$TARGET":~/herkules/
           printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" 'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
-          ssh -i ~/.ssh/deploy "$TARGET" 'cd ~/herkules && docker compose pull --quiet && docker compose up -d --remove-orphans && docker image prune -f >/dev/null && docker compose ps'
+          # gatus.yaml is bind-mounted. Compose does not recreate the container when only the
+          # file contents change, and Gatus does not reload it, so force the cheap restart.
+          ssh -i ~/.ssh/deploy "$TARGET" 'cd ~/herkules && docker compose pull --quiet && docker compose up -d --remove-orphans && docker compose up -d --no-deps --force-recreate gatus && docker image prune -f >/dev/null && docker compose ps'
+
+      - name: Verify status page
+        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://status.herkules.dev/api/v1/endpoints/statuses >/dev/null

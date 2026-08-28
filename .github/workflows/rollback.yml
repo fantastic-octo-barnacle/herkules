@@ -1,0 +1,138 @@
+name: Rollback production
+run-name: Rollback production to ${{ inputs.commit }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Full SHA of a previously successful production deployment
+        required: true
+        type: string
+      confirm:
+        description: Type rollback-production (database migrations are not reversed)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  deployments: read
+  packages: read
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://herkules.dev
+    concurrency: deploy-production
+    env:
+      ROLLBACK_SHA: ${{ inputs.commit }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+
+      - name: Validate rollback target
+        id: target
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "$CONFIRM" != "rollback-production" ]]; then
+            echo "confirmation must be exactly: rollback-production" >&2
+            exit 1
+          fi
+          if [[ ! "$ROLLBACK_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "commit must be a full 40-character SHA" >&2
+            exit 1
+          fi
+
+          actual=$(git rev-parse HEAD)
+          if [[ "${actual,,}" != "${ROLLBACK_SHA,,}" ]]; then
+            echo "checked out $actual, expected $ROLLBACK_SHA" >&2
+            exit 1
+          fi
+
+          successful=false
+          while read -r deployment_id; do
+            [[ -n "$deployment_id" ]] || continue
+            state=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$deployment_id/statuses" --jq '.[0].state // ""')
+            if [[ "$state" == "success" ]]; then
+              successful=true
+              break
+            fi
+          done < <(
+            gh api "repos/$GITHUB_REPOSITORY/deployments?sha=$actual&environment=production&per_page=100" \
+              --jq '.[].id'
+          )
+          if [[ "$successful" != "true" ]]; then
+            echo "$actual has no successful production deployment" >&2
+            exit 1
+          fi
+
+          short=${actual:0:7}
+          echo "sha=$actual" >> "$GITHUB_OUTPUT"
+          echo "image_tag=sha-$short" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify rollback images
+        env:
+          IMAGE_TAG: ${{ steps.target.outputs.image_tag }}
+        run: |
+          for target in auth bbs caddy backup; do
+            image="ghcr.io/$GITHUB_REPOSITORY/$target:$IMAGE_TAG"
+            echo "checking $image"
+            docker manifest inspect "$image" >/dev/null
+          done
+
+      - name: SSH key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy ~/.ssh/known_hosts
+
+      - name: Restore deployment files and roll back
+        env:
+          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ steps.target.outputs.image_tag }}
+        run: |
+          ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/caddy/services ~/herkules/import'
+          ssh -i ~/.ssh/deploy "$TARGET" 'unlink ~/herkules/caddy/services/directory.caddy 2>/dev/null || true'
+          scp -i ~/.ssh/deploy -r tools/deploy/docker-compose.yml tools/deploy/Caddyfile tools/deploy/gatus.yaml tools/deploy/caddy/services "$TARGET":~/herkules/
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" 'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
+          # A bind-mounted gatus.yaml change is invisible to Compose's service-config hash.
+          ssh -i ~/.ssh/deploy "$TARGET" "cd ~/herkules && export IMAGE_TAG='$IMAGE_TAG' && docker compose pull --quiet && docker compose up -d --remove-orphans --wait --wait-timeout 180 && docker compose up -d --no-deps --force-recreate gatus && docker image prune -f >/dev/null && docker compose ps"
+
+      - name: Verify production
+        run: |
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://herkules.dev/auth/healthz
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://herkules.dev/.well-known/oauth-authorization-server/auth >/dev/null
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://herkules.dev/ >/dev/null
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://bbs.herkules.dev/healthz
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://status.herkules.dev/api/v1/endpoints/statuses >/dev/null
+
+      - name: Summary
+        env:
+          ROLLBACK_TARGET: ${{ steps.target.outputs.sha }}
+          IMAGE_TAG: ${{ steps.target.outputs.image_tag }}
+        run: |
+          {
+            echo "## Production rollback"
+            echo
+            echo "- Commit: \`$ROLLBACK_TARGET\`"
+            echo "- Image tag: \`$IMAGE_TAG\`"
+            echo "- Site: https://herkules.dev"
+            echo
+            echo "Database migrations were not reversed."
+          } >> "$GITHUB_STEP_SUMMARY"
