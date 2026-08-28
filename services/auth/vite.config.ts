@@ -19,6 +19,4 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     testTimeout: 20_000,
   },
-  lint: { options: { typeAware: true, typeCheck: true } },
-  fmt: {},
 });

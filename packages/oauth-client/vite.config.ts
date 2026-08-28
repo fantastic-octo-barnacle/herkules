@@ -6,7 +6,5 @@ export default defineConfig({
     dts: { tsgo: true },
     exports: true,
   },
-  lint: { options: { typeAware: true, typeCheck: true } },
-  fmt: {},
   test: { include: ["tests/**/*.test.ts"], testTimeout: 20_000 },
 });

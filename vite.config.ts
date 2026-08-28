@@ -4,6 +4,8 @@ export default defineConfig({
   staged: {
     "*": "vp check --fix",
   },
+  // The workspace's only lint/format config: every package inherits these
+  // settings, so per-package vite.config.ts files carry no `lint`/`fmt` blocks.
   fmt: {},
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],

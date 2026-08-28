@@ -1,3 +1,23 @@
+# Herkules
+
+The team's self-hosted identity layer and internal application monorepo. The workspace map is in `README.md`; cross-cutting contracts live in `docs/README.md`. Every workspace has its own README with run/test commands and binding decisions — read it before working in that workspace.
+
+## Commands
+
+- `vp install` — after pulling remote changes
+- `vp run dev` — the whole local stack: auth :3001, web :3000, bbs :3103 + :3003
+- `vp run ready` — recursive build, `vp check`, recursive test (what CI runs)
+- `vp check` / `vp test` — format, lint, type-check / test the current workspace
+- `vp run <pkg>#<script>` — a package script, e.g. `vp run @herkules/bbs#import <path>/app.db`
+
+## Constraints
+
+- Drizzle SQL under `apps/bbs/drizzle/` and `services/auth/drizzle/` is generated output — never hand-edit it. See `apps/bbs/drizzle/README.md` (includes the manual `pg_trgm` step after regeneration).
+- `apps/bbs/web` is a deliberate second Vite root inside the `apps/bbs` package, not a workspace of its own.
+- `packages/ui` ships source CSS/tsx directly and is never built.
+- Lint and format settings live only in the root `vite.config.ts`; per-package configs carry only Vite/Vitest/pack settings.
+- First checkout only: copy `.env.example` to `.env` in `services/auth` and `apps/bbs`, `mkdir -p apps/bbs/.data`, and import a corpus manually — `vp run dev` deliberately does not do this (the import truncates; see the `dev` task comment in `vite.config.ts`).
+
 <!--VITE PLUS START-->
 
 # Using Vite+, the Unified Toolchain for the Web
