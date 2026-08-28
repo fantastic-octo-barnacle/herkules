@@ -102,7 +102,7 @@ services:
       bbs-migrate:
         condition: service_completed_successfully
     deploy:
-      replicas: 0
+      replicas: 1 # cutover done 2026-08-28; set 0 (or `--scale bbs-worker=0`) to pause crawling
     mem_limit: 256m
     restart: unless-stopped
     stop_grace_period: 30s # SIGTERM aborts sleeps; a fetch in flight (<=15 s) finishes; transactions are atomic

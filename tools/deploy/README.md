@@ -73,8 +73,8 @@ curl -fsS https://herkules.dev/ | head -c 200                     # the SPA
 One image, three commands (see `apps/bbs/README.md`): `bbs-migrate` (one-shot: creates the
 database with `ensureDatabase` — set `BBS_CREATE_DATABASE=false` and `createdb -U herkules bbs`
 yourself if the role ever loses CREATEDB — applies migrations, rederives derived columns when
-`corpus_versions` differs), `bbs` (API + MCP + SPA) and `bbs-worker` (the crawler, `replicas: 0`
-until cutover). The crawl policy is constants in the code, not env: 2 s spacing, 20/min,
+`corpus_versions` differs), `bbs` (API + MCP + SPA) and `bbs-worker` (the crawler, `replicas: 1`
+since the 2026-08-28 cutover; `--scale bbs-worker=0` pauses it). The crawl policy is constants in the code, not env: 2 s spacing, 20/min,
 2 000/day (UTC), 200 kept for reader-triggered refreshes, cooldown ladder on 429/403/5xx.
 
 **Self-host from an empty database** — nothing to import; the worker discovers page 1 every
@@ -90,9 +90,10 @@ docker compose logs -f bbs-worker
 final import; articles crawled afterwards show 尚未生成 until an AI phase exists):
 
 1. From this box, `curl` both forum endpoints with rm-wenku's UA once; a 403 here is the kill criterion.
-2. Deploy with `bbs-worker` at scale 0 (the default).
+2. Deploy with `bbs-worker` at scale 0 (`replicas: 0` in the compose file).
 3. Stop the old crawler, run `wenku backup` there, `scp` the dump, then the final import below.
-4. `docker compose up -d --scale bbs-worker=1`; a new forum post appears on the site within 15 min.
+4. Set `replicas: 1` in `docker-compose.yml` and redeploy (a bare `--scale bbs-worker=1` is undone by
+   the next Actions deploy); a new forum post appears on the site within 15 min.
 5. After a clean week, decommission the old box. A second worker against the same database exits 3
    (advisory lock) before sending any request — `compose ps` shows it restarting; harmless.
 
