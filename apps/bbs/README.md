@@ -45,6 +45,14 @@ The config default is port 3003. The checked-in `.env.example` sets Hono to 3103
 
 Do not work around source blocking. If the deployed Hong Kong host cannot fetch both required public forum endpoints with the configured user agent, or the fixed policy still causes sustained 403 or 429 responses, stop the worker and reassess the source and deployment location. The relevant boundaries are in `src/source/robomaster.ts`, `src/source/http.ts`, and `src/guard/policy.ts`.
 
+## Page rendering
+
+The SPA is static; the server injects `<title>`, description, canonical and `og:*` for `/articles/:id` and `/kb/:name` (`src/spa/head.ts`, `src/spa/static.ts`, the marker block in `web/index.html`). That is what Feishu and WeChat link cards need; Baidu indexing of article bodies is not a goal.
+
+TanStack Start was evaluated on 2026-08-28 and not adopted. Measured on the repo's toolchain (vite-plus 0.3.0 = Vite 8.2.2/Rolldown, Node 24, TypeScript 7): `@tanstack/react-start@1.168.49` builds and serves without Nitro, with Hono as the outer server, at about 90 MB RSS and 7 ms per server-rendered request; `vp dev` works; none of the open Vite 8 issues reproduced. It is still a release candidate patched every few days and its document handler cannot run under Vitest. Nothing the product lacks justifies that dependency.
+
+Revisit when an app needs a server-rendered document with per-user data (the member onboarding app is the candidate) or when Start ships 1.0. If adopted, the shape is fixed: Hono outer; the built `dist/server/server.js` imported by `main.ts` and mounted as the last route; loaders keep the Hono RPC client with an in-process `fetch`; no server functions, no Start server routes, no Nitro; exact version pins; `ssr: false` on `/account`.
+
 ## Code map
 
 - `src/app.ts`, `src/main.ts`: composition, commands, routes, static serving
