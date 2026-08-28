@@ -23,10 +23,12 @@
  * Escaping is the security boundary: an article title is forum content landing
  * inside an attribute value. `escapeAttribute` is the only way text enters the head.
  */
+import { SITE_TITLE } from "../config.ts";
 import type { HeadMeta } from "../library/types.ts";
 
 export const HEAD_OPEN = "<!--bbs:head-->";
 export const HEAD_CLOSE = "<!--/bbs:head-->";
+export const DESCRIPTION_CHARS = 200;
 
 export interface HeadTemplate {
   /** `prefix + tags(meta) + suffix`. Cheap enough to run per request. */
@@ -37,11 +39,17 @@ export interface HeadTemplate {
 
 /** Throws a boot error naming the missing marker; never returns a template that silently does nothing. */
 export function loadHeadTemplate(indexHtml: string): HeadTemplate {
-  void indexHtml;
-  // TODO a = indexHtml.indexOf(HEAD_OPEN), b = indexHtml.indexOf(HEAD_CLOSE)
-  //      if (a < 0 || b < 0 || b < a) throw new Error(`index.html is missing ${HEAD_OPEN} … ${HEAD_CLOSE}`)
-  //      prefix = indexHtml.slice(0, a + HEAD_OPEN.length); suffix = indexHtml.slice(b)
-  throw new Error("not implemented");
+  const a = indexHtml.indexOf(HEAD_OPEN);
+  const b = indexHtml.indexOf(HEAD_CLOSE);
+  if (a < 0) throw new Error(`index.html is missing the ${HEAD_OPEN} marker`);
+  if (b < 0) throw new Error(`index.html is missing the ${HEAD_CLOSE} marker`);
+  if (b < a) throw new Error(`index.html has ${HEAD_CLOSE} before ${HEAD_OPEN}`);
+  const prefix = indexHtml.slice(0, a + HEAD_OPEN.length);
+  const suffix = indexHtml.slice(b);
+  return {
+    plain: indexHtml,
+    render: (meta, appOrigin) => `${prefix}\n${renderHeadTags(meta, appOrigin)}\n${suffix}`,
+  };
 }
 
 /**
@@ -51,20 +59,64 @@ export function loadHeadTemplate(indexHtml: string): HeadTemplate {
  * Description whitespace-collapsed and cut at 200 chars; `og:url` = appOrigin + meta.path.
  */
 export function renderHeadTags(meta: HeadMeta, appOrigin: string): string {
-  void meta;
-  void appOrigin;
-  throw new Error("not implemented");
+  const title = escapeAttribute(`${meta.title} · ${SITE_TITLE}`);
+  const description = escapeAttribute(cutDescription(meta.description));
+  const url = escapeAttribute(`${appOrigin.replace(/\/$/, "")}${meta.path}`);
+  const lines = [
+    `<title>${title}</title>`,
+    `<meta name="description" content="${description}">`,
+    `<link rel="canonical" href="${url}">`,
+    `<meta property="og:type" content="${meta.type}">`,
+    `<meta property="og:title" content="${title}">`,
+    `<meta property="og:description" content="${description}">`,
+    `<meta property="og:url" content="${url}">`,
+    `<meta property="og:site_name" content="${escapeAttribute(SITE_TITLE)}">`,
+  ];
+  if (meta.image) lines.push(`<meta property="og:image" content="${escapeAttribute(meta.image)}">`);
+  if (meta.publishedAt) {
+    lines.push(
+      `<meta property="article:published_time" content="${meta.publishedAt.toISOString()}">`,
+    );
+  }
+  if (meta.author) {
+    lines.push(`<meta property="article:author" content="${escapeAttribute(meta.author)}">`);
+  }
+  lines.push(
+    `<meta name="twitter:card" content="${meta.image ? "summary_large_image" : "summary"}">`,
+  );
+  return lines.join("\n");
+}
+
+function cutDescription(text: string): string {
+  const collapsed = text.replace(/\s+/g, " ").trim();
+  return collapsed.length > DESCRIPTION_CHARS
+    ? `${collapsed.slice(0, DESCRIPTION_CHARS - 1)}…`
+    : collapsed;
 }
 
 /** Which URLs get real metadata. Two, exactly as rm-wenku had. Everything else: `plain`. */
 export function headRouteOf(pathname: string): { kind: "article" | "entity"; id: string } | null {
-  void pathname;
-  // TODO /^\/articles\/([^/]+)$/ -> article; /^\/kb\/([^/]+)$/ -> entity (decodeURIComponent); else null
-  throw new Error("not implemented");
+  const article = /^\/articles\/([^/]+)\/?$/.exec(pathname);
+  if (article) return { kind: "article", id: article[1]! };
+  const entity = /^\/kb\/([^/]+)\/?$/.exec(pathname);
+  if (entity) {
+    try {
+      return { kind: "entity", id: decodeURIComponent(entity[1]!) };
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
+const ENTITIES: Readonly<Record<string, string>> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
 export function escapeAttribute(text: string): string {
-  void text;
-  // TODO & < > " ' -> entities
-  throw new Error("not implemented");
+  return text.replace(/[&<>"']/g, (ch) => ENTITIES[ch] ?? ch);
 }

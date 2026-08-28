@@ -15,8 +15,10 @@
  *   double precision may arrive as a string -> Number(v); jsonb reorders keys ->
  *   stableStringify; text[] parsing differs -> compared as a stable JSON array;
  *   timestamptz(3) -> Date -> toISOString(), exact to the millisecond.
- * One round-trip test per host is the only way to know (tests/helpers.ts).
+ * One round-trip test per host is the only way to know (tests/import.test.ts).
  */
+import { createHash } from "node:crypto";
+
 export type Kind = "text" | "int" | "bool" | "ms" | "double" | "json" | "textarray";
 
 export interface Column {
@@ -24,40 +26,122 @@ export interface Column {
   readonly kind: Kind;
 }
 
-/** SQLite value -> bind parameter. Throws a typed error naming table.column on malformed JSON. */
+/** SQLite value -> bind parameter. Throws a TypeError naming table.column on malformed JSON or timestamps. */
 export function convert(table: string, column: Column, value: unknown): unknown {
-  void table;
-  void column;
-  void value;
-  // TODO ms -> Number.isFinite(n) ? new Date(n) : null; bool -> value == null ? null : Boolean(value)
-  //      int|double -> Number(value); json -> JSON.stringify(JSON.parse(String(value)))
-  //      textarray -> JSON.parse, reject unless every element is a string; text -> value
-  throw new Error("not implemented");
+  if (value === null || value === undefined) return null;
+  const where = `${table}.${column.name}`;
+  switch (column.kind) {
+    case "text":
+      return typeof value === "string" ? value : String(value as number | bigint);
+    case "int":
+    case "double":
+      return Number(value);
+    case "bool":
+      return Number(value) !== 0;
+    case "ms": {
+      const n = Number(value);
+      if (!Number.isFinite(n)) {
+        throw new TypeError(
+          `${where}: timestamp ${String(value as number | bigint)} is not a number`,
+        );
+      }
+      return new Date(n);
+    }
+    case "json":
+      return JSON.stringify(parseJson(where, value));
+    case "textarray": {
+      const parsed = parseJson(where, value);
+      if (!Array.isArray(parsed) || parsed.some((v) => typeof v !== "string")) {
+        throw new TypeError(`${where}: expected a JSON array of strings`);
+      }
+      return parsed as string[];
+    }
+  }
+}
+
+function parseJson(where: string, value: unknown): unknown {
+  if (typeof value !== "string") throw new TypeError(`${where}: JSON column holds ${typeof value}`);
+  try {
+    return JSON.parse(value) as unknown;
+  } catch (error) {
+    throw new TypeError(`${where}: invalid JSON (${(error as Error).message})`);
+  }
 }
 
 /** Either side's value -> the string that goes into the row hash. */
 export function canonical(column: Column, value: unknown): string {
-  void column;
-  void value;
-  throw new Error("not implemented");
+  if (value === null || value === undefined) return "null";
+  switch (column.kind) {
+    case "text":
+      return JSON.stringify(typeof value === "string" ? value : String(value as number | bigint));
+    case "int":
+    case "double":
+      return String(Number(value));
+    case "bool":
+      return String(value === true || value === 1 || value === "t" || value === "true");
+    case "ms":
+      return (value instanceof Date ? value : new Date(value as string | number)).toISOString();
+    case "json":
+      return stableStringify(typeof value === "string" ? (JSON.parse(value) as unknown) : value);
+    case "textarray":
+      return stableStringify(typeof value === "string" ? parseTextArray(value) : value);
+  }
+}
+
+/** postgres.js/PGlite return `text[]` as arrays; a raw `{a,b}` literal is parsed just in case. */
+function parseTextArray(literal: string): unknown {
+  if (literal.startsWith("[")) return JSON.parse(literal) as unknown;
+  if (!literal.startsWith("{") || !literal.endsWith("}")) return literal;
+  const body = literal.slice(1, -1);
+  if (body === "") return [];
+  const out: string[] = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i]!;
+    if (quoted) {
+      if (ch === "\\") cur += body[++i] ?? "";
+      else if (ch === '"') quoted = false;
+      else cur += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ",") {
+      out.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out;
 }
 
 /** JSON with object keys sorted, recursively. jsonb does not preserve key order. */
 export function stableStringify(value: unknown): string {
-  void value;
-  throw new Error("not implemented");
+  if (Array.isArray(value)) return `[${value.map((v) => stableStringify(v)).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    );
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
 }
 
 /** Accumulates sha256 per row; `digest()` sorts the hex hashes and hashes the concatenation. */
 export class TableDigest {
-  add(values: readonly unknown[]): void {
-    void values;
-    throw new Error("not implemented");
+  private readonly digests: string[] = [];
+
+  /** `values` are already canonical strings, in column order. */
+  add(values: readonly string[]): void {
+    this.digests.push(createHash("sha256").update(JSON.stringify(values)).digest("hex"));
   }
+
   get rows(): number {
-    throw new Error("not implemented");
+    return this.digests.length;
   }
+
   digest(): string {
-    throw new Error("not implemented");
+    const sorted = [...this.digests].sort();
+    const hash = createHash("sha256");
+    for (const d of sorted) hash.update(d);
+    return hash.digest("hex");
   }
 }

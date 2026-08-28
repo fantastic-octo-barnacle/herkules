@@ -26,6 +26,7 @@
     "@herkules/auth-middleware": "workspace:*",
     "@herkules/oauth-client": "workspace:*",
     "@hono/node-server": "^2.1.1",
+    "@hono/zod-validator": "catalog:",
     "@modelcontextprotocol/server": "2.0.0",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.5",

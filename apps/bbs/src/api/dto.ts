@@ -20,10 +20,14 @@ import type {
   Viewer,
 } from "../library/types.ts";
 
-/** `Date -> string`, brands erased, applied recursively. */
+/**
+ * `Date -> string`, brands erased, applied recursively. String LITERAL unions
+ * (`Viewer.role`, `ArticleAi.status`, `ArticleLink.kind`) survive — `hc`'s own
+ * inference keeps them, and `T extends string ? string` would silently widen them.
+ */
 export type Wire<T> = T extends Date
   ? string
-  : T extends string
+  : T extends string & { readonly __brand: unknown }
     ? string
     : T extends readonly (infer E)[]
       ? readonly Wire<E>[]

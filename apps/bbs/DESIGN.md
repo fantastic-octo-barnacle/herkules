@@ -451,3 +451,30 @@ Hoist `userinfo` into auth-middleware, then `db/schema.ts` + `drizzle/0000_*.sql
 the alignment `CHECK` rejects a hand-corrupted `document` — proving the extension loads, the index
 creates, and the invariant the whole search design rests on is enforced by the database before any
 query exists.
+
+## As built (round 1, 2026-08-28)
+
+Filled in against the sketch above; 119 tests on PGlite (`vp test`), root `vp check` clean, real
+corpus imported in 3.8 s (13 tables, 13 574 rows, second run a no-op). Deviations from the sketch,
+each surfaced by the implementer rather than absorbed:
+
+- **RPC inputs are typed only through validator middleware.** `schema.parse(c.req.query())` inside a
+  handler leaves `hc<AppType>`'s input as `{}`; every route now goes through `@hono/zod-validator`
+  and `tests/rpc.test.ts` pins the contract with `@ts-expect-error` lines (a typo in a query key is a
+  `vp check` failure). `Wire<T>` erases brands only; literal unions (`role`, `status`, `kind`) survive.
+- **Snippets are segments**: `SearchHit.snippet: readonly { text; hit }[] | null`; `mcp/present.ts`
+  joins them with `[`/`]`. Brackets in forum prose (`[n]` references) made the marked string ambiguous.
+- `SearchColumns` gained `from` — `stats` cannot aggregate without a FROM. Search tables are referenced
+  unaliased (drizzle renders qualified names; `cursor.ts` fixed the same convention for `articles`).
+- Facet/tag tie order is re-sorted in TypeScript (count, then code point) so PGlite and the box's
+  collation agree. `getHead()` is raw SQL: inside `db.select()` drizzle renders `sql` column refs
+  unqualified, which broke a correlated subquery.
+- Import: a leading U+FEFF in one text value is stripped before hashing (PGlite drops a leading BOM on
+  read-back, so verify could never pass); `target_article_id` resolves 556 links, not the 1 244 guessed
+  above; `TableReport.derived`, `ImportReport.previousRunId/error`, `VerifyError` exist for the printer.
+- Renderer: boolean attributes render bare (`controls`, not `controls=""`); task-list checkboxes are a
+  post-render regex rather than a markdown-it plugin.
+- `spa/static.ts` answers `/api/*` and `/mcp/*` fall-throughs with a JSON 404, never the HTML shell.
+- `ai-json.ts`: zod v4 rejects an absent key under `z.unknown().transform()`; `.optional()` precedes it.
+- Open from the deploy track: `WEB_DIR` is wired in compose and the image, so the container will not
+  boot until round 2 ships `dist/client/index.html` — deliberate; ship round 2 before the first deploy.

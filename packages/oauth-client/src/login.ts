@@ -14,15 +14,25 @@ export interface Redirect {
   readonly setCookie: readonly string[];
 }
 
+export type LoginFailureCode =
+  | "invalid_state"
+  | "invalid_request"
+  | "invalid_grant"
+  | "client_auth"
+  | "unavailable"
+  | (string & {});
+
 /** Rendered as `{ error, error_description }` with `status` unless the adopter supplies `onLoginFailure`. */
 export interface LoginFailure {
   readonly status: 400 | 502 | 503;
   /**
    * `invalid_state` (unknown/expired/replayed attempt) | `invalid_request` (no code) |
-   * the issuer's own authorize error (`access_denied`, …) | `invalid_grant` (exchange refused) |
-   * `client_auth` (502: our credentials) | `unavailable` (503).
+   * `invalid_grant` (exchange refused) | `client_auth` (502: our credentials) |
+   * `unavailable` (503) | the issuer's own authorize error (`access_denied`, …), which is
+   * why the union stays open (`string & {}`) while the known codes stay literal for adopters'
+   * message tables.
    */
-  readonly error: string;
+  readonly error: LoginFailureCode;
   readonly description?: string;
   readonly setCookie: readonly string[];
 }

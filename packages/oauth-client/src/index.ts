@@ -33,7 +33,7 @@ import { createSessionResolver } from "./session.ts";
 
 export type { SafePath } from "./cookie.ts";
 export { safePath } from "./cookie.ts";
-export type { LoginFailure, Redirect } from "./login.ts";
+export type { LoginFailure, LoginFailureCode, Redirect } from "./login.ts";
 export type { AnonymousReason, SessionEvent, SessionFailure, SessionOutcome } from "./session.ts";
 export { REFRESH_AHEAD_SECONDS, REPLAY_WINDOW_SECONDS } from "./session.ts";
 

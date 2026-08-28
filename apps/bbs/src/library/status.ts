@@ -12,10 +12,58 @@
  * Deliberately NOT reported: cost totals and the AI budget (`ai_usage.cost_usd`
  * is a frozen historical number that would read as live spend).
  */
+import { sql } from "drizzle-orm";
+
+import { rowsOf } from "../db/index.ts";
+import {
+  articleAi,
+  articleImages,
+  articleLinks,
+  articleTags,
+  articles,
+  importRuns,
+  kbEntities,
+  pollRuns,
+  sources,
+} from "../db/schema.ts";
+import { FETCHED, date, num, str } from "./articles.ts";
 import type { LibraryDeps } from "./index.ts";
 import type { LibraryStatus } from "./types.ts";
 
-export function getStatus(deps: LibraryDeps): Promise<LibraryStatus> {
-  void deps;
-  throw new Error("not implemented");
+export async function getStatus(deps: LibraryDeps): Promise<LibraryStatus> {
+  const r = rowsOf(
+    await deps.db.execute(sql`
+      SELECT
+        (SELECT count(*)::int FROM ${articles}) AS total,
+        (SELECT count(*)::int FROM ${articles} WHERE ${FETCHED}) AS fetched,
+        (SELECT count(*)::int FROM ${articles} WHERE ${articles.status} = 'skipped') AS skipped,
+        (SELECT count(*)::int FROM ${articleTags} JOIN ${articles} ON ${articles.id} = ${articleTags.articleId} AND ${FETCHED}) AS tags,
+        (SELECT count(*)::int FROM ${articleImages} JOIN ${articles} ON ${articles.id} = ${articleImages.articleId} AND ${FETCHED}) AS images,
+        (SELECT count(*)::int FROM ${articleLinks} JOIN ${articles} ON ${articles.id} = ${articleLinks.articleId} AND ${FETCHED}) AS links,
+        (SELECT count(*)::int FROM ${articleAi} JOIN ${articles} ON ${articles.id} = ${articleAi.articleId} AND ${FETCHED} WHERE ${articleAi.status} = 'ready') AS ai_ready,
+        (SELECT count(*)::int FROM ${articles} WHERE ${FETCHED} AND NOT EXISTS (SELECT 1 FROM ${articleAi} WHERE ${articleAi.articleId} = ${articles.id})) AS ai_missing,
+        (SELECT count(*)::int FROM ${kbEntities} WHERE ${kbEntities.articleCount} > 0) AS entities,
+        (SELECT max(${pollRuns.startedAt}) FROM ${pollRuns}) AS last_checked_at,
+        (SELECT max(${sources.backfillCompletedAt}) FROM ${sources}) AS backfill_completed_at,
+        (SELECT ${sources.name} FROM ${sources} ORDER BY ${sources.createdAt} LIMIT 1) AS site_name,
+        (SELECT ${sources.siteUrl} FROM ${sources} ORDER BY ${sources.createdAt} LIMIT 1) AS site_url,
+        (SELECT max(${importRuns.finishedAt}) FROM ${importRuns} WHERE ${importRuns.ok} AND NOT ${importRuns.noop}) AS imported_at`),
+  )[0];
+  return {
+    site: { name: str(r?.site_name) ?? "RM 论坛", url: str(r?.site_url) ?? "" },
+    articles: {
+      total: num(r?.total),
+      fetched: num(r?.fetched),
+      skipped: num(r?.skipped),
+      tags: num(r?.tags),
+      images: num(r?.images),
+      links: num(r?.links),
+    },
+    ai: { ready: num(r?.ai_ready), missing: num(r?.ai_missing), entities: num(r?.entities) },
+    crawler: {
+      lastCheckedAt: date(r?.last_checked_at),
+      backfillCompletedAt: date(r?.backfill_completed_at),
+    },
+    importedAt: date(r?.imported_at),
+  };
 }

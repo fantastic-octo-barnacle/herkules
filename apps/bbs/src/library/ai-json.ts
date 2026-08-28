@@ -16,7 +16,11 @@ const strings = z
   .catch([])
   .transform((xs) => xs.filter((x): x is string => typeof x === "string"));
 const str = z.string().catch("");
-const strOrNull = z.unknown().transform((v) => (typeof v === "string" && v !== "" ? v : null));
+/** `.optional()` first: zod v4 treats an absent key as a type error even for `unknown`. */
+const strOrNull = z
+  .unknown()
+  .optional()
+  .transform((v) => (typeof v === "string" && v !== "" ? v : null));
 /** An array of objects parsed with `item`; non-objects and unparsable items are dropped. */
 const objects = <T extends z.ZodType>(item: T) =>
   z

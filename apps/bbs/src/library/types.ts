@@ -138,11 +138,21 @@ export interface ArticleContent {
   readonly body: string;
 }
 
+/** One run of snippet text; `hit` runs are the matched terms, cut from the RAW field (original case and width). */
+export interface SnippetSegment {
+  readonly text: string;
+  readonly hit: boolean;
+}
+
 export interface SearchHit extends ArticleSummary {
   /** Engine-specific, higher is better; comparable only within one response. */
   readonly score: number;
-  /** FTS5-style `[term]` markers, `…` at cuts; null when no term occurs in snippet material. */
-  readonly snippet: string | null;
+  /**
+   * Segments rather than a `[term]`-marked string: forum prose contains literal `[1]`
+   * reference markers, so brackets cannot be parsed back out. `…` at cuts is a plain
+   * non-hit segment. Null when no term occurs in snippet material.
+   */
+  readonly snippet: readonly SnippetSegment[] | null;
 }
 
 export interface SearchPage extends Page<SearchHit> {

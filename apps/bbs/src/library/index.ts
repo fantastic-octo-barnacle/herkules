@@ -28,6 +28,11 @@
  */
 import type { SearchIndex } from "../db/search/index.ts";
 import type { BbsDb } from "../db/index.ts";
+import { getArticle, getArticleAi, getContent, getHead, listArticles } from "./articles.ts";
+import { getEntity, getEntityHead, kbBrowse, listEntities } from "./kb.ts";
+import { search } from "./search.ts";
+import { getStatus } from "./status.ts";
+import { getTags } from "./tags.ts";
 import type {
   Article,
   ArticleAi,
@@ -88,8 +93,18 @@ export interface Library {
 }
 
 export function createLibrary(deps: LibraryDeps): Library {
-  void deps;
-  // TODO compose from ./articles.ts, ./search.ts, ./tags.ts, ./kb.ts, ./status.ts — each exports plain
-  //      functions taking (deps, args); this is the only place they are assembled.
-  throw new Error("not implemented");
+  return {
+    articles: (query) => listArticles(deps, query),
+    article: (id) => getArticle(deps, id),
+    content: (id, format) => getContent(deps, id, format),
+    ai: (id) => getArticleAi(deps, id),
+    head: (id) => getHead(deps, id),
+    tags: () => getTags(deps),
+    search: (query) => search(deps, query),
+    kbBrowse: (filter) => kbBrowse(deps, filter),
+    entities: (options) => listEntities(deps, options),
+    entity: (key) => getEntity(deps, key),
+    entityHead: (key) => getEntityHead(deps, key),
+    status: () => getStatus(deps),
+  };
 }

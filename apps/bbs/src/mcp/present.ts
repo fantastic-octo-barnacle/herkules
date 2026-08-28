@@ -9,8 +9,12 @@
  *     `offset`), never splitting a surrogate pair. Byte paging on CJK cuts code points.
  * rm-wenku's UTC+8 dates and UTC-midnight quota boundaries disagreed by eight
  * hours (ground-A #18); there are no quotas here, so there is one timezone.
+ *
+ * Snippets reach the model as ONE string with FTS5's `[term]` markers (the SPA
+ * gets the segments and renders highlights; a model reads brackets fine).
  */
-import type { ArticleSummary, KbCard, SearchHit } from "../library/types.ts";
+import { SNIPPET_CLOSE, SNIPPET_OPEN } from "../db/search/snippet.ts";
+import type { ArticleSummary, KbCard, SearchHit, SnippetSegment } from "../library/types.ts";
 
 export const DISPLAY_TIMEZONE = "Asia/Shanghai";
 export const DEFAULT_MAX_CHARS = 30_000;
@@ -32,14 +36,45 @@ export interface ArticleHit {
 }
 
 export function articleHit(a: ArticleSummary | SearchHit): ArticleHit {
-  void a;
-  throw new Error("not implemented");
+  const snippet = "snippet" in a && a.snippet ? renderSnippet(a.snippet) : undefined;
+  return {
+    id: a.id,
+    title: a.title,
+    ...(a.author ? { author: a.author } : {}),
+    date: shanghaiDate(a.publishedAt ?? a.discoveredAt),
+    url: a.url,
+    tags: a.tags,
+    ...(a.excerpt ? { excerpt: a.excerpt } : {}),
+    ...(snippet ? { snippet } : {}),
+    ...(a.tldr ? { tldr: a.tldr } : {}),
+    score: "score" in a ? a.score : 0,
+    bodyChars: a.bodyChars,
+  };
 }
 
-/** Compact card for `search_kb` / `get_entity` (compact=true): id, title, date, tldr, ≤ 8 parameters, ≤ 3 pitfalls. */
+/** Segments -> `…text [hit] text…`: hits wrapped in the FTS5 markers, everything else verbatim. */
+export function renderSnippet(segments: readonly SnippetSegment[]): string {
+  return segments
+    .map((s) => (s.hit ? `${SNIPPET_OPEN}${s.text}${SNIPPET_CLOSE}` : s.text))
+    .join("");
+}
+
+/** Compact card for `search_kb` / `get_entity` (compact=true): id, title, date, tldr, ≤ 8 entities, ≤ 3 pitfalls. */
 export function kbCardOut(card: KbCard): Record<string, unknown> {
-  void card;
-  throw new Error("not implemented");
+  return {
+    id: card.articleId,
+    title: card.title,
+    ...(card.author ? { author: card.author } : {}),
+    ...(card.publishedAt ? { date: shanghaiDate(card.publishedAt) } : {}),
+    tldr: card.tldr,
+    genre: card.genre,
+    maturity: card.maturity,
+    ...(card.problem ? { problem: card.problem } : {}),
+    domain: card.domain,
+    robotTypes: card.robotTypes,
+    entities: card.entities.slice(0, 8),
+    pitfalls: card.pitfalls.slice(0, 3),
+  };
 }
 
 export interface ContentSlice {
@@ -49,16 +84,34 @@ export interface ContentSlice {
   readonly totalChars: number;
 }
 
+const isHigh = (c: number) => c >= 0xd800 && c <= 0xdbff;
+const isLow = (c: number) => c >= 0xdc00 && c <= 0xdfff;
+
 /** Character-safe slice; `nextOffset` present iff more remains. Never splits a surrogate pair. */
 export function sliceContent(body: string, offset: number, maxChars: number): ContentSlice {
-  void body;
-  void offset;
-  void maxChars;
-  throw new Error("not implemented");
+  const total = body.length;
+  let start = Math.min(Math.max(0, Math.floor(offset)), total);
+  if (start > 0 && start < total && isLow(body.charCodeAt(start))) start += 1;
+  let end = Math.min(total, start + Math.max(1, Math.floor(maxChars)));
+  if (end > start && end < total && isHigh(body.charCodeAt(end - 1))) end -= 1;
+  return {
+    text: body.slice(start, end),
+    offset: start,
+    ...(end < total ? { nextOffset: end } : {}),
+    totalChars: total,
+  };
 }
+
+const shanghai = new Intl.DateTimeFormat("en-CA", {
+  timeZone: DISPLAY_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 /** Date -> `YYYY-MM-DD` in Asia/Shanghai via Intl with a fixed timeZone (no local-clock dependency). */
 export function shanghaiDate(at: Date): string {
-  void at;
-  throw new Error("not implemented");
+  const parts = shanghai.formatToParts(at);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }

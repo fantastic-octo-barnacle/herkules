@@ -26,9 +26,15 @@
  *
  * What this gives up versus PGroonga: no CJK segmentation (`机器` matches inside
  * `机器人`, as FTS5 also did) and no NFKC beyond width+case.
+ *
+ * Constants (k1, b, idf, avglen) are inlined with `sql.raw` from numbers this
+ * file computes — never from user input — so both drivers see typed literals
+ * instead of untyped `$n` parameters inside arithmetic.
  */
 import type { SQL } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
+import { rowsOf } from "../index.ts";
 import type { CorpusStats, SearchColumns, SearchIndex, SqlRunner } from "./index.ts";
 import type { Term } from "./terms.ts";
 
@@ -37,9 +43,12 @@ export const K1 = 1.2;
 export const B = 0.75;
 
 export function createTrgmIndex(run: SqlRunner): SearchIndex {
-  void run;
-  // TODO return { kind: "trgm", stats: (c, t) => trgmStats(run, c, t), match: trgmMatch, score: trgmScore }
-  throw new Error("not implemented");
+  return {
+    kind: "trgm",
+    stats: (cols, terms) => trgmStats(run, cols, terms),
+    match: trgmMatch,
+    score: trgmScore,
+  };
 }
 
 /**
@@ -48,11 +57,13 @@ export function createTrgmIndex(run: SqlRunner): SearchIndex {
  * Legal only because of the length-preserving fold and the table's alignment CHECK.
  */
 export function fieldSlice(cols: SearchColumns, i: number): SQL {
-  void cols;
-  void i;
-  // TODO start = sql`1` joined with ` + length(${cols.fields[j].column}) + 1` for j < i
-  //      return sql`substr(${cols.document}, ${start}, length(${cols.fields[i].column}))`
-  throw new Error("not implemented");
+  const field = cols.fields[i];
+  if (!field) throw new RangeError(`fieldSlice: no field ${i}`);
+  const start = sql.join(
+    [sql`1`, ...cols.fields.slice(0, i).map((f) => sql`length(${f.column}) + 1`)],
+    sql` + `,
+  );
+  return sql`substr(${cols.document}, ${start}, length(${field.column}))`;
 }
 
 /**
@@ -63,36 +74,57 @@ export function fieldSlice(cols: SearchColumns, i: number): SQL {
  *   FROM <the search table>
  * Index-assisted FILTERs; sub-millisecond at 905 rows.
  */
-export function trgmStats(
+export async function trgmStats(
   run: SqlRunner,
   cols: SearchColumns,
   terms: readonly Term[],
 ): Promise<CorpusStats> {
-  void run;
-  void cols;
-  void terms;
-  throw new Error("not implemented");
+  const selects = [
+    sql`count(*)::int AS documents`,
+    ...terms.map(
+      (t, i) => sql`count(*) FILTER (WHERE ${trgmMatch(cols, [t])})::int AS ${sql.raw(`df_${i}`)}`,
+    ),
+    ...cols.fields.map(
+      (f, i) =>
+        sql`coalesce(avg(length(${f.column})), 0)::double precision AS ${sql.raw(`avg_${i}`)}`,
+    ),
+  ];
+  const row = rowsOf(await run(sql`SELECT ${sql.join(selects, sql`, `)} FROM ${cols.from}`))[0];
+  if (!row) throw new Error("trgmStats: aggregate returned no row");
+  return {
+    documents: num(row.documents),
+    df: new Map(terms.map((t, i) => [t.text, num(row[`df_${i}`])])),
+    avgFieldLength: new Map(cols.fields.map((f, i) => [f.name, num(row[`avg_${i}`])])),
+  };
+}
+
+function num(v: unknown): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export function trgmMatch(cols: SearchColumns, terms: readonly Term[]): SQL {
-  void cols;
-  void terms;
-  // TODO terms.length === 0 ? sql`true`
-  //      : and(...terms.map((t) => sql`${cols.document} LIKE ${"%" + t.pattern + "%"} ESCAPE '\\'`))
-  throw new Error("not implemented");
+  if (terms.length === 0) return sql`true`;
+  return sql.join(
+    terms.map((t) => sql`${cols.document} LIKE ${`%${t.pattern}%`} ESCAPE '\\'`),
+    sql` AND `,
+  );
 }
 
 export function trgmScore(cols: SearchColumns, terms: readonly Term[], stats: CorpusStats): SQL {
-  void cols;
-  void terms;
-  void stats;
-  void K1;
-  void B;
-  // TODO coalesce(sql.join(terms.flatMap((t) => cols.fields.map((f, i) => {
-  //        const F    = fieldSlice(cols, i)
-  //        const tf   = sql`((length(${F}) - length(replace(${F}, ${t.text}, ''))) / ${t.text.length}::numeric)`
-  //        const norm = sql`(${K1} * (1 - ${B} + ${B} * length(${f.column}) / greatest(${avg(f.name)}, 1)))`
-  //        return sql`${idf(t)} * ${tf} * ${K1 + 1} / nullif(${tf} + ${norm}, 0)`
-  //      })), sql` + `), 0)::double precision
-  throw new Error("not implemented");
+  if (terms.length === 0 || cols.fields.length === 0) return sql`0::double precision`;
+  const n = Math.max(stats.documents, 1);
+  const lit = (x: number) => sql.raw(x.toPrecision(12));
+  const parts = terms.flatMap((t) => {
+    const df = stats.df.get(t.text) ?? 0;
+    const idf = Math.log(1 + (n - df + 0.5) / (df + 0.5));
+    return cols.fields.map((f, i) => {
+      const slice = fieldSlice(cols, i);
+      const tf = sql`((length(${slice}) - length(replace(${slice}, ${t.text}, '')))::double precision / length(${t.text}::text))`;
+      const avg = Math.max(stats.avgFieldLength.get(f.name) ?? 0, 1);
+      const norm = sql`(${lit(K1)} * (1 - ${lit(B)} + ${lit(B)} * length(${f.column}) / ${lit(avg)}))`;
+      return sql`(${lit(idf)} * ${tf} * ${lit(K1 + 1)} / nullif(${tf} + ${norm}, 0))`;
+    });
+  });
+  return sql`coalesce(${sql.join(parts, sql` + `)}, 0)::double precision`;
 }

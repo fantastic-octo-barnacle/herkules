@@ -20,7 +20,9 @@
  */
 import type { SQL, SQLWrapper } from "drizzle-orm";
 
+import { createPgroongaIndex } from "./pgroonga.ts";
 import type { Term } from "./terms.ts";
+import { createTrgmIndex } from "./trgm.ts";
 
 export type { Term } from "./terms.ts";
 export { MAX_TERMS, parseTerms } from "./terms.ts";
@@ -40,8 +42,13 @@ export interface SearchField {
  *   substr(document, 1 + Σ_{j<i}(length(field_j) + 1), length(field_i))
  * without any SQL-side fold (`fieldSlice` in trgm.ts). A caller may pass a
  * narrower view — `scope=title` is `{ document: <title slice>, fields: [title] }`.
+ *
+ * `from` is the table the columns belong to (unaliased; drizzle renders its
+ * name), which `stats` aggregates over. The sketch omitted it; `stats` cannot
+ * write a FROM clause without it.
  */
 export interface SearchColumns {
+  readonly from: SQLWrapper;
   readonly document: SQLWrapper;
   readonly fields: readonly SearchField[];
 }
@@ -95,8 +102,5 @@ export interface SearchIndex {
 export type SqlRunner = (query: SQL) => Promise<unknown>;
 
 export function selectSearchIndex(kind: "trgm" | "pgroonga", run: SqlRunner): SearchIndex {
-  void kind;
-  void run;
-  // TODO kind === "pgroonga" ? createPgroongaIndex(run) : createTrgmIndex(run)
-  throw new Error("not implemented");
+  return kind === "pgroonga" ? createPgroongaIndex(run) : createTrgmIndex(run);
 }
