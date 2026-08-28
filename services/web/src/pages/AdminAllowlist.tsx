@@ -15,6 +15,7 @@ import { useState } from "react";
 
 import { formatDate } from "../format.ts";
 import { Empty, Eyebrow, Lede, Loading, PageTitle } from "../layout.tsx";
+import { resolveMembers } from "../members.ts";
 import { ErrorNotice } from "../notices.tsx";
 import { useSession } from "../session.tsx";
 
@@ -30,7 +31,11 @@ export function AdminAllowlistPage() {
     queryKey: KEY,
     queryFn: async () => {
       const entries = await api.admin.allowlist();
-      const people = await api.membersById([...new Set(entries.map((e) => e.addedBy))]);
+      const people = await resolveMembers(
+        queryClient,
+        api,
+        entries.map((e) => e.addedBy),
+      );
       return { entries, names: new Map(people.map((p) => [p.id, p.displayName])) };
     },
   });

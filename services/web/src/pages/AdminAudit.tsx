@@ -8,12 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@herkules/ui/components/select";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import type { AuditRow, Member } from "../api.ts";
 import { auditGroup, describeAudit, formatDate, userIdsOf } from "../format.ts";
 import { Empty, Eyebrow, Lede, Loading, PageTitle } from "../layout.tsx";
+import { resolveMembers } from "../members.ts";
 import { ErrorNotice } from "../notices.tsx";
 import { useSession } from "../session.tsx";
 
@@ -39,6 +40,7 @@ const ALL = "all"; // Radix Select items cannot carry an empty value.
 
 export function AdminAuditPage() {
   const { api } = useSession();
+  const queryClient = useQueryClient();
   const [type, setType] = useState(ALL);
 
   const audit = useInfiniteQuery({
@@ -50,8 +52,8 @@ export function AdminAuditPage() {
         cursor: pageParam,
         limit: 50,
       });
-      // Each page carries the people it names; the merge happens at render.
-      const people = await api.membersById(userIdsOf(page.rows));
+      // Each page carries the people it names (resolved once per id); the merge happens at render.
+      const people = await resolveMembers(queryClient, api, userIdsOf(page.rows));
       return { rows: page.rows, next: page.next, people };
     },
     getNextPageParam: (last) => last.next,
