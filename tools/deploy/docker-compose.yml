@@ -164,6 +164,8 @@ services:
       - beszel_socket:/beszel_socket
     environment:
       APP_URL: https://${OPS_HOST:-ops.localhost}
+      # Full-page OIDC redirect. Beszel 0.18.8 supports this without requiring browser popups.
+      OAUTH_DISABLE_POPUP: "true"
       USER_CREATION: "true" # every org member who signs in through OIDC gets an account (role `user`; flip to readonly)
       DISABLE_PASSWORD_AUTH: "true"
       SHARE_ALL_SYSTEMS: "true"

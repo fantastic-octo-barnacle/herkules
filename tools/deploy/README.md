@@ -228,6 +228,8 @@ No alerting channel is configured (the team has not picked one). The external
    - Token URL `https://herkules.dev/auth/oauth2/token`
    - User info URL `https://herkules.dev/auth/oauth2/userinfo`
    - Display name `herkules`, PKCE on.
+     The hub runs with `OAUTH_DISABLE_POPUP=true`, so sign-in uses a full-page redirect
+     and returns to `https://ops.herkules.dev/`; browsers do not need popup permission.
      Every org member who signs in now gets an account (`USER_CREATION=true`) with
      role `user`. **Flip each new member to `readonly`** in Users → role: with
      `SHARE_ALL_SYSTEMS=true` everyone sees every system, and `readonly` keeps a

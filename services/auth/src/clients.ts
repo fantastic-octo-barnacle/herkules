@@ -165,12 +165,14 @@ export const FIRST_PARTY_CLIENTS = [
      * The first OIDC relying party of this issuer — it requests `openid email profile`
      * with no `resource`, so the token carries an id_token and `/oauth2/userinfo`
      * answers with `sub`/`email`/`email_verified` (tests/oidc-client.test.ts).
-     * `web`: the redirect is https-only and fixed by PocketBase. No refresh grant:
-     * PocketBase exchanges the code once and keeps its own session.
+     * `web`: both redirects are https-only. PocketBase's popup flow uses
+     * `/api/oauth2-redirect`; Beszel's `OAUTH_DISABLE_POPUP` flow returns to the app root.
+     * No refresh grant: PocketBase exchanges the code once and keeps its own session.
      */
     clientId: "beszel",
     name: "Beszel (ops)",
-    redirectUris: (c) => (c.OPS_ORIGIN ? [`${c.OPS_ORIGIN}/api/oauth2-redirect`] : []),
+    redirectUris: (c) =>
+      c.OPS_ORIGIN ? [`${c.OPS_ORIGIN}/api/oauth2-redirect`, `${c.OPS_ORIGIN}/`] : [],
     skipConsent: true,
     tokenEndpointAuthMethod: "client_secret_basic",
     applicationType: "web",

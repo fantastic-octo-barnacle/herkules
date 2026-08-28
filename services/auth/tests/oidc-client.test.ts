@@ -13,7 +13,8 @@ import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 import { createTestService, type TestService } from "../src/testing.ts";
 
 const OPS_ORIGIN = "https://ops.example.test";
-const REDIRECT = `${OPS_ORIGIN}/api/oauth2-redirect`;
+const POPUP_REDIRECT = `${OPS_ORIGIN}/api/oauth2-redirect`;
+const SAME_TAB_REDIRECT = `${OPS_ORIGIN}/`;
 const SECRET = "beszel-secret-".padEnd(48, "x");
 const basic = `Basic ${Buffer.from(`beszel:${SECRET}`, "utf8").toString("base64")}`;
 
@@ -29,9 +30,9 @@ describe("the seeded beszel OIDC client", () => {
   });
   afterAll(() => t.close());
 
-  test("is seeded as a confidential web client with PocketBase's fixed redirect", async () => {
+  test("is seeded as a confidential web client with Beszel's popup and same-tab redirects", async () => {
     expect(await t.service.db.clients.byId("beszel")).toMatchObject({
-      redirectUris: [REDIRECT],
+      redirectUris: [POPUP_REDIRECT, SAME_TAB_REDIRECT],
       tokenEndpointAuthMethod: "client_secret_basic",
       applicationType: "web",
       skipConsent: true,
@@ -57,7 +58,7 @@ describe("the seeded beszel OIDC client", () => {
     const params = new URLSearchParams({
       response_type: "code",
       client_id: "beszel",
-      redirect_uri: REDIRECT,
+      redirect_uri: SAME_TAB_REDIRECT,
       scope: "openid email profile",
       state: "pb-state",
       code_challenge: createHash("sha256").update(verifier).digest("base64url"),
@@ -69,7 +70,7 @@ describe("the seeded beszel OIDC client", () => {
     });
     expect(authz.status, await authz.clone().text()).toBe(302);
     const location = new URL(authz.headers.get("location") ?? "", t.origin);
-    expect(location.origin + location.pathname).toBe(REDIRECT); // consent skipped: straight back
+    expect(location.origin + location.pathname).toBe(SAME_TAB_REDIRECT); // consent skipped: straight back
     expect(location.searchParams.get("state")).toBe("pb-state");
     const code = location.searchParams.get("code");
     expect(code).toBeTruthy();
@@ -80,7 +81,7 @@ describe("the seeded beszel OIDC client", () => {
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code: code!,
-        redirect_uri: REDIRECT,
+        redirect_uri: SAME_TAB_REDIRECT,
         code_verifier: verifier,
       }).toString(),
     });
@@ -123,7 +124,7 @@ async function subjectFor(t: TestService, cookie: string): Promise<string> {
   const params = new URLSearchParams({
     response_type: "code",
     client_id: "beszel",
-    redirect_uri: REDIRECT,
+    redirect_uri: POPUP_REDIRECT,
     scope: "openid email",
     state: "s",
     code_challenge: createHash("sha256").update(verifier).digest("base64url"),
@@ -141,7 +142,7 @@ async function subjectFor(t: TestService, cookie: string): Promise<string> {
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
-      redirect_uri: REDIRECT,
+      redirect_uri: POPUP_REDIRECT,
       code_verifier: verifier,
     }).toString(),
   });
