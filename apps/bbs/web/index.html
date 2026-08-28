@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="/favicon.svg" />
+    <!--
+      Head-injection contract with src/spa/head.ts, byte for byte: the server reads the BUILT copy of
+      this file once at boot and, for /articles/:id and /kb/:name, replaces everything between the two
+      markers with <title>, description, canonical and og/twitter tags. The defaults live INSIDE the
+      markers so this file is a complete page on its own (what the Vite dev server serves) and the
+      server never merges tags. A missing or misordered marker is a boot failure, not a silent default.
+    -->
+    <!--bbs:head-->
+    <title>RM 文库</title>
+    <meta
+      name="description"
+      content="RoboMaster 开发者论坛文章归档：按标签浏览、全文检索、AI 概览与知识库。"
+    />
+    <meta property="og:site_name" content="RM 文库" />
+    <meta property="og:title" content="RM 文库" />
+    <meta property="og:type" content="website" />
+    <!--/bbs:head-->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
