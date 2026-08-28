@@ -40,7 +40,7 @@ Browser sessions are stateless in the app. Rotating its cookie secret signs all 
 
 Per-client commands and configuration for the MCP clients this platform is known to work with live in [`../apps/bbs/README.md`](../apps/bbs/README.md#connecting-an-mcp-client).
 
-Claude Code registers through DCR by its own choice: it withholds client-ID metadata (CIMD) whenever its loopback redirect carries a port, which is always. VS Code and Codex would use CIMD, but CIMD requires the authorization server to fetch each client's metadata document, and `claude.ai` and `chatgpt.com` are unreachable from the Hong Kong host. CIMD therefore stays unmounted until auth runs from a host that can reach them, which means Singapore. DCR is the supported dynamic path.
+Claude Code registers through DCR by its own choice: it withholds client-ID metadata (CIMD) whenever its loopback redirect carries a port, which is always. VS Code and Codex would use CIMD, but CIMD requires the authorization server to fetch each client's metadata document, and `claude.ai` and `chatgpt.com` are unreachable from the Hong Kong host. CIMD therefore stays unmounted. DCR is the supported dynamic path: Claude Code, VS Code and Codex all complete it against this issuer. CIMD is future work with two triggers — a client we use drops DCR (the MCP 2026-07-28 revision deprecated it with a twelve-month minimum window), or the auth container gains an egress path to those hosts (an HTTPS proxy via Singapore is the cheapest). When it comes: re-add `@better-auth/cimd`, mount it beside DCR with the Node fetch guard, cache metadata documents and serve them stale on fetch failure, and verify VS Code and Codex sign in over CIMD while Claude Code still uses DCR.
 
 ## Admission and revocation
 
