@@ -1,0 +1,49 @@
+{
+  "name": "@herkules/bbs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "RM 文库 at bbs.herkules.dev: Hono API + MCP server (herkules.dev/mcp/bbs) + static TanStack SPA over the RM WenKu corpus imported into Postgres.",
+  "files": [
+    "dist",
+    "drizzle"
+  ],
+  "type": "module",
+  "exports": {
+    "./api": {
+      "types": "./src/api/routes.ts"
+    }
+  },
+  "scripts": {
+    "dev": "node --watch --env-file=.env --experimental-strip-types src/main.ts",
+    "start": "node --experimental-strip-types src/main.ts",
+    "import": "node --env-file=.env --experimental-strip-types src/main.ts import",
+    "build": "vp pack",
+    "test": "vp test",
+    "check": "vp check",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@herkules/auth-middleware": "workspace:*",
+    "@herkules/oauth-client": "workspace:*",
+    "@hono/node-server": "^2.1.1",
+    "@modelcontextprotocol/server": "2.0.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.5",
+    "markdown-it": "^14.1.0",
+    "postgres": "^3.4.9",
+    "sanitize-html": "^2.17.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@herkules/auth": "workspace:*",
+    "@modelcontextprotocol/client": "2.0.0",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "catalog:",
+    "@types/sanitize-html": "^2.16.0",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

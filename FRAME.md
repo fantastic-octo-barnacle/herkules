@@ -144,7 +144,10 @@ Alternatives considered:
 - Scopes within a resource.
 - Machine-to-machine (`client_credentials`) tokens.
 - BBS (rm-wenku) integration — designed for (standard OIDC provider, opaque
-  `sub` as join key, no user migration needed), not built.
+  `sub` as join key, no user migration needed), not built. _Amended
+  2026-08-28: the BBS is ported into this monorepo as `apps/bbs` on
+  `bbs.herkules.dev`, a first-party confidential client; see
+  `apps/bbs/FRAME.md`._
 - Gatus / Beszel overlay; Sentry; any analytics.
 - sops / agenix secrets; staging environment.
 - Admin-editable resource registry; user-editable display name or avatar.

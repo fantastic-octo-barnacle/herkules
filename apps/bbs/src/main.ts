@@ -1,0 +1,132 @@
+/**
+ * Composition root and argv dispatcher. Boot order is dependency order; nothing
+ * here has logic (services/auth/src/main.ts states the rule).
+ *
+ *   node dist/main.mjs                  serve: ensureDatabase, migrate, listen
+ *   node dist/main.mjs import <app.db>  import/cli.ts, exit code = report
+ *
+ * The Docker target sets ENTRYPOINT ["node","dist/main.mjs"] so
+ * `docker compose run --rm bbs import /import/app.db` appends arguments: one
+ * image, one entrypoint, no `scripts/` directory that exists only in the repo.
+ */
+import { serve } from "@hono/node-server";
+import { apiResource, mcpResource } from "@herkules/auth-middleware";
+import { createOAuthClient } from "@herkules/oauth-client";
+import { honoOAuth } from "@herkules/oauth-client/hono";
+import { sql } from "drizzle-orm";
+
+import { createApp } from "./app.ts";
+import { RESOURCE_NAME, loadConfig } from "./config.ts";
+import { createDb, ensureDatabase, migrate } from "./db/index.ts";
+import { selectSearchIndex } from "./db/search/index.ts";
+import { runImportCli } from "./import/cli.ts";
+import { createLibrary } from "./library/index.ts";
+import { createSpaHandler } from "./spa/static.ts";
+import { createUserInfo } from "./userinfo.ts";
+
+export interface ServiceDeps {
+  readonly env?: NodeJS.ProcessEnv;
+  /**
+   * The single injected I/O boundary for outbound HTTP: JWKS, the token endpoint
+   * and the user-info API. Tests route it in-process to the auth app with
+   * `fetchVia(auth.app)` (services/mcp-directory/tests/e2e.test.ts), which is
+   * what lets the whole suite run with no network and no Docker.
+   */
+  readonly fetch?: typeof globalThis.fetch;
+  readonly now?: () => Date;
+}
+
+/** Builds the whole service without listening. Tests call this with pglite://memory and an in-process fetch. */
+export async function createService(deps: ServiceDeps = {}) {
+  const config = loadConfig(deps.env);
+  if (config.createDatabase) await ensureDatabase(config.databaseUrl);
+  const db = await createDb(config.databaseUrl);
+  await migrate(db);
+
+  const search = selectSearchIndex(config.searchIndex, async (q) => db.execute(q));
+  const library = createLibrary({ db, search });
+
+  const jwksUrl = `${config.authInternal}/auth/jwks`;
+  const api = apiResource({
+    resource: config.apiResource,
+    issuer: config.issuer,
+    jwksUrl,
+    fetch: deps.fetch,
+  });
+  const mcp = mcpResource({
+    resource: config.mcpResource,
+    issuer: config.issuer,
+    jwksUrl,
+    fetch: deps.fetch,
+  });
+  const client = createOAuthClient({
+    auth: api,
+    client: { id: RESOURCE_NAME, secret: config.clientSecret },
+    origin: config.appOrigin,
+    cookieSecret: config.cookieSecret,
+    issuerInternal: `${config.authInternal}/auth`,
+    fetch: deps.fetch,
+    now: deps.now,
+    onEvent: (e) => console.log("[bbs oauth]", e.kind),
+  });
+  const oauth = honoOAuth(client, {
+    // A failed callback lands on the SPA's account page, which maps the code to a message (round 2).
+    onLoginFailure: (f, c) =>
+      c.redirect(`/account?login_error=${encodeURIComponent(f.error)}`, 303),
+  });
+  const userInfo = createUserInfo({ baseUrl: config.authInternal, fetch: deps.fetch });
+  const spa = await createSpaHandler({
+    webDir: config.webDir,
+    library,
+    appOrigin: config.appOrigin,
+  });
+
+  const { app, close } = createApp({
+    library,
+    oauth,
+    mcp,
+    userInfo,
+    spa,
+    appOrigin: config.appOrigin,
+    ping: async () => {
+      await db.execute(sql`select 1`);
+    },
+    onError: (err) => console.error("[bbs]", err),
+  });
+  console.log(`[bbs] redirect URI ${client.redirectUri} — must equal the issuer's seeded value`);
+  return {
+    app,
+    config,
+    db,
+    library,
+    close: async () => {
+      await close();
+      await db.close();
+    },
+  };
+}
+
+export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<void> {
+  if (argv[0] === "import") {
+    process.exit(await runImportCli(argv.slice(1), { env: process.env }));
+  }
+  const service = await createService();
+  const server = serve({ fetch: service.app.fetch, port: service.config.port }, (info) => {
+    console.log(
+      `bbs listening on :${info.port} as ${service.config.appOrigin} (mcp ${service.config.mcpResource})`,
+    );
+  });
+  const shutdown = () => {
+    server.close();
+    void service.close().finally(() => process.exit(0));
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
+}
+
+if (process.argv[1] && /[/\\]main\.(ts|mjs|js)$/.test(process.argv[1])) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
