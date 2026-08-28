@@ -1,0 +1,40 @@
+{
+  "name": "@herkules/oauth-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sign browsers in to a first-party app through the herkules issuer and yield the same Principal @herkules/auth-middleware yields bearer callers. Confidential OAuth 2.1 client, sealed cookie, no table.",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./hono": "./dist/hono.mjs",
+    "./testing": "./dist/testing.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@herkules/auth-middleware": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "hono": "^4.13.5",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "hono": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "hono": {
+      "optional": true
+    }
+  }
+}
