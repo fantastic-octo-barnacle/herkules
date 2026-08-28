@@ -4,7 +4,7 @@
 # `pnpm deploy --prod` output (auth, mcp-directory, bbs) or static files (web).
 
 FROM node:24-alpine AS base
-RUN npm install -g pnpm@11.24.0
+RUN apk add --no-cache git && npm install -g pnpm@11.24.0
 WORKDIR /app
 
 FROM base AS build

@@ -26,5 +26,6 @@ peerDependencyRules:
     - vite
   allowedVersions:
     vite: "*"
+# pnpm 11 (strictDepBuilds): every dependency with a build script must be listed here or `vp install` fails.
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true
