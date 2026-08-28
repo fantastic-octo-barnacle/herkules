@@ -45,7 +45,6 @@
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
     "@herkules/auth": "workspace:*",
-    "@herkules/ui": "workspace:*",
     "@modelcontextprotocol/client": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@types/markdown-it": "^14.1.2",
