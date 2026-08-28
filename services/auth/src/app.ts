@@ -111,6 +111,7 @@ export function createApp(deps: AppDeps): Hono {
     const { ids } = batchSchema.parse(await parseJson(c));
     return c.json({ users: await users.infoMany(ids) });
   });
+  api.get("/users", async (c) => c.json({ users: await users.directory() }));
   // Dev-token page: the audiences to choose from. The SPA then runs a real PKCE flow against /auth/oauth2/authorize.
   api.get("/registry", (c) =>
     c.json({

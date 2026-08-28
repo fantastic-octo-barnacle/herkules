@@ -74,6 +74,8 @@ export interface Users {
   /** Reads. Batch is bounded (≤ 100 ids); unknown ids are omitted, not errors. */
   info(id: string): Promise<UserInfo | undefined>;
   infoMany(ids: readonly string[]): Promise<readonly UserInfo[]>;
+  /** The member directory: every non-disabled user, sorted by display name. Small team; bounded at 500. */
+  directory(): Promise<readonly UserInfo[]>;
 
   /** The caller's own connected clients (settings page). */
   connectedClients(userId: string): Promise<readonly ConnectedClient[]>;
@@ -177,6 +179,13 @@ export function createUsers(deps: UsersDeps): Users {
     async infoMany(ids) {
       const unique = [...new Set(ids)].slice(0, 100);
       return (await db.users.byIds(unique)).map(infoOf);
+    },
+    async directory() {
+      const rows = await db.users.page({ limit: 500 });
+      return rows
+        .filter((u) => !u.banned)
+        .map(infoOf)
+        .sort((x, y) => x.displayName.localeCompare(y.displayName) || x.id.localeCompare(y.id));
     },
 
     async connectedClients(userId) {

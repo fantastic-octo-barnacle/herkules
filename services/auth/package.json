@@ -4,6 +4,9 @@
   "private": true,
   "description": "herkules authorization server: Hono + Better Auth 1.7 issuer at https://herkules.dev/auth (GitHub gate, roles, OAuth 2.1 for MCP clients, registry PRM, user-info, audit).",
   "type": "module",
+  "exports": {
+    "./testing": "./src/testing.ts"
+  },
   "scripts": {
     "dev": "node --watch --env-file=.env --experimental-strip-types src/main.ts",
     "start": "node --experimental-strip-types src/main.ts",

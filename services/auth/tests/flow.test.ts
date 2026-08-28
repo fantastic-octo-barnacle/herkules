@@ -384,6 +384,29 @@ describe("user-info API and clients", () => {
     expect(((await batch.json()) as { users: unknown[] }).users).toHaveLength(1);
     expect((await t.fetch("/auth/api/users/nope", { cookie: alice.cookie })).status).toBe(404);
 
+    // The member directory: every non-disabled user, sorted by name; a disabled user drops out.
+    t.github.user({ id: 3, login: "zed", name: "Zed", org: "active" });
+    const zed = await t.login("zed");
+    if (!zed.ok) throw new Error("login failed");
+    const dirBefore = (await (
+      await t.fetch("/auth/api/users", bearer(client.accessToken))
+    ).json()) as {
+      users: { id: string; displayName: string }[];
+    };
+    expect(dirBefore.users.map((u) => u.displayName)).toEqual(["alice", "Zed"]);
+    await t.makeAdmin(alice.userId);
+    await t.fetch(`/auth/api/admin/users/${zed.userId}/disabled`, {
+      method: "PUT",
+      cookie: alice.cookie,
+      ...json({ disabled: true }),
+    });
+    const dirAfter = (await (
+      await t.fetch("/auth/api/users", { cookie: alice.cookie })
+    ).json()) as {
+      users: { id: string }[];
+    };
+    expect(dirAfter.users.map((u) => u.id)).toEqual([alice.userId]);
+
     const anon = await t.fetch(`/auth/api/users/${alice.userId}`);
     expect(anon.status).toBe(401);
     expect(anon.headers.get("www-authenticate")).toBe("Bearer");
