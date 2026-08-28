@@ -6,7 +6,7 @@
 import { Button } from "@herkules/ui/components/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 
 import { beginDevToken, decodeJwtPayload, finishDevToken } from "../devtoken.ts";
 import { resourceName } from "../format.ts";
@@ -83,7 +83,7 @@ export function DevTokenPage() {
 
 export function DevTokenCallbackPage() {
   const { api } = useSession();
-  const { search } = useLocation();
+  const search = useLocation().searchStr;
   const [copied, setCopied] = useState(false);
   // The code is single-use: one query per callback URL, never refetched.
   const exchange = useQuery({

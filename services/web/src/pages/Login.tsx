@@ -5,7 +5,7 @@
  */
 import { Button } from "@herkules/ui/components/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { useLocation } from "@tanstack/react-router";
 
 import { loginErrorMessage } from "../format.ts";
 import { Actions, CenteredCard, Eyebrow, Lede, PageTitle } from "../layout.tsx";
@@ -14,7 +14,7 @@ import { HardRedirect, safeNext, useSession } from "../session.tsx";
 
 export function LoginPage() {
   const { api, session } = useSession();
-  const [params] = useSearchParams();
+  const params = new URLSearchParams(useLocation().searchStr);
 
   const rejection = params.get("error");
   const clientId = params.get("client_id");

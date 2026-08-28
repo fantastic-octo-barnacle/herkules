@@ -5,16 +5,16 @@
  */
 import { Button } from "@herkules/ui/components/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Navigate, useSearchParams } from "react-router";
+import { useLocation } from "@tanstack/react-router";
 
 import { resourceName } from "../format.ts";
 import { Actions, CenteredCard, Eyebrow, Lede, Loading, PageTitle } from "../layout.tsx";
 import { ErrorNotice } from "../notices.tsx";
-import { useSession } from "../session.tsx";
+import { HardRedirect, useSession } from "../session.tsx";
 
 export function ConsentPage() {
   const { api, session } = useSession();
-  const [params] = useSearchParams();
+  const params = new URLSearchParams(useLocation().searchStr);
 
   const oauthQuery = params.toString();
   const clientId = params.get("client_id") ?? "";
@@ -45,7 +45,7 @@ export function ConsentPage() {
   });
 
   if (session === undefined) return <Loading />;
-  if (session === null) return <Navigate to={`/login?${oauthQuery}`} replace />;
+  if (session === null) return <HardRedirect to={`/login?${oauthQuery}`} />;
   if (!clientId || !params.has("sig"))
     return (
       <CenteredCard>
