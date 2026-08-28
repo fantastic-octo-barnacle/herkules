@@ -1,0 +1,42 @@
+{
+  "name": "@herkules/auth-middleware",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Verify herkules access tokens on a resource server and answer with the correct OAuth challenge. The TypeScript convenience over docs/tokens.md.",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./hono": "./dist/hono.mjs",
+    "./mcp": "./dist/mcp.mjs",
+    "./testing": "./dist/testing.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "dev": "vp pack --watch",
+    "test": "vp test",
+    "check": "vp check",
+    "vectors": "node scripts/generate-vectors.ts"
+  },
+  "dependencies": {
+    "jose": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "hono": "^4.0.0",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "hono": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "hono": {
+      "optional": true
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@herkules/auth",
+  "version": "0.0.0",
+  "private": true,
+  "description": "herkules authorization server: Hono + Better Auth 1.7 issuer at https://herkules.dev/auth (GitHub gate, roles, OAuth 2.1 for MCP clients, registry PRM, user-info, audit).",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file=.env --experimental-strip-types src/main.ts",
+    "start": "node --experimental-strip-types src/main.ts",
+    "build": "vp pack",
+    "test": "vp test",
+    "check": "vp check",
+    "db:schema": "node --experimental-strip-types scripts/generate-schema.ts",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@better-auth/cimd": "1.7.2",
+    "@better-auth/drizzle-adapter": "1.7.2",
+    "@better-auth/mcp": "1.7.2",
+    "@better-auth/oauth-provider": "1.7.2",
+    "@herkules/auth-middleware": "workspace:*",
+    "@hono/node-server": "^2.1.1",
+    "better-auth": "1.7.2",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.5",
+    "jose": "^6.0.0",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@better-auth/core": "1.7.2",
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "catalog:",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
