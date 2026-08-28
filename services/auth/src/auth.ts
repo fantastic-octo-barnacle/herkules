@@ -14,8 +14,6 @@
  *            -> customAccessTokenClaims (role stamp)
  *            -> hooks.after "/oauth2/token" (token.issued audit)
  */
-import { cimd } from "@better-auth/cimd";
-import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { mcp } from "@better-auth/mcp";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
@@ -282,11 +280,16 @@ export function authOptions(deps: AuthDeps) {
           return { role: roleOf(user) };
         },
       }),
-      cimd({
-        fetchClientMetadataResource,
-        metadataProfile: "mcp-2026-07-28",
-        // isMetadataDocumentUrlAllowed: open in v1 (a CIMD client still needs a gated user to consent); see DESIGN.md open questions.
-      }),
+      /**
+       * CIMD is deliberately NOT mounted (2026-08-28). Claude Code's document
+       * registers `http://localhost/callback` and then requests
+       * `http://localhost:<random>/callback`; Better Auth's matcher grants RFC
+       * 8252 port variance to 127.0.0.1/[::1] only, so every CIMD authorize
+       * fails with invalid_redirect. Without the advertisement Claude Code uses
+       * DCR, which registers the exact port per run. Re-enable when the matcher
+       * accepts `localhost` (import cimd from @better-auth/cimd, fetch guard
+       * from @better-auth/cimd/node in production).
+       */
     ],
 
     advanced: {

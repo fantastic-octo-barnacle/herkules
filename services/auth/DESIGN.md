@@ -278,6 +278,17 @@ a test in `tests/`.
   including the middleware verifying a token the real Better Auth minted and
   refusing it for the other registry audience.
 
+- **CIMD is not mounted (first real Claude Code run, 2026-08-28).** Claude
+  Code's metadata document registers `http://localhost/callback` and each run
+  requests `http://localhost:<random>/callback`; Better Auth's
+  `findRegisteredRedirectUri` grants RFC 8252 port variance to loopback IPs only
+  (`localhost` excluded per §8.3), so every CIMD authorize ends in
+  `invalid_redirect`. CIMD clients live in the plugin's in-memory cache, so no
+  row can be taught the port. Not advertising CIMD makes Claude Code fall back
+  to DCR, which registers the exact port per run and passes. Re-enable when
+  the matcher accepts `localhost`. Also learned: `@better-auth/cimd/node`'s
+  guarded fetch rejects a proxied laptop's fake-IP DNS (`198.18.x`).
+
 ## Open questions and risks
 
 - Do Claude Code and VS Code request `scopes_supported` from the PRM
