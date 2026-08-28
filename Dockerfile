@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
-# One build, five images: --target auth | mcp-directory | bbs | web | backup.
+# One build, four images: --target auth | bbs | web | backup.
 # The build stage installs the whole workspace once; runtime images get only
-# `pnpm deploy --prod` output (auth, mcp-directory, bbs) or static files (web).
+# `pnpm deploy --prod` output (auth, bbs) or static files (web).
 
 FROM node:24-alpine AS base
 RUN apk add --no-cache git && npm install -g pnpm@11.24.0
@@ -15,12 +15,10 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 RUN pnpm --filter @herkules/auth-middleware run build \
  && pnpm --filter @herkules/oauth-client run build \
  && pnpm --filter @herkules/auth run build \
- && pnpm --filter @herkules/mcp-directory run build \
  && pnpm --filter @herkules/bbs run build \
  && pnpm --filter @herkules/web run build
 # bbs round 2: the SPA build (`vp build` -> apps/bbs/dist/client) is part of @herkules/bbs's `build` script; nothing to add here.
 RUN pnpm --filter @herkules/auth deploy --prod --legacy /out/auth \
- && pnpm --filter @herkules/mcp-directory deploy --prod --legacy /out/mcp-directory \
  && pnpm --filter @herkules/bbs deploy --prod --legacy /out/bbs
 
 # ── auth ────────────────────────────────────────────────────────────────────
@@ -33,17 +31,6 @@ USER node
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3001/auth/healthz || exit 1
-CMD ["node", "dist/main.mjs"]
-
-# ── mcp-directory ───────────────────────────────────────────────────────────
-FROM node:24-alpine AS mcp-directory
-ENV NODE_ENV=production PORT=3002
-WORKDIR /app
-COPY --from=build --chown=node:node /out/mcp-directory /app
-USER node
-EXPOSE 3002
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3002/mcp/directory/healthz || exit 1
 CMD ["node", "dist/main.mjs"]
 
 # ── bbs (API + MCP + SPA; `files` carries dist/ and drizzle/) ───────────────

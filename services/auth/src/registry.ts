@@ -2,8 +2,8 @@
  * The static resource registry: ONE checked-in type, and every audience-shaped
  * decision in the service derived from it.
  *
- *   ResourceSpec { name: "directory", kind: "mcp" }
- *     ──> audience        = `${origin}/mcp/directory`                    (the JWT `aud`, byte for byte)
+ *   ResourceSpec { name: "bbs", kind: "mcp" }
+ *     ──> audience        = `${origin}/mcp/bbs`                          (the JWT `aud`, byte for byte)
  *     ──> metadataUrl     = resourceMetadataUrlFor(audience)              (RFC 9728 path-inserted; the SAME
  *                                                                          derivation the verifier package uses)
  *     ──> oauthResource   row seeded into Better Auth (resourceSeedMode "overwrite": the DB is a projection)
@@ -41,9 +41,8 @@ export interface ResourceSpec {
 
 /** THE registry. */
 export const RESOURCE_SPECS: readonly ResourceSpec[] = [
-  { name: "directory", kind: "mcp", title: "herkules directory (MCP)", canonical: true },
   { name: "bbs", kind: "api", title: "RM 文库" },
-  { name: "bbs", kind: "mcp", title: "RM 文库 (MCP)" },
+  { name: "bbs", kind: "mcp", title: "RM 文库 (MCP)", canonical: true },
 ];
 
 /**
@@ -67,11 +66,11 @@ export interface RegistryEntry {
   readonly kind: ResourceKind;
   readonly title: string;
   readonly canonical: boolean;
-  /** `/mcp/directory` — what Caddy routes. */
+  /** `/mcp/bbs` — what Caddy routes. */
   readonly pathname: string;
   /** Canonical resource URL === the exact `aud` value. No trailing slash, query or fragment. */
   readonly audience: string;
-  /** `https://herkules.dev/.well-known/oauth-protected-resource/mcp/directory` */
+  /** `https://herkules.dev/.well-known/oauth-protected-resource/mcp/bbs` */
   readonly metadataUrl: string;
   /** Path part of `metadataUrl`; the PRM route's lookup key. */
   readonly metadataPathname: string;
@@ -103,7 +102,7 @@ export interface Registry {
   /** Every audience, for `cachedResources` and the user-info audience policy. */
   readonly audiences: ReadonlySet<string>;
   byAudience(audience: string): RegistryEntry | undefined;
-  /** `/.well-known/oauth-protected-resource/mcp/directory` -> entry. */
+  /** `/.well-known/oauth-protected-resource/mcp/bbs` -> entry. */
   byMetadataPathname(pathname: string): RegistryEntry | undefined;
   /** True when `aud` (string or array) names at least one registry audience. */
   hasKnownAudience(aud: string | readonly string[] | undefined): boolean;

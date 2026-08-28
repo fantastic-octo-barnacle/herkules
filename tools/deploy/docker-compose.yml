@@ -24,8 +24,6 @@ services:
         condition: service_healthy
       web:
         condition: service_started
-      mcp-directory:
-        condition: service_started
       bbs:
         condition: service_started
     mem_limit: 128m
@@ -50,18 +48,6 @@ services:
   web:
     image: ${IMAGE_PREFIX}/web:${IMAGE_TAG:-latest}
     mem_limit: 64m
-    restart: unless-stopped
-
-  mcp-directory:
-    image: ${IMAGE_PREFIX}/mcp-directory:${IMAGE_TAG:-latest}
-    environment:
-      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
-      AUTH_INTERNAL_URL: http://auth:3001
-      PORT: "3002"
-    depends_on:
-      auth:
-        condition: service_healthy
-    mem_limit: 256m
     restart: unless-stopped
 
   # apps/bbs: one image, three commands (apps/bbs/FRAME.md Frame 2).

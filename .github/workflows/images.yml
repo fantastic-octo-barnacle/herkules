@@ -1,5 +1,5 @@
 name: Images
-# main -> build the five images -> push to GHCR -> ssh to the box: compose pull && up -d.
+# main -> build the four images -> push to GHCR -> ssh to the box: compose pull && up -d.
 on:
   push:
     branches: [main]
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [auth, mcp-directory, bbs, web, backup]
+        target: [auth, bbs, web, backup]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -70,6 +70,7 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/caddy/services ~/herkules/import'
+          ssh -i ~/.ssh/deploy "$TARGET" 'unlink ~/herkules/caddy/services/directory.caddy 2>/dev/null || true'
           scp -i ~/.ssh/deploy -r tools/deploy/docker-compose.yml tools/deploy/Caddyfile tools/deploy/caddy/services "$TARGET":~/herkules/
           printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" 'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
           ssh -i ~/.ssh/deploy "$TARGET" 'cd ~/herkules && docker compose pull --quiet && docker compose up -d --remove-orphans && docker image prune -f >/dev/null && docker compose ps'

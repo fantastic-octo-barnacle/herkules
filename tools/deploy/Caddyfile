@@ -1,7 +1,7 @@
 # Edge Caddy for the platform origin plus the bbs subdomain. TLS is automatic
 # for a real hostname (DNS-only records pointing at the box); `http://localhost:3000`
 # and `http://localhost:3003` in dev.
-# Each MCP server adds one file under caddy/services/ (see directory.caddy).
+# Each MCP server adds one file under caddy/services/ (see bbs.caddy).
 (common_headers) {
 	header {
 		X-Content-Type-Options nosniff

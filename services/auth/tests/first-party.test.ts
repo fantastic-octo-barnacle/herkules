@@ -192,7 +192,7 @@ describe("the seeded bbs client", () => {
     t = await createTestService({
       env: { BBS_ORIGIN, BBS_CLIENT_SECRET: SECRET },
       resources: [
-        { name: "directory", kind: "mcp", title: "dir", canonical: true },
+        { name: "catalog", kind: "mcp", title: "catalog", canonical: true },
         { name: "bbs", kind: "api", title: "bbs" },
       ],
     });

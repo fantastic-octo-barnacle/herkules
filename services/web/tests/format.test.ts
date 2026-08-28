@@ -68,7 +68,7 @@ describe("format", () => {
   });
 
   it("resource names and relative times", () => {
-    expect(resourceName("https://herkules.dev/mcp/directory")).toBe("directory");
+    expect(resourceName("https://herkules.dev/mcp/bbs")).toBe("bbs");
     expect(resourceName("nonsense")).toBe("nonsense");
     const now = new Date("2026-08-28T12:00:00Z");
     expect(relative("2026-08-28T11:30:00Z", now)).toMatch(/30 minutes ago/);

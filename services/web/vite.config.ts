@@ -3,11 +3,10 @@ import { defineConfig } from "vite-plus";
 
 /**
  * Dev: this server IS the public origin (http://localhost:3000), so the auth
- * service and the directory run with PUBLIC_ORIGIN=http://localhost:3000 and
- * are reached through the proxy exactly as Caddy routes them in production.
+ * service and BBS run with PUBLIC_ORIGIN=http://localhost:3000 and are reached
+ * through the proxy exactly as Caddy routes them in production.
  */
 const AUTH = "http://localhost:3001";
-const DIRECTORY = "http://localhost:3002";
 const BBS = "http://localhost:3103"; // apps/bbs's Hono process; its SPA dev server on :3003 is a separate origin
 
 export default defineConfig({
@@ -18,7 +17,6 @@ export default defineConfig({
     proxy: {
       "/auth": AUTH,
       "/.well-known": AUTH,
-      "/mcp/directory": DIRECTORY,
       "/mcp/bbs": BBS,
     },
   },

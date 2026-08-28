@@ -9,13 +9,12 @@ caddy/services/, .env, import/}` and three volumes (`pgdata`, `avatars`, `caddy_
                  :443  ┌──────── caddy (edge, TLS) ────────────┐
   browsers, IDEs ─────►│ herkules.dev                           │
                        │   /auth/*, /.well-known/*  → auth      │
-                       │   /mcp/directory*          → mcp-dir   │
                        │   /mcp/bbs*                → bbs       │
                        │   /*                       → web       │
                        │ bbs.herkules.dev/*         → bbs       │
                        └────────────────────────────────────────┘
                    auth, bbs ──► postgres (herkules, bbs) ◄── backup (03:00 HKT pg_dump → R2)
-                   mcp-directory, bbs ──► auth (JWKS, token, user-info; in-network)
+                   bbs ──► auth (JWKS, token, user-info; in-network)
 ```
 
 ## One-time setup
@@ -45,8 +44,8 @@ caddy/services/, .env, import/}` and three volumes (`pgdata`, `avatars`, `caddy_
 
 ## Deploy
 
-Push to `main`. `.github/workflows/images.yml` builds `auth`, `mcp-directory`,
-`bbs`, `web`, `backup` for `linux/amd64`, pushes `ghcr.io/<owner>/herkules/<name>:latest`
+Push to `main`. `.github/workflows/images.yml` builds `auth`, `bbs`, `web`, and
+`backup` for `linux/amd64`, pushes `ghcr.io/<owner>/herkules/<name>:latest`
 (+ `sha-…`, + tags for `v*`), then over SSH copies the compose files and runs
 `docker compose pull && docker compose up -d --remove-orphans`.
 
@@ -65,14 +64,9 @@ Roll back: `IMAGE_TAG=sha-<short> docker compose up -d` (or set it in `.env`).
 
 ```sh
 curl -fsS https://herkules.dev/auth/healthz                      # {"ok":true}
-curl -fsS https://herkules.dev/.well-known/oauth-protected-resource/mcp/directory
 curl -fsS https://herkules.dev/.well-known/oauth-authorization-server/auth | head -c 300
-curl -sI  https://herkules.dev/mcp/directory | grep -i www-authenticate   # 401 + resource_metadata
 curl -fsS https://herkules.dev/ | head -c 200                     # the SPA
 ```
-
-Then the kill-criterion run: `claude mcp add --transport http directory https://herkules.dev/mcp/directory`,
-`/mcp` → GitHub → consent → `whoami`; the same in VS Code.
 
 ## bbs (RM 文库)
 
@@ -150,7 +144,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
 Day-to-day development does not need Docker: `vp run dev` in `services/auth`
-(PGlite), `services/mcp-directory`, `services/web` and `apps/bbs` — the Vite
+(PGlite), `services/web` and `apps/bbs` — the Vite
 server on `:3000` is the public origin and proxies the others (`/mcp/bbs` to
 bbs's Hono process on `:3103`); bbs's own Vite server on `:3003` is its app origin.
 

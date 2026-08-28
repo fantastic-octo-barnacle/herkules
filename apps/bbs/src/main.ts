@@ -39,8 +39,8 @@ export interface ServiceDeps {
   /**
    * The single injected I/O boundary for outbound HTTP: JWKS, the token endpoint
    * and the user-info API. Tests route it in-process to the auth app with
-   * `fetchVia(auth.app)` (services/mcp-directory/tests/e2e.test.ts), which is
-   * what lets the whole suite run with no network and no Docker.
+   * `fetchVia(auth.app)`, which lets the whole suite run with no network and
+   * no Docker.
    */
   readonly fetch?: typeof globalThis.fetch;
   readonly now?: () => Date;

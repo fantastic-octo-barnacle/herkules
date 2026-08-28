@@ -1,8 +1,8 @@
 /**
  * The MCP server at /mcp/bbs: rm-wenku's ten read tools over the SAME Library
  * the REST API uses, plus the `rm://articles/{id}` resources. Built FRESH per
- * request around the verified caller (services/mcp-directory template); a
- * server instance never outlives the principal it was built for.
+ * request around the verified caller; a server instance never outlives the
+ * principal it was built for.
  *
  * `ask_article` is omitted: inference is out of scope. AUTH: every MCP call
  * requires a member — enforced by `honoAuth(deps.mcp)` in app.ts before this

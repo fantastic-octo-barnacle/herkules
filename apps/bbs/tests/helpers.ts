@@ -72,7 +72,7 @@ export const MCP_RESOURCE = `${ORIGIN}/mcp/bbs`;
 export const CLIENT_SECRET = "bbs-secret-".padEnd(48, "x");
 export const COOKIE_SECRET = "c".repeat(32);
 
-/** Route a fetch to an in-process Hono app (any origin). Copied from services/mcp-directory. */
+/** Route a fetch to an in-process Hono app (any origin). */
 export function fetchVia(app: { request: Hono["request"] }): typeof globalThis.fetch {
   return async (input, init) => app.request(input instanceof Request ? input : String(input), init);
 }

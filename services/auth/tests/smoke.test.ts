@@ -54,7 +54,7 @@ describe("discovery", () => {
 });
 
 describe("login and token", () => {
-  test("org member logs in, gets a token for the directory, middleware verifies it", async () => {
+  test("org member logs in, gets a token for BBS MCP, middleware verifies it", async () => {
     const login = await t.login("alice");
     expect(login.ok).toBe(true);
     if (!login.ok) return;

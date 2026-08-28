@@ -6,9 +6,8 @@
  * bearer that reached this server is forwarded unchanged, and a banned user's
  * token is refused upstream.
  *
- * Hoisted here from services/mcp-directory when apps/bbs became the second
- * copy. Every method returns a value or throws `UserInfoError`; response shapes
- * are checked by hand (this package deliberately has no schema dependency).
+ * Every method returns a value or throws `UserInfoError`; response shapes are
+ * checked by hand (this package deliberately has no schema dependency).
  */
 
 /** A type alias (not an interface) so it stays assignable to `Record<string, unknown>` for MCP structured content. */

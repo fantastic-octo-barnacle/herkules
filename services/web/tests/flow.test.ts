@@ -52,7 +52,7 @@ describe("web against the auth service", () => {
 
     const registry = await api.registry();
     expect(registry.devTokenClientId).toBe("herkules-web");
-    expect(registry.resources.map((r) => r.name)).toContain("directory");
+    expect(registry.resources.map((r) => r.name)).toContain("bbs");
 
     expect(await api.myClients()).toEqual([]);
     const ide = await t.mcpClient(alice.cookie, registry.resources[0].audience);

@@ -41,7 +41,7 @@ import * as s from "./schemas.ts";
 export interface ApiDeps {
   readonly library: Library;
   readonly oauth: HonoOAuth;
-  /** Display name and avatar, fetched with the caller's own token (mcp-directory's pattern). */
+  /** Display name and avatar, fetched with the caller's own token. */
   readonly userInfo: UserInfo;
   readonly onError?: (error: Error) => void;
   /** After a successful GET /articles/:id (app.ts AppDeps). Awaited in try/catch: it never changes the response. */
@@ -145,9 +145,9 @@ export type AppType = ReturnType<typeof createApi>;
 
 /**
  * Principal -> Viewer. The archive knows a `sub` and a role; display name and
- * avatar come from `GET /auth/api/users/:id` with the caller's OWN token, as
- * services/mcp-directory does — this app never holds a credential for user
- * data, and a banned user's token is refused there. A user-info outage
+ * avatar come from `GET /auth/api/users/:id` with the caller's OWN token. This
+ * app never holds a credential for user data, and a banned user's token is
+ * refused there. A user-info outage
  * degrades to id + role rather than failing the request. `undefined` -> null.
  */
 export async function viewerOf(

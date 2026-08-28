@@ -125,7 +125,7 @@ describe("bbs end to end (fake issuer, fixture corpus)", () => {
     }
     const refused = await legacyCall(
       MCP_RESOURCE,
-      await t.token(`${ORIGIN}/mcp/directory`),
+      await t.token(`${ORIGIN}/api/bbs`),
       fetch,
       "tools/list",
     );
@@ -160,7 +160,7 @@ describe("bbs against the real auth service", () => {
     }
     const refused = await legacyCall(
       MCP_RESOURCE,
-      await t.token(`${ORIGIN}/mcp/directory`),
+      await t.token(`${ORIGIN}/api/bbs`),
       fetch,
       "tools/list",
     );

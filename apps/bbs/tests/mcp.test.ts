@@ -34,7 +34,7 @@ describe("mcp", () => {
   });
 
   it("a token for another audience (mcp/directory, api/bbs) is refused: done-predicate 4", async () => {
-    for (const audience of [`${ORIGIN}/mcp/directory`, `${ORIGIN}/api/bbs`]) {
+    for (const audience of [`${ORIGIN}/api/bbs`]) {
       const res = await legacyCall(MCP_RESOURCE, await t.token(audience), fetch, "tools/list");
       expect(res.status, audience).toBe(401);
       expect(res.headers.get("www-authenticate")).toContain('error="invalid_token"');
