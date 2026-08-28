@@ -28,6 +28,7 @@
  *   Two workers by mistake: excluded at process start by the advisory lock (index.ts); every write above is
  *   keyed by (source_id, source_article_id) or a single row, so even then the corpus stays consistent.
  */
+import type { SQL } from "drizzle-orm";
 import { and, eq, isNull, notInArray, sql } from "drizzle-orm";
 
 import { renderArticleHtml } from "../content/render.ts";
@@ -78,6 +79,15 @@ export interface RunOutcome {
   refreshed: number;
   error: string | null;
 }
+
+/**
+ * A Date inside a raw sql`` fragment is NOT mapped by the column (drizzle only maps values it
+ * assigns to a column): postgres.js then sends it untyped as Date#toString(), which real Postgres
+ * rejects ("Fri Aug 28 2026 … (Coordinated Universal Time)") while PGlite accepts it. Every raw
+ * timestamp parameter goes through here: ISO text with an explicit cast.
+ */
+const ts = (d: Date): SQL => sql`${d.toISOString()}::timestamptz`;
+const tsOrNull = (d: Date | null): SQL => (d ? ts(d) : sql`NULL::timestamptz`);
 
 export interface Corpus {
   ensureSource(seed: { kind: string; name: string; siteUrl: string }, now: Date): Promise<void>;
@@ -184,7 +194,7 @@ export function createCorpus(db: BbsDb, sourceId: SourceId): Corpus {
         .update(sources)
         .set({
           lastCheckedAt: now,
-          initializedAt: sql`coalesce(${sources.initializedAt}, ${now})`,
+          initializedAt: sql`coalesce(${sources.initializedAt}, ${ts(now)})`,
           updatedAt: now,
         })
         .where(eq(sources.id, sourceId));
@@ -251,7 +261,7 @@ export function createCorpus(db: BbsDb, sourceId: SourceId): Corpus {
         const retryBefore = new Date(now.getTime() - FAILED_RETRY_MS);
         rungs.push(sql`(SELECT 2 AS rank, id, source_article_id, title, is_pinned, NULL::int AS page
           FROM articles WHERE source_id = ${sourceId}
-            AND (status = 'pending' OR (status = 'failed' AND updated_at < ${retryBefore}))
+            AND (status = 'pending' OR (status = 'failed' AND updated_at < ${ts(retryBefore)}))
           ORDER BY coalesce(published_at, discovered_at) DESC, listing_position ASC, id DESC LIMIT 1)`);
       }
       if (enabled.backfill) {
@@ -307,7 +317,7 @@ export function createCorpus(db: BbsDb, sourceId: SourceId): Corpus {
             title: detail.title,
             ...titleColumns(detail.title),
             author: sql`coalesce(${detail.author}, ${articles.author})`,
-            publishedAt: sql`coalesce(${detail.publishedAt}, ${articles.publishedAt})`,
+            publishedAt: sql`coalesce(${tsOrNull(detail.publishedAt)}, ${articles.publishedAt})`,
             introduction: sql`coalesce(${detail.introduction}, ${articles.introduction})`,
             isPinned: detail.isPinned,
             contentFormat: detail.format,
@@ -322,7 +332,9 @@ export function createCorpus(db: BbsDb, sourceId: SourceId): Corpus {
             fetchedAt: now,
             updatedAt: now,
             refreshRequestedAt: null,
-            contentChangedAt: changed ? now : sql`coalesce(${articles.contentChangedAt}, ${now})`,
+            contentChangedAt: changed
+              ? now
+              : sql`coalesce(${articles.contentChangedAt}, ${ts(now)})`,
           })
           .where(eq(articles.id, id));
 
@@ -459,7 +471,7 @@ export async function noteArticleRead(db: BbsDb, id: string, now: Date): Promise
         eq(articles.id, id),
         eq(articles.status, "fetched"),
         isNull(articles.refreshRequestedAt),
-        sql`coalesce(${articles.fetchedAt}, '-infinity'::timestamptz) < ${staleBefore}`,
+        sql`coalesce(${articles.fetchedAt}, '-infinity'::timestamptz) < ${ts(staleBefore)}`,
       ),
     )
     .returning({ id: articles.id });
