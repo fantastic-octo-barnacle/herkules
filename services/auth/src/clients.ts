@@ -32,16 +32,25 @@ export type Quirk = {
   readonly apply: (req: RegistrationRequest) => RegistrationRequest | Rejection;
 };
 
+const CURSOR_LEGACY_REDIRECT = "cursor://anysphere.cursor-mcp/oauth/callback";
+const CURSOR_CURRENT_REDIRECTS = new Set([
+  "https://www.cursor.com/agents/mcp/oauth/callback",
+  "http://localhost:8787/callback",
+]);
+
 /**
- * FRAME redirect allowlist. `vscode://` is listed for the record: Better Auth
- * rejects authority-bearing private schemes under both application types, so
- * VS Code must (and does, today) use its loopback redirect. Flagged in candidate.md.
+ * MCP client redirect allowlist. Desktop clients use loopback redirects. The
+ * two HTTPS entries are callbacks hosted by the clients themselves. `vscode://`
+ * is listed for the record: Better Auth rejects authority-bearing private
+ * schemes under both application types, so VS Code must use its loopback
+ * redirect.
  */
 export const REDIRECT_ALLOW: readonly RegExp[] = [
   /^http:\/\/localhost(:\d+)?\//,
   /^http:\/\/127\.0\.0\.1(:\d+)?\//,
   /^http:\/\/\[::1\](:\d+)?\//,
   /^https:\/\/claude\.ai\/api\/mcp\/auth_callback$/,
+  /^https:\/\/www\.cursor\.com\/agents\/mcp\/oauth\/callback$/,
   /^https:\/\/vscode\.dev\/redirect/,
   /^vscode:\/\//,
 ];
@@ -52,6 +61,24 @@ export const QUIRKS: readonly Quirk[] = [
     // Every DCR client we have is an IDE; native accepts loopback AND https, so always default to it.
     name: "native-by-default",
     apply: (req) => (req.application_type ? req : { ...req, application_type: "native" }),
+  },
+  {
+    // Cursor's DCR rollout can still send its retired custom-scheme callback beside the current
+    // web and desktop callbacks. Better Auth correctly rejects that authority-bearing scheme.
+    // Drop only this exact URI, and only when Cursor also supplied a current safe callback.
+    name: "cursor-current-redirects",
+    apply: (req) => {
+      if (
+        !req.redirect_uris.includes(CURSOR_LEGACY_REDIRECT) ||
+        !req.redirect_uris.some((uri) => CURSOR_CURRENT_REDIRECTS.has(uri))
+      ) {
+        return req;
+      }
+      return {
+        ...req,
+        redirect_uris: req.redirect_uris.filter((uri) => uri !== CURSOR_LEGACY_REDIRECT),
+      };
+    },
   },
   {
     name: "redirect-allowlist",

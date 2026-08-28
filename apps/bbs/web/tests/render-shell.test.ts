@@ -77,11 +77,23 @@ describe("McpGuide", () => {
   });
 
   it("covers every documented client and the Copilot CLI stopgap", () => {
-    for (const client of ["Claude Code", "VS Code", "Codex", "GitHub Copilot CLI"]) {
+    for (const client of [
+      "Claude Code",
+      "Cursor",
+      "VS Code",
+      "Codex",
+      "Zed",
+      "Gemini CLI",
+      "GitHub Copilot CLI",
+    ]) {
       expect(html).toContain(client);
     }
     expect(html).toContain("codex mcp login rm-wenku");
+    expect(html).toContain(".cursor/mcp.json");
     expect(html).toContain(".vscode/mcp.json");
+    expect(html).toContain("&quot;context_servers&quot;");
+    expect(html).toContain("gemini mcp add --transport http --scope user rm-wenku");
+    expect(html).toContain("/mcp auth rm-wenku");
     expect(html).toContain("https://herkules.dev/dev-token"); // the only manual-token path
   });
 });

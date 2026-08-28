@@ -479,6 +479,42 @@ describe("user-info API and clients", () => {
     expect(await res.json()).toMatchObject({ error: "invalid_redirect_uri" });
   });
 
+  test("Cursor, Zed and Gemini CLI can dynamically register", async () => {
+    const clients = [
+      {
+        name: "Cursor",
+        redirect_uris: [
+          "cursor://anysphere.cursor-mcp/oauth/callback",
+          "https://www.cursor.com/agents/mcp/oauth/callback",
+          "http://localhost:8787/callback",
+        ],
+        registered_redirect_uris: [
+          "https://www.cursor.com/agents/mcp/oauth/callback",
+          "http://localhost:8787/callback",
+        ],
+      },
+      { name: "Zed", redirect_uris: ["http://127.0.0.1:49152/callback"] },
+      { name: "Gemini CLI", redirect_uris: ["http://localhost:49153/oauth/callback"] },
+    ];
+
+    for (const client of clients) {
+      const res = await t.fetch("/auth/oauth2/register", {
+        method: "POST",
+        ...json({
+          client_name: client.name,
+          redirect_uris: client.redirect_uris,
+          token_endpoint_auth_method: "none",
+        }),
+      });
+      expect(res.status, client.name).toBe(201);
+      expect(await res.json()).toMatchObject({
+        client_name: client.name,
+        redirect_uris: client.registered_redirect_uris ?? client.redirect_uris,
+        application_type: "native",
+      });
+    }
+  });
+
   test("dev token: the first-party herkules-web client skips consent and issues no refresh token", async () => {
     const reg = (await (await t.fetch("/auth/api/registry", { cookie: alice.cookie })).json()) as {
       devTokenClientId: string;

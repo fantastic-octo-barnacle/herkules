@@ -2,10 +2,10 @@
  * The MCP guide. Its own module (router-free, testable) and the single place the
  * endpoint URL is written — /about links here rather than repeating the command.
  *
- * One subsection per client because the clients differ in the only thing that
- * matters: how they sign in. Claude Code, VS Code and Codex all run OAuth on
- * their own; Copilot CLI cannot, and saying so plainly is more useful than a
- * config block that would fail at the first request.
+ * One subsection per client because each client stores MCP configuration in a
+ * different place. Supported clients run OAuth themselves. Copilot CLI cannot,
+ * and saying so plainly is more useful than a config block that fails at the
+ * first request.
  */
 import "./account.css";
 
@@ -21,8 +21,22 @@ const VSCODE_JSON = `{
   }
 }`;
 
+const CURSOR_JSON = `{
+  "mcpServers": {
+    "rm-wenku": { "url": "${MCP_URL}" }
+  }
+}`;
+
+const ZED_JSON = `{
+  "context_servers": {
+    "rm-wenku": { "url": "${MCP_URL}" }
+  }
+}`;
+
 const CODEX_ADD = `codex mcp add rm-wenku --url ${MCP_URL}
 codex mcp login rm-wenku`;
+
+const GEMINI_ADD = `gemini mcp add --transport http --scope user rm-wenku ${MCP_URL}`;
 
 const COPILOT_JSON = `{
   "mcpServers": {
@@ -51,7 +65,15 @@ export function McpGuide() {
       <pre>
         <code>{MCP_ADD}</code>
       </pre>
-      <p className="meta">Cursor 的远程服务器配置同理，填入同一个地址即可。</p>
+
+      <h3>Cursor</h3>
+      <p>
+        写入项目的 <code>.cursor/mcp.json</code>，或写入全局的 <code>~/.cursor/mcp.json</code>
+        。保存后打开 Customize → MCPs，在 <code>rm-wenku</code> 上点击连接并完成登录。
+      </p>
+      <pre>
+        <code>{CURSOR_JSON}</code>
+      </pre>
 
       <h3>VS Code（1.106 及以上）</h3>
       <p>
@@ -74,6 +96,24 @@ export function McpGuide() {
         Streamable HTTP，填入地址后保存，重启扩展，再点击授权。
       </p>
 
+      <h3>Zed</h3>
+      <p>
+        在 Agent 设置页点击 Add Server → Add Remote Server 并填入地址，或把下面的配置写入 Zed 的{" "}
+        <code>settings.json</code>。不要添加 Authorization 请求头，Zed 会自动打开本站的登录页。
+      </p>
+      <pre>
+        <code>{ZED_JSON}</code>
+      </pre>
+
+      <h3>Gemini CLI</h3>
+      <p>
+        下面的命令把服务器写入用户配置。启动 Gemini CLI 后执行 <code>/mcp auth rm-wenku</code>
+        ，浏览器会打开登录页。
+      </p>
+      <pre>
+        <code>{GEMINI_ADD}</code>
+      </pre>
+
       <h3>GitHub Copilot CLI</h3>
       <p>
         暂不支持。Copilot CLI 对远程服务器没有登录流程，只能发送固定的请求头，而本站不签发长期令牌。
@@ -86,7 +126,7 @@ export function McpGuide() {
       </pre>
 
       <p className="meta">
-        首次连接时助手会打开浏览器完成登录；除 Copilot CLI 外都不需要手动配置令牌。
+        首次连接时客户端会打开浏览器完成登录；除 Copilot CLI 外都不需要手动配置令牌。
       </p>
     </section>
   );

@@ -17,6 +17,33 @@ describe("registration quirks", () => {
     });
   });
 
+  test("Cursor's retired callback is dropped when a current callback is present", () => {
+    expect(
+      applyQuirks({
+        client_name: "Cursor",
+        redirect_uris: [
+          "cursor://anysphere.cursor-mcp/oauth/callback",
+          "https://www.cursor.com/agents/mcp/oauth/callback",
+          "http://localhost:8787/callback",
+        ],
+      }),
+    ).toEqual({
+      client_name: "Cursor",
+      redirect_uris: [
+        "https://www.cursor.com/agents/mcp/oauth/callback",
+        "http://localhost:8787/callback",
+      ],
+      application_type: "native",
+    });
+
+    expect(
+      applyQuirks({
+        client_name: "Old Cursor",
+        redirect_uris: ["cursor://anysphere.cursor-mcp/oauth/callback"],
+      }),
+    ).toMatchObject({ error: "invalid_redirect_uri" });
+  });
+
   test("every redirect_uri must match the allowlist", () => {
     expect(
       applyQuirks({ redirect_uris: ["http://127.0.0.1:9/cb", "https://evil.example/cb"] }),
@@ -24,14 +51,18 @@ describe("registration quirks", () => {
       error: "invalid_redirect_uri",
       error_description: "redirect_uri not permitted: https://evil.example/cb",
     });
-    for (const ok of [
-      "http://[::1]:5/cb",
-      "https://vscode.dev/redirect?x=1",
-      "vscode://ms.ext/cb",
-    ]) {
+    const supportedClientRedirects = {
+      cursorDesktop: "http://localhost:8787/callback",
+      cursorWeb: "https://www.cursor.com/agents/mcp/oauth/callback",
+      geminiCli: "http://localhost:49152/oauth/callback",
+      vscodeWeb: "https://vscode.dev/redirect?x=1",
+      vscodePrivateScheme: "vscode://ms.ext/cb",
+      zed: "http://[::1]:54321/callback",
+    };
+    for (const [client, redirect] of Object.entries(supportedClientRedirects)) {
       expect(
-        REDIRECT_ALLOW.some((re) => re.test(ok)),
-        ok,
+        REDIRECT_ALLOW.some((re) => re.test(redirect)),
+        client,
       ).toBe(true);
     }
     expect(REDIRECT_ALLOW.some((re) => re.test("http://localhost.evil.example/cb"))).toBe(false);
