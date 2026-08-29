@@ -12,6 +12,7 @@ import {
 } from "@herkules/ui/components/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { ConfirmDialog } from "../confirm.tsx";
 import { formatDate, relative, resourceName, shortId } from "../format.ts";
 import { Empty, Eyebrow, Lede, Loading, PageTitle, SectionTitle, Sub } from "../layout.tsx";
 import { ErrorNotice } from "../notices.tsx";
@@ -88,18 +89,21 @@ export function SettingsPage() {
                   <TableCell title={formatDate(c.consentedAt)}>{relative(c.consentedAt)}</TableCell>
                   <TableCell title={formatDate(c.lastTokenAt)}>{relative(c.lastTokenAt)}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={disconnect.isPending && disconnect.variables === c.clientId}
-                      onClick={() => {
-                        const name = c.name ?? shortId(c.clientId);
-                        if (confirm(`Disconnect ${name}? It will have to ask for access again.`))
-                          disconnect.mutate(c.clientId);
-                      }}
-                    >
-                      Disconnect
-                    </Button>
+                    <ConfirmDialog
+                      trigger={
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={disconnect.isPending && disconnect.variables === c.clientId}
+                        >
+                          Disconnect
+                        </Button>
+                      }
+                      title={`Disconnect ${c.name ?? shortId(c.clientId)}?`}
+                      description="It loses access immediately and has to ask again the next time it needs a token. A token already issued expires within 15 minutes."
+                      confirmLabel="Disconnect"
+                      onConfirm={() => disconnect.mutate(c.clientId)}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

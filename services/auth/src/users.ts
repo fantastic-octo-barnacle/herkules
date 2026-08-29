@@ -249,6 +249,16 @@ export function createUsers(deps: UsersDeps): Users {
         if (previous === "admin" && !u.banned && (await tx.users.countActiveAdmins()) <= 1) {
           throw new UsersError(409, "last_admin", "cannot demote the last admin");
         }
+        /**
+         * Losing your own admin is not undoable by you. Checked AFTER last_admin
+         * on purpose: an admin demoting another admin always leaves two active
+         * admins, so last_admin is reachable only through this same call, and
+         * reversing the order would make it dead code. A system actor (a job)
+         * still passes both.
+         */
+        if (role !== "admin" && actor.kind === "user" && actor.userId === userId) {
+          throw new UsersError(403, "self_demote", "cannot demote yourself");
+        }
         await tx.users.update(userId, { role });
         return { type: "admin.role_set", actor, userId, role, previous };
       }),

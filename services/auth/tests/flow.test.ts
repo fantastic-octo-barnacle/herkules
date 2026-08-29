@@ -254,7 +254,7 @@ describe("admin operations", () => {
     if (again.ok) alice = again;
   });
 
-  test("role changes, last-admin and self-disable guards", async () => {
+  test("role changes, last-admin, self-demote and self-disable guards", async () => {
     const demote = await t.fetch(`/auth/api/admin/users/${root.userId}/role`, {
       method: "PUT",
       cookie: root.cookie,
@@ -293,6 +293,14 @@ describe("admin operations", () => {
     expect(
       list.rows.map((r) => `${r.githubLogin}:${r.role}`).sort((a, b) => a.localeCompare(b)),
     ).toEqual(["alice:admin", "root:admin"]);
+    // Two active admins, so last_admin cannot fire: demoting yourself is its own refusal.
+    const selfDemote = await t.fetch(`/auth/api/admin/users/${root.userId}/role`, {
+      method: "PUT",
+      cookie: root.cookie,
+      ...json({ role: "member" }),
+    });
+    expect(selfDemote.status).toBe(403);
+    expect(await selfDemote.json()).toMatchObject({ error: "self_demote" });
     expect(
       await (
         await t.fetch(`/auth/api/admin/users/${alice.userId}/role`, {
