@@ -29,7 +29,7 @@ export function HomePage() {
           <ServiceCard
             key={service.id}
             service={service}
-            locked={service.access === "member" && !session}
+            locked={service.access === "member" && session === null}
           />
         ))}
       </div>
