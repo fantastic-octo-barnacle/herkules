@@ -1,4 +1,7 @@
-/** Header, nav and the page column every signed-in screen sits in. */
+/**
+ * Header, nav and the page column every screen sits in — the public landing
+ * page included, so everything below the brand is conditional on a session.
+ */
 import { Avatar, AvatarFallback, AvatarImage } from "@herkules/ui/components/avatar";
 import { Button } from "@herkules/ui/components/button";
 import { Link, Outlet } from "@tanstack/react-router";
@@ -26,41 +29,53 @@ export function Shell() {
         </Link>
         <span className="font-mono text-xs text-muted-foreground">{location.origin}/auth</span>
         <nav className="ml-auto flex flex-wrap items-baseline gap-4" aria-label="Main">
-          <Link to="/" activeOptions={{ exact: true }} className={NAV} activeProps={ACTIVE}>
-            Settings
-          </Link>
-          <Link to="/dev-token" className={NAV} activeProps={ACTIVE}>
-            Dev token
-          </Link>
-          {isAdmin ? (
-            <>
-              <Link
-                to="/admin"
-                activeOptions={{ exact: true }}
-                className={NAV}
-                activeProps={ACTIVE}
-              >
-                Members
-              </Link>
-              <Link to="/admin/allowlist" className={NAV} activeProps={ACTIVE}>
-                Allowlist
-              </Link>
-              <Link to="/admin/audit" className={NAV} activeProps={ACTIVE}>
-                Audit
-              </Link>
-            </>
-          ) : null}
           {session ? (
-            <span className="inline-flex items-center gap-2 text-ink-2">
-              <Avatar size="sm">
-                <AvatarImage src={session.user.image ?? undefined} alt="" />
-                <AvatarFallback />
-              </Avatar>
-              <Button variant="outline" size="sm" onClick={signOut}>
-                Sign out
+            <>
+              <Link to="/settings" className={NAV} activeProps={ACTIVE}>
+                Settings
+              </Link>
+              <Link to="/dev-token" className={NAV} activeProps={ACTIVE}>
+                Dev token
+              </Link>
+              {isAdmin ? (
+                <>
+                  <Link
+                    to="/admin"
+                    activeOptions={{ exact: true }}
+                    className={NAV}
+                    activeProps={ACTIVE}
+                  >
+                    Members
+                  </Link>
+                  <Link to="/admin/allowlist" className={NAV} activeProps={ACTIVE}>
+                    Allowlist
+                  </Link>
+                  <Link to="/admin/audit" className={NAV} activeProps={ACTIVE}>
+                    Audit
+                  </Link>
+                </>
+              ) : null}
+              <span className="inline-flex items-center gap-2 text-ink-2">
+                <Avatar size="sm">
+                  <AvatarImage src={session.user.image ?? undefined} alt="" />
+                  <AvatarFallback />
+                </Avatar>
+                <Button variant="outline" size="sm" onClick={signOut}>
+                  Sign out
+                </Button>
+              </span>
+            </>
+          ) : (
+            // `undefined` is the session query still in flight: render nothing rather
+            // than flashing "Sign in" at somebody who turns out to be signed in.
+            session === null && (
+              <Button size="sm" asChild>
+                <Link to="/login" className="hover:no-underline">
+                  Sign in
+                </Link>
               </Button>
-            </span>
-          ) : null}
+            )
+          )}
         </nav>
       </header>
       <main className="mx-auto w-[min(100%-3rem,var(--measure))] flex-1 pt-8 pb-16">

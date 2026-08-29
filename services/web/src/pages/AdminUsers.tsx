@@ -15,9 +15,10 @@ import {
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { ConfirmDialog } from "../confirm.tsx";
 import { formatDate, relative } from "../format.ts";
 import { Empty, Eyebrow, Lede, Loading, PageTitle, Sub } from "../layout.tsx";
-import { ErrorNotice } from "../notices.tsx";
+import { ErrorNotice, Notice } from "../notices.tsx";
 import { useSession } from "../session.tsx";
 
 const ADMITTED: Record<string, string> = {
@@ -40,10 +41,19 @@ export function AdminUsersPage() {
     queryFn: ({ pageParam }) => api.admin.users({ search: query || undefined, cursor: pageParam }),
     getNextPageParam: (last) => last.next,
   });
-  /** One audited call, then the list reloads. `variables.id` marks the busy row. */
+  /**
+   * One audited call, then the list reloads. `variables.id` marks the busy row.
+   * A `run` that resolves to a string reports it above the table — the count
+   * from "sign out everywhere" is the only outcome the row itself cannot show.
+   */
+  const [result, setResult] = useState<string | undefined>();
   const act = useMutation({
     mutationFn: ({ run }: { id: string; run: () => Promise<unknown> }) => run(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+    onMutate: () => setResult(undefined),
+    onSuccess: (message) => {
+      if (typeof message === "string") setResult(message);
+      return queryClient.invalidateQueries({ queryKey: KEY });
+    },
   });
   const busyId = act.isPending ? act.variables.id : undefined;
 
@@ -73,6 +83,7 @@ export function AdminUsersPage() {
         </Button>
       </form>
       <ErrorNotice error={users.error ?? act.error} />
+      {result ? <Notice kind="ok">{result}</Notice> : null}
       <div className="rounded-md border border-line bg-surface">
         <Table>
           <TableHeader>
@@ -116,35 +127,64 @@ export function AdminUsersPage() {
                 <TableCell title={formatDate(u.lastLoginAt)}>{relative(u.lastLoginAt)}</TableCell>
                 <TableCell className="text-right tabular-nums">{u.connectedClients}</TableCell>
                 <TableCell className="space-x-1 text-right whitespace-nowrap">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busyId === u.id}
-                    onClick={() =>
-                      act.mutate({
-                        id: u.id,
-                        run: () => api.admin.setRole(u.id, u.role === "admin" ? "member" : "admin"),
-                      })
+                  {/* Your own role is not yours to change: users.setRole refuses it (self_demote). */}
+                  {u.id === me ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled
+                      title="You cannot demote yourself. Ask another admin."
+                    >
+                      Make member
+                    </Button>
+                  ) : (
+                    <ConfirmDialog
+                      trigger={
+                        <Button variant="outline" size="sm" disabled={busyId === u.id}>
+                          {u.role === "admin" ? "Make member" : "Make admin"}
+                        </Button>
+                      }
+                      title={
+                        u.role === "admin"
+                          ? `Make ${u.displayName} a member?`
+                          : `Make ${u.displayName} an admin?`
+                      }
+                      description={
+                        u.role === "admin"
+                          ? "They lose Members, Allowlist and Audit immediately. Their sessions and connected clients are untouched."
+                          : "They gain Members, Allowlist and Audit, and can disable or promote anyone here — you included."
+                      }
+                      confirmLabel={u.role === "admin" ? "Make member" : "Make admin"}
+                      destructive={u.role === "admin"}
+                      onConfirm={() =>
+                        act.mutate({
+                          id: u.id,
+                          run: () =>
+                            api.admin.setRole(u.id, u.role === "admin" ? "member" : "admin"),
+                        })
+                      }
+                    />
+                  )}
+                  <ConfirmDialog
+                    trigger={
+                      <Button variant="outline" size="sm" disabled={busyId === u.id}>
+                        Sign out everywhere
+                      </Button>
                     }
-                  >
-                    {u.role === "admin" ? "Make member" : "Make admin"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busyId === u.id}
-                    onClick={() =>
+                    title={`Sign ${u.displayName} out everywhere?`}
+                    description="Every browser session ends at once. Connected clients keep their access, and a token already issued expires within 15 minutes."
+                    confirmLabel="Sign out everywhere"
+                    destructive={false}
+                    onConfirm={() =>
                       act.mutate({
                         id: u.id,
                         run: async () => {
                           const r = await api.admin.revokeSessions(u.id);
-                          alert(`${u.displayName}: ${r.count} browser session(s) ended.`);
+                          return `${u.displayName}: ${r.count} browser session(s) ended.`;
                         },
                       })
                     }
-                  >
-                    Sign out everywhere
-                  </Button>
+                  />
                   {u.disabled ? (
                     <Button
                       variant="outline"
@@ -156,23 +196,33 @@ export function AdminUsersPage() {
                     >
                       Enable
                     </Button>
-                  ) : (
+                  ) : u.id === me ? (
                     <Button
                       variant="destructive"
                       size="sm"
-                      disabled={busyId === u.id || u.id === me}
-                      title={u.id === me ? "You cannot disable yourself" : undefined}
-                      onClick={() => {
-                        const reason = prompt(`Disable ${u.displayName}? Reason (optional):`);
-                        if (reason === null) return;
-                        act.mutate({
-                          id: u.id,
-                          run: () => api.admin.setDisabled(u.id, true, reason || undefined),
-                        });
-                      }}
+                      disabled
+                      title="You cannot disable yourself"
                     >
                       Disable
                     </Button>
+                  ) : (
+                    <ConfirmDialog
+                      trigger={
+                        <Button variant="destructive" size="sm" disabled={busyId === u.id}>
+                          Disable
+                        </Button>
+                      }
+                      title={`Disable ${u.displayName}?`}
+                      description="Every session and connected client ends at once and they cannot sign in again. A token already issued expires within 15 minutes."
+                      confirmLabel="Disable"
+                      field={{ label: "Reason (optional)", placeholder: "left the team" }}
+                      onConfirm={(reason) =>
+                        act.mutate({
+                          id: u.id,
+                          run: () => api.admin.setDisabled(u.id, true, reason),
+                        })
+                      }
+                    />
                   )}
                 </TableCell>
               </TableRow>

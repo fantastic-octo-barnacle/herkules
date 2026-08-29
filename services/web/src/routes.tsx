@@ -1,6 +1,8 @@
 /**
- * The URL contract of the SPA in one file. Guards are routing, not rendering:
- * the `authed` layout's `beforeLoad` settles the session query and redirects
+ * The URL contract of the SPA in one file. Two pathless layouts stack: `app`
+ * owns the shell, which the public landing page and every signed-in screen
+ * share; `authed` sits inside it and owns the guard. Guards are routing, not
+ * rendering — `authed`'s `beforeLoad` settles the session query and redirects
  * to /login?next=<here> when nobody is signed in; the admin layout renders a
  * refusal for non-admins.
  */
@@ -21,6 +23,7 @@ import { AdminAuditPage } from "./pages/AdminAudit.tsx";
 import { AdminUsersPage } from "./pages/AdminUsers.tsx";
 import { ConsentPage } from "./pages/Consent.tsx";
 import { DevTokenCallbackPage, DevTokenPage } from "./pages/DevToken.tsx";
+import { HomePage } from "./pages/Home.tsx";
 import { LoginPage } from "./pages/Login.tsx";
 import { SettingsPage } from "./pages/Settings.tsx";
 import { sessionQuery, useSession } from "./session.tsx";
@@ -47,9 +50,24 @@ export const consentRoute = createRoute({
   component: ConsentPage,
 });
 
+/** The shell — one header for the public landing page and the signed-in screens alike. */
+export const appRoute = createRoute({
+  getParentRoute: parent,
+  id: "app",
+  component: Shell,
+});
+const app = () => appRoute;
+
+/** Public. The one screen that renders with or without a session. */
+export const homeRoute = createRoute({
+  getParentRoute: app,
+  path: "/",
+  component: HomePage,
+});
+
 /** Signed-in only. Unauthenticated visitors go to /login?next=<here>. */
 export const authedRoute = createRoute({
-  getParentRoute: parent,
+  getParentRoute: app,
   id: "authed",
   beforeLoad: async ({ context: { queryClient, api }, location }) => {
     const session = await queryClient.ensureQueryData(sessionQuery(api));
@@ -60,16 +78,11 @@ export const authedRoute = createRoute({
         replace: true,
       });
   },
-  component: Shell,
+  component: Outlet,
 });
 const authed = () => authedRoute;
 
 export const settingsRoute = createRoute({
-  getParentRoute: authed,
-  path: "/",
-  component: SettingsPage,
-});
-export const settingsAliasRoute = createRoute({
   getParentRoute: authed,
   path: "/settings",
   component: SettingsPage,
@@ -117,9 +130,9 @@ export const adminAuditRoute = createRoute({
   component: AdminAuditPage,
 });
 
-/** Anything else, still behind the sign-in and inside the shell. */
+/** Anything else, inside the shell. Public: a wrong address is not a reason to demand a sign-in. */
 export const catchAllRoute = createRoute({
-  getParentRoute: authed,
+  getParentRoute: app,
   path: "$",
   component: () => <Empty>There is nothing at this address.</Empty>,
 });
@@ -127,12 +140,14 @@ export const catchAllRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   consentRoute,
-  authedRoute.addChildren([
-    settingsRoute,
-    settingsAliasRoute,
-    devTokenRoute,
-    devTokenCallbackRoute,
-    adminRoute.addChildren([adminUsersRoute, adminAllowlistRoute, adminAuditRoute]),
+  appRoute.addChildren([
+    homeRoute,
+    authedRoute.addChildren([
+      settingsRoute,
+      devTokenRoute,
+      devTokenCallbackRoute,
+      adminRoute.addChildren([adminUsersRoute, adminAllowlistRoute, adminAuditRoute]),
+    ]),
     catchAllRoute,
   ]),
 ]);

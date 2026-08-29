@@ -13,6 +13,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { ConfirmDialog } from "../confirm.tsx";
 import { formatDate } from "../format.ts";
 import { Empty, Eyebrow, Lede, Loading, PageTitle } from "../layout.tsx";
 import { resolveMembers } from "../members.ts";
@@ -123,21 +124,17 @@ export function AdminAllowlistPage() {
                     {formatDate(e.addedAt)} by {allowlist.data.names.get(e.addedBy) ?? e.addedBy}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => {
-                        if (
-                          confirm(
-                            `Remove ${e.githubLogin} from the allowlist? They keep access only while in the organization.`,
-                          )
-                        )
-                          remove.mutate(e.githubLogin);
-                      }}
-                    >
-                      Remove
-                    </Button>
+                    <ConfirmDialog
+                      trigger={
+                        <Button variant="destructive" size="sm" disabled={busy}>
+                          Remove
+                        </Button>
+                      }
+                      title={`Remove ${e.githubLogin} from the allowlist?`}
+                      description="From the next sign-in they are admitted only as a member of the team's organization. Their current session is not ended."
+                      confirmLabel="Remove"
+                      onConfirm={() => remove.mutate(e.githubLogin)}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
