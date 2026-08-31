@@ -5,6 +5,7 @@
  *   node dist/main.mjs                     serve: ensureDatabase, migrate (idempotent), rederive if stale, listen
  *   node dist/main.mjs migrate             manual one-shot (docker compose run --rm bbs migrate); serve migrates at boot anyway
  *   node dist/main.mjs work [--once]       the bbs-worker container / the manual check   (crawl/cli.ts)
+ *   node dist/main.mjs bot                 the Feishu bot process                         (bot/cli.ts)
  *   node dist/main.mjs rederive [--force]  recompute derived columns                     (crawl/cli.ts)
  *   node dist/main.mjs import <app.db>     DEPRECATED: the cutover tool and dev loader    (import/cli.ts)
  *
@@ -23,6 +24,7 @@ import { honoOAuth } from "@herkules/oauth-client/hono";
 import { sql } from "drizzle-orm";
 
 import { createApp } from "./app.ts";
+import { runBotCli } from "./bot/cli.ts";
 import { RESOURCE_NAME, loadConfig } from "./config.ts";
 import { runMigrateCli, runRederiveCli, runWorkCli } from "./crawl/cli.ts";
 import { noteArticleRead } from "./crawl/index.ts";
@@ -47,6 +49,7 @@ export interface ServiceDeps {
 }
 
 const COMMANDS: Record<string, (argv: readonly string[]) => Promise<number>> = {
+  bot: (a) => runBotCli(a, { env: process.env }),
   import: (a) => runImportCli(a, { env: process.env }),
   migrate: (a) => runMigrateCli(a, { env: process.env }),
   rederive: (a) => runRederiveCli(a, { env: process.env }),
@@ -128,8 +131,10 @@ export async function createService(deps: ServiceDeps = {}) {
 }
 
 export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<void> {
-  const command = argv[0] === undefined ? undefined : COMMANDS[argv[0]];
+  const name = argv[0];
+  const command = name === undefined ? undefined : COMMANDS[name];
   if (command) process.exit(await command(argv.slice(1)));
+  if (name !== undefined) throw new TypeError(`unknown bbs command: ${name}`);
   const service = await createService();
   const server = serve({ fetch: service.app.fetch, port: service.config.port }, (info) => {
     console.log(

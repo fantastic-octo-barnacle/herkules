@@ -43,7 +43,10 @@ function attach(d: Drizzle, host: BbsDb["host"], close: () => Promise<void>): Bb
 }
 
 /** Boundary: DATABASE_URL -> a connected handle. TypeError on an unknown scheme, at boot. */
-export async function createDb(databaseUrl: string): Promise<BbsDb> {
+export async function createDb(
+  databaseUrl: string,
+  options: { readonly max?: number } = {},
+): Promise<BbsDb> {
   if (databaseUrl.startsWith("pglite://")) {
     const { PGlite } = await import("@electric-sql/pglite");
     const { pg_trgm } = await import("@electric-sql/pglite/contrib/pg_trgm");
@@ -60,9 +63,9 @@ export async function createDb(databaseUrl: string): Promise<BbsDb> {
   if (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://")) {
     const { default: postgres } = await import("postgres");
     const { drizzle } = await import("drizzle-orm/postgres-js");
-    // max 5: the import's batches and the API share one pool; one container in v1.
+    // The bot passes max 2; HTTP/import keep the original five-connection pool.
     const client = postgres(databaseUrl, {
-      max: 5,
+      max: options.max ?? 5,
       onnotice: (notice) => {
         if (!EXPECTED_MIGRATION_NOTICE_CODES.has(notice.code)) console.log(notice);
       },

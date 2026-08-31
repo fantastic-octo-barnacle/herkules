@@ -1,6 +1,6 @@
 # RM 文库
 
-`@herkules/bbs` is the archive and search application at `https://bbs.herkules.dev`. One Hono process serves the API, the MCP endpoint, browser OAuth routes, the built TanStack SPA, and page metadata. It stores the corpus in its own Postgres database. The crawler runs from the same image as a separate `bbs-worker` command.
+`@herkules/bbs` is the archive and search application at `https://bbs.herkules.dev`. One Hono process serves the API, the MCP endpoint, browser OAuth routes, the built TanStack SPA, and page metadata. It stores the corpus in its own Postgres database. The crawler and Feishu bot run from the same image as separate `work` and `bot` commands.
 
 The web UI has its own README, owned separately: [`web/README.md`](web/README.md).
 
@@ -16,7 +16,26 @@ vp check
 vp run build
 ```
 
-The config default is port 3003. The checked-in `.env.example` sets Hono to 3103 so the SPA dev server can own port 3003 and proxy through `web/vite.config.ts`. One image, four commands, dispatched in `src/main.ts`: serve (the default), `migrate`, `work [--once]` for the worker, and `import`, the deprecated cutover tool and dev loader. Deployment, worker startup, import, cutover, and backup commands live in [`../../tools/deploy/README.md`](../../tools/deploy/README.md).
+The config default is port 3003. The checked-in `.env.example` sets Hono to 3103 so the SPA dev server can own port 3003 and proxy through `web/vite.config.ts`. One image, six commands, dispatched in `src/main.ts`: serve (the default), `migrate`, `work [--once]`, `bot`, `rederive`, and `import`, the deprecated cutover tool and dev loader. Deployment, worker startup, bot setup, import, cutover, and backup commands live in [`../../tools/deploy/README.md`](../../tools/deploy/README.md).
+
+## Feishu bot
+
+`bbs bot` connects an internal self-built Feishu app through a WebSocket long connection. It has
+no public callback route. In groups, mention the bot and send `搜索 <terms>`, `search <terms>`, or
+`help`. In a direct message, ordinary text is a search query. Replies use the same deterministic
+`Library.search()` result order as the site and return at most five BBS links.
+
+One configured group receives new-article announcements. The first connected boot records the
+existing corpus as its baseline. Later fetched and indexed posts get at most three immediate
+messages per Hong Kong day; overflow becomes one digest at 09:00 the following day. Bot state,
+inbound deduplication, payloads, attempts, and retry UUIDs live in Postgres and survive restarts.
+
+For local use, create `.env.bot` from the commented block in [`.env.example`](.env.example), make
+sure the normal BBS process has applied migrations, then run `vp run bot`. Production setup and
+the separate `.env.bot` file are documented in
+[`../../tools/deploy/.env.example`](../../tools/deploy/.env.example). The announcement chat ID is
+fixed at first activation; changing the configured ID later makes the bot exit instead of moving
+pending messages to another group.
 
 ## Decisions that bind
 

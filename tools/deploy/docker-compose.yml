@@ -1,6 +1,6 @@
 # Production stack on the HK VPS. Lives at ~/herkules on the box together with
-# Caddyfile, caddy/services/*.caddy and the three env files (never committed):
-# .env (compose interpolation), .env.auth and .env.backup (per-container secrets).
+# Caddyfile, caddy/services/*.caddy and the four env files (never committed):
+# .env (compose interpolation), .env.auth, .env.bot and .env.backup (per-container secrets).
 #   docker compose pull && docker compose up -d --remove-orphans
 # Dev on a laptop: add -f docker-compose.dev.yml (builds locally, http://localhost:3000).
 name: herkules
@@ -100,6 +100,27 @@ services:
     mem_limit: 256m
     restart: unless-stopped
     stop_grace_period: 30s # SIGTERM aborts sleeps; a fetch in flight (<=15 s) finishes; transactions are atomic
+
+  # Feishu WebSocket bot. The HTTP process migrates first; this process owns no port and holds a
+  # dedicated Postgres advisory lock before it connects or sends.
+  bbs-bot:
+    image: ${IMAGE_PREFIX}/bbs:${IMAGE_TAG:-latest}
+    command: ["bot"]
+    env_file: .env.bot
+    environment:
+      APP_ORIGIN: ${BBS_ORIGIN}
+      DATABASE_URL: postgres://herkules:${POSTGRES_PASSWORD}@postgres:5432/bbs
+      NODE_ENV: production
+    healthcheck:
+      disable: true
+    depends_on:
+      bbs:
+        condition: service_healthy
+    deploy:
+      replicas: 1
+    mem_limit: 256m
+    restart: unless-stopped
+    stop_grace_period: 30s
 
   postgres:
     image: postgres:17-alpine

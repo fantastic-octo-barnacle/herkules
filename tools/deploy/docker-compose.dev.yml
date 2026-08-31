@@ -18,6 +18,12 @@ services:
     build:
       context: ../..
       target: bbs
+  bbs-bot:
+    build:
+      context: ../..
+      target: bbs
+    deploy:
+      replicas: 0
   backup:
     build:
       context: ../..
