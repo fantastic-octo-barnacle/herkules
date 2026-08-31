@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ready": "vp run -r build && vp check && vp run -r test",
+    "ready": "vp run -r build && vp check && vp run -r test && vp run test:deploy",
+    "test:deploy": "node --test tools/deploy/image-targets.verify.mjs && sh tools/deploy/backup/backup.test.sh",
     "prepare": "vp config"
   },
   "devDependencies": {

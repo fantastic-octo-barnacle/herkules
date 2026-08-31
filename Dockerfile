@@ -65,6 +65,10 @@ FROM alpine:3.23 AS backup
 RUN apk add --no-cache postgresql17-client
 COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
 COPY tools/deploy/backup/backup.sh /usr/local/bin/backup
+COPY tools/deploy/backup/entrypoint.sh /usr/local/bin/backup-entrypoint
 COPY tools/deploy/backup/crontab /etc/crontabs/root
-RUN chmod +x /usr/local/bin/backup
+RUN chmod +x /usr/local/bin/backup /usr/local/bin/backup-entrypoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD test -f /tmp/backup-preflight-ok || exit 1
+ENTRYPOINT ["/usr/local/bin/backup-entrypoint"]
 CMD ["crond", "-f", "-l", "2"]

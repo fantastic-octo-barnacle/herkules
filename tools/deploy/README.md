@@ -66,10 +66,12 @@ container. The Caddyfile is still bind-mounted, so a routing change is `scp` +
 
 Push to `main` and wait for CI. `.github/workflows/images.yml` no longer runs on
 the push itself: it triggers on `ci.yml` completing successfully for that commit
-(`workflow_run`), so a red build never reaches the box. It then builds `auth`,
-`bbs`, `caddy`, and `backup` for `linux/amd64`, pushes
-`ghcr.io/<owner>/herkules/<name>:latest` (+ `sha-…`, + tags for `v*`), and over
-SSH copies the compose files and runs
+(`workflow_run`), so a red build never reaches the box. It builds only the images affected by the
+commit for `linux/amd64`, using separate GitHub Actions cache scopes for the shared build stage and
+each image. Unchanged images keep their existing `latest` manifest and receive only a cheap
+`sha-…` alias so every deployed commit remains rollback-compatible. Runtime configuration changes
+deploy without rebuilding an image; documentation-only commits do neither. Tag and manual runs
+still build all four images. Over SSH the workflow copies the compose files and runs
 `docker compose pull && docker compose up -d --remove-orphans`.
 A `v*` tag builds directly (CI does not run on tags) and does not deploy.
 
@@ -179,7 +181,14 @@ stop the bot and reassess the tenant setup rather than adding a webhook fallback
 The `backup` container runs `pg_dump --format=custom` at 03:00 HKT for each
 database in `DATABASES` (`herkules bbs`), streams them to
 `r2:<bucket>/herkules/<db>-<UTC stamp>.dump` and deletes dumps older than
-`BACKUP_KEEP_DAYS`. Manual run and restore:
+`BACKUP_KEEP_DAYS`. Before cron starts, the container runs `backup preflight` once: it verifies
+both databases can be dumped, then writes, reads and deletes `herkules/.preflight` in R2. A
+successful result is cached in `/tmp/backup-preflight-ok` for the container health check, so normal
+health probes do not consume R2 operations. Every new container performs a fresh preflight, and the
+deployment waits for it to become healthy. The box continues to own `.env.backup`; do not copy its
+R2 credentials into GitHub Actions.
+
+Manual run and restore:
 
 ```sh
 docker compose run --rm backup backup
