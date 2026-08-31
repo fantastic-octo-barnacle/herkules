@@ -2,11 +2,13 @@ import { sql } from "drizzle-orm";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
+import type { LarkChannel, NormalizedMessage } from "@larksuiteoapi/node-sdk";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { parseCommand } from "../src/bot/command.ts";
 import type { IncomingMessage } from "../src/bot/contract.ts";
 import {
+  FeishuTransport,
   classifyFeishuError,
   classifyFeishuResponse,
   redactFeishuSdkLog,
@@ -109,6 +111,34 @@ describe("bot commands and time", () => {
     expect(text).not.toContain("development-secret");
     expect(text).not.toContain("tenant-token");
     expect(text).not.toContain("session=value");
+  });
+
+  it("handles rejected inbound message callbacks", async () => {
+    let listener: ((message: NormalizedMessage) => unknown) | undefined;
+    const channel = {
+      on: (_event: string, callback: (message: NormalizedMessage) => unknown) => {
+        listener = callback;
+      },
+      connect: async () => undefined,
+    } as unknown as LarkChannel;
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const transport = new FeishuTransport({
+      appId: "cli_test",
+      appSecret: "development-secret",
+      channel,
+    });
+    await transport.connect(async () => {
+      throw new Error("database unavailable");
+    });
+
+    listener!(message() as NormalizedMessage);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(logged).toHaveBeenCalledWith("[feishu:error]", "message handler failed", {
+      name: "Error",
+      message: "database unavailable",
+    });
+    logged.mockRestore();
   });
 });
 

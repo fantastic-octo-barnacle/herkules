@@ -12,6 +12,7 @@ import type { BotTransport, IncomingMessage, OutboundEnvelope, SendOutcome } fro
 interface FeishuTransportOptions {
   readonly appId: string;
   readonly appSecret: string;
+  readonly channel?: LarkChannel;
 }
 
 const SENSITIVE_LOG_KEY = /authorization|cookie|secret|token/iu;
@@ -147,25 +148,33 @@ function connectionError(error: unknown): Error {
 
 export class FeishuTransport implements BotTransport {
   readonly #channel: LarkChannel;
+  readonly #logger: Logger;
 
   constructor(options: FeishuTransportOptions) {
-    this.#channel = createLarkChannel({
-      appId: options.appId,
-      appSecret: options.appSecret,
-      domain: Domain.Feishu,
-      transport: "websocket",
-      // The stock error logger prints Axios request bodies, including appSecret.
-      loggerLevel: LoggerLevel.info,
-      logger: createSdkLogger(options.appSecret),
-      source: "herkules-bbs",
-      handshakeTimeoutMs: 15_000,
-      policy: { requireMention: true, dmMode: "open", respondToMentionAll: false },
-      outbound: { retry: { maxAttempts: 1 } },
-    });
+    this.#logger = createSdkLogger(options.appSecret);
+    this.#channel =
+      options.channel ??
+      createLarkChannel({
+        appId: options.appId,
+        appSecret: options.appSecret,
+        domain: Domain.Feishu,
+        transport: "websocket",
+        // The stock error logger prints Axios request bodies, including appSecret.
+        loggerLevel: LoggerLevel.info,
+        logger: this.#logger,
+        source: "herkules-bbs",
+        handshakeTimeoutMs: 15_000,
+        policy: { requireMention: true, dmMode: "open", respondToMentionAll: false },
+        outbound: { retry: { maxAttempts: 1 } },
+      });
   }
 
   async connect(onMessage: (message: IncomingMessage) => Promise<void>): Promise<void> {
-    this.#channel.on("message", (message) => onMessage(incoming(message)));
+    this.#channel.on("message", (message) => {
+      void Promise.resolve()
+        .then(() => onMessage(incoming(message)))
+        .catch((error: unknown) => this.#logger.error("message handler failed", error));
+    });
     try {
       await this.#channel.connect();
     } catch (error) {
