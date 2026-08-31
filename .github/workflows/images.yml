@@ -1,5 +1,5 @@
 name: Images
-# Build the four images, push to GHCR, then ssh to the box: compose pull && up -d.
+# Build changed images, alias unchanged sha tags for rollback, then deploy only when runtime files changed.
 #
 # Triggers, and why:
 #   workflow_run "CI"  — main is built only after ci.yml's `ready` job went green on that commit.
@@ -27,12 +27,38 @@ permissions:
 env:
   BUILD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 jobs:
-  build:
+  changes:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.select.outputs.targets }}
+      deploy: ${{ steps.select.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.BUILD_SHA }}
+          fetch-depth: 2
+          persist-credentials: false
+      - id: select
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
+            base=$(git rev-parse "$BUILD_SHA^")
+            selection=$(git diff --name-only "$base" "$BUILD_SHA" | node tools/deploy/image-targets.mjs)
+          else
+            selection=$(node tools/deploy/image-targets.mjs --all)
+          fi
+          echo "targets=$(jq -c '.targets' <<<"$selection")" >> "$GITHUB_OUTPUT"
+          echo "deploy=$(jq -r '.deploy' <<<"$selection")" >> "$GITHUB_OUTPUT"
+          echo "$selection"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.targets != '[]'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [auth, bbs, caddy, backup]
+        target: ${{ fromJSON(needs.changes.outputs.targets) }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -74,11 +100,44 @@ jobs:
             type=gha,scope=build,mode=max
             type=gha,scope=${{ matrix.target }},mode=max
 
+  alias-unchanged:
+    needs: [changes, build]
+    if: >-
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.deploy == 'true' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Add rollback tags to unchanged images
+        env:
+          TARGETS: ${{ needs.changes.outputs.targets }}
+        run: |
+          short=${BUILD_SHA:0:7}
+          for target in auth bbs caddy backup; do
+            if jq -e --arg target "$target" 'index($target) != null' <<<"$TARGETS" >/dev/null; then
+              continue
+            fi
+            image="ghcr.io/$GITHUB_REPOSITORY/$target"
+            docker buildx imagetools create --tag "$image:sha-$short" "$image:latest"
+          done
+
   deploy:
-    needs: build
+    needs: [changes, build, alias-unchanged]
     # Tag builds do not deploy. Under workflow_run github.ref is the default branch, which is
     # what the branches filter above already restricted to.
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.deploy == 'true' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      needs.alias-unchanged.result == 'success'
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -112,7 +171,7 @@ jobs:
           printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" 'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
           # gatus.yaml is bind-mounted. Compose does not recreate the container when only the
           # file contents change, and Gatus does not reload it, so force the cheap restart.
-          ssh -i ~/.ssh/deploy "$TARGET" 'cd ~/herkules && docker compose pull --quiet && docker compose up -d --remove-orphans && docker compose up -d --no-deps --force-recreate gatus && docker image prune -f >/dev/null && docker compose ps'
+          ssh -i ~/.ssh/deploy "$TARGET" 'cd ~/herkules && docker compose pull --quiet && docker compose up -d --remove-orphans --wait --wait-timeout 180 && docker compose up -d --no-deps --force-recreate gatus && docker image prune -f >/dev/null && docker compose ps'
 
       - name: Verify status page
         run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://status.herkules.dev/api/v1/endpoints/statuses >/dev/null
