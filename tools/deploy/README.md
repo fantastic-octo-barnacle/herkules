@@ -2,11 +2,11 @@
 
 One HK VPS (2 vCPU / 4 GB), Docker Compose, one container per service, one
 platform origin plus the bbs, status and ops subdomains. Four containers serve
-traffic: `caddy`, `auth`, `bbs` and `postgres`, plus `bbs-worker` (the crawler),
+traffic: `caddy`, `auth`, `bbs` and `postgres`, plus `bbs-worker` (the crawler), `bbs-bot`,
 `backup`, and the monitoring trio `gatus`, `beszel`, `beszel-agent` (see
 "Monitoring"). Images are built by GitHub Actions and pulled by the box; the box
 holds only `~/herkules/{docker-compose.yml, Caddyfile, gatus.yaml,
-caddy/services/, .env, .env.auth, .env.backup, import/}` and its volumes
+caddy/services/, .env, .env.auth, .env.bot, .env.backup, import/}` and its volumes
 (`pgdata`, `avatars`, `caddy_data`, `caddy_config`, `gatus_data`, `beszel_*`).
 
 The edge Caddy is **our image**, not the stock one: `services/web`'s SPA is baked
@@ -47,10 +47,10 @@ container. The Caddyfile is still bind-mounted, so a routing change is `scp` +
    ```sh
    mkdir -p ~/herkules && cd ~/herkules
    ```
-   Then create **three** env files from the blocks documented in
-   `tools/deploy/.env.example`: `.env` (compose interpolation only), `.env.auth`
-   (the auth container's `env_file`) and `.env.backup` (the R2 credentials). Only
-   `.env` is read by compose itself, so a missing `.env.auth` or `.env.backup`
+   Then create **four** env files from the blocks documented in
+   `tools/deploy/.env.example`: `.env` (compose interpolation only), `.env.auth`, `.env.bot`
+   (the Feishu app credentials), and `.env.backup` (the R2 credentials). Only
+   `.env` is read by compose itself, so a missing `.env.auth`, `.env.bot`, or `.env.backup`
    fails at `up`, not at `config`. The split keeps the R2 keys and
    `BBS_COOKIE_SECRET` out of the auth container; `BBS_ORIGIN` and
    `BBS_CLIENT_SECRET` are deliberately in two files with the same value.
@@ -104,9 +104,9 @@ curl -fsS https://herkules.dev/ | head -c 200                     # the SPA
 
 ## bbs (RM 文库)
 
-One image, three commands (see `apps/bbs/README.md`), two long-running containers: `bbs`
-(API + MCP + SPA) and `bbs-worker` (the crawler, `replicas: 1` since the 2026-08-28 cutover;
-`--scale bbs-worker=0` pauses it). The crawl policy is constants in the code, not env: 2 s
+One image, six commands (see `apps/bbs/README.md`), with separate long-running `bbs`,
+`bbs-worker`, and `bbs-bot` containers. The crawler has `replicas: 1` since the 2026-08-28
+cutover; `--scale bbs-worker=0` pauses it. The crawl policy is constants in the code, not env: 2 s
 spacing, 20/min, 2 000/day (UTC), 200 kept for reader-triggered refreshes, cooldown ladder on
 429/403/5xx.
 
@@ -154,6 +154,25 @@ curl -sI  https://herkules.dev/mcp/bbs | grep -i www-authenticate   # 401 + reso
 The bbs container reaches auth in-network (`AUTH_INTERNAL_URL`), presents
 `BBS_CLIENT_SECRET` (the same value auth seeds the confidential `bbs` client
 from) and seals its session cookie with `BBS_COOKIE_SECRET`.
+
+### Feishu bot
+
+Create and publish an internal self-built Feishu app, enable its bot capability, and subscribe to
+`im.message.receive_v1` using WebSocket delivery. Grant the app permission to receive and send
+messages, add it to the announcement group, and put its app ID, secret, and the group's `oc_...`
+chat ID in `.env.bot` as shown in `.env.example`. No Caddy route or public callback is needed.
+
+Start it after the normal BBS container has migrated:
+
+```sh
+docker compose up -d bbs-bot
+docker compose logs -f bbs-bot
+```
+
+The first successful WebSocket connection activates notifications and baselines every article
+already in the database. Confirm one mentioned group search and one ordinary direct-message search
+before relying on announcements. If either event type does not arrive through the long connection,
+stop the bot and reassess the tenant setup rather than adding a webhook fallback.
 
 ## Backups
 
@@ -286,12 +305,13 @@ competition venues (`ALL_PROXY=socks5://…` if the venue needs a proxy).
 
 ```sh
 cd tools/deploy
-# .env, .env.auth and .env.backup, from the blocks in .env.example.
+# .env, .env.auth, .env.bot and .env.backup, from the blocks in .env.example.
 #   .env:       SITE_ADDRESS=http://localhost:3000, PUBLIC_ORIGIN=http://localhost:3000,
 #               BBS_SITE_ADDRESS=http://localhost:3003, BBS_ORIGIN=http://localhost:3003,
 #               any POSTGRES_PASSWORD; IMAGE_PREFIX can stay (the overlay builds locally)
 #   .env.auth:  the dev GitHub app
 #   .env.backup: may be empty — the backup service is scaled to 0 in the overlay
+#   .env.bot: required by Compose, but bbs-bot is scaled to 0 in the overlay
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 

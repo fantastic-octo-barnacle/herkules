@@ -39,6 +39,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   doublePrecision,
   index,
   integer,
@@ -414,6 +415,158 @@ export const importRuns = pgTable(
     normalizeVersion: text("normalize_version").notNull(),
   },
   (t) => [index("import_runs_started_idx").on(t.startedAt.desc())],
+);
+
+/**
+ * Bot-owned state. These tables survive the deprecated corpus import and deliberately have no
+ * foreign keys into imported tables. Stable source keys and frozen article snapshots keep pending
+ * delivery work meaningful if a corpus row is replaced.
+ */
+export const botDeliveries = pgTable(
+  "bot_deliveries",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(), // article|digest|reply
+    logicalKey: text("logical_key").notNull(),
+    chatId: text("chat_id").notNull(),
+    replyToMessageId: text("reply_to_message_id"),
+    msgType: text("msg_type").notNull(),
+    content: text("content").notNull(), // exact JSON string sent to Feishu
+    payloadHash: text("payload_hash").notNull(),
+    uuid: text("uuid").notNull(),
+    scheduledAt: ms("scheduled_at").notNull(),
+    state: text("state").notNull().default("pending"), // pending|leased|sent|cancelled|permanent
+    leaseToken: text("lease_token"),
+    leasedUntil: ms("leased_until"),
+    nextAttemptAt: ms("next_attempt_at").notNull(),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    feishuMessageId: text("feishu_message_id"),
+    lastError: text("last_error"),
+    createdAt: ms("created_at").notNull(),
+    updatedAt: ms("updated_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("bot_deliveries_logical_key_uq").on(t.logicalKey),
+    uniqueIndex("bot_deliveries_uuid_uq").on(t.uuid),
+    index("bot_deliveries_due_idx").on(t.state, t.nextAttemptAt, t.scheduledAt),
+    check("bot_deliveries_kind_ck", sql`${t.kind} in ('article', 'digest', 'reply')`),
+    check(
+      "bot_deliveries_state_ck",
+      sql`${t.state} in ('pending', 'leased', 'sent', 'cancelled', 'permanent')`,
+    ),
+  ],
+);
+
+export const botState = pgTable(
+  "bot_state",
+  {
+    id: integer("id").primaryKey().default(1),
+    activatedAt: ms("activated_at").notNull(),
+    announcementChatId: text("announcement_chat_id").notNull(),
+    lastReconciledAt: ms("last_reconciled_at"),
+  },
+  (t) => [check("bot_state_singleton", sql`${t.id} = 1`)],
+);
+
+export const botDays = pgTable(
+  "bot_days",
+  {
+    assignmentDay: date("assignment_day", { mode: "string" }).primaryKey(),
+    sealedAt: ms("sealed_at"),
+    digestDeliveryId: text("digest_delivery_id").references(() => botDeliveries.id),
+    createdAt: ms("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("bot_days_digest_delivery_uq").on(t.digestDeliveryId)],
+);
+
+export const botArticleDecisions = pgTable(
+  "bot_article_decisions",
+  {
+    sourceId: text("source_id").notNull(),
+    sourceArticleId: text("source_article_id").notNull(),
+    status: text("status").notNull(), // baseline|ineligible_*|immediate|overflow
+    decidedAt: ms("decided_at").notNull(),
+    assignmentDay: date("assignment_day", { mode: "string" }).references(
+      () => botDays.assignmentDay,
+    ),
+    immediateSlot: integer("immediate_slot"),
+    articleId: text("article_id"),
+    title: text("title"),
+    excerpt: text("excerpt"),
+    publishedAt: ms("published_at"),
+    articleLink: text("article_link"),
+    deliveryId: text("delivery_id").references(() => botDeliveries.id),
+    digestDeliveryId: text("digest_delivery_id").references(() => botDeliveries.id),
+    digestOrdinal: integer("digest_ordinal"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.sourceId, t.sourceArticleId] }),
+    uniqueIndex("bot_decisions_day_slot_uq")
+      .on(t.assignmentDay, t.immediateSlot)
+      .where(sql`${t.immediateSlot} is not null`),
+    uniqueIndex("bot_decisions_delivery_uq").on(t.deliveryId),
+    uniqueIndex("bot_decisions_digest_ordinal_uq")
+      .on(t.digestDeliveryId, t.digestOrdinal)
+      .where(sql`${t.digestDeliveryId} is not null`),
+    index("bot_decisions_digest_members_idx").on(t.assignmentDay, t.status, t.digestOrdinal),
+    check(
+      "bot_decisions_status_ck",
+      sql`${t.status} in ('baseline', 'ineligible_null_publication', 'ineligible_pre_activation', 'immediate', 'overflow')`,
+    ),
+    check(
+      "bot_decisions_slot_ck",
+      sql`${t.immediateSlot} is null or ${t.immediateSlot} between 1 and 3`,
+    ),
+  ],
+);
+
+export const botDeliveryAttempts = pgTable(
+  "bot_delivery_attempts",
+  {
+    id: text("id").primaryKey(),
+    deliveryId: text("delivery_id")
+      .notNull()
+      .references(() => botDeliveries.id, { onDelete: "cascade" }),
+    leaseToken: text("lease_token").notNull(),
+    attemptNo: integer("attempt_no").notNull(),
+    startedAt: ms("started_at").notNull(),
+    finishedAt: ms("finished_at"),
+    outcome: text("outcome"), // sent|not_sent|ambiguous|permanent
+    code: text("code"),
+  },
+  (t) => [
+    uniqueIndex("bot_attempts_delivery_no_uq").on(t.deliveryId, t.attemptNo),
+    uniqueIndex("bot_attempts_lease_token_uq").on(t.leaseToken),
+    index("bot_attempts_unfinished_idx").on(t.finishedAt, t.startedAt),
+    check(
+      "bot_attempts_outcome_ck",
+      sql`${t.outcome} is null or ${t.outcome} in ('sent', 'not_sent', 'ambiguous', 'permanent')`,
+    ),
+  ],
+);
+
+export const botInboundReceipts = pgTable(
+  "bot_inbound_receipts",
+  {
+    messageId: text("message_id").primaryKey(),
+    chatId: text("chat_id").notNull(),
+    chatType: text("chat_type").notNull(),
+    rawContentType: text("raw_content_type").notNull(),
+    content: text("content").notNull(),
+    createdAtFeishu: ms("created_at_feishu").notNull(),
+    admittedAt: ms("admitted_at").notNull(),
+    state: text("state").notNull().default("pending"), // pending|leased|planned|ignored
+    leaseToken: text("lease_token"),
+    leasedUntil: ms("leased_until"),
+    replyDeliveryId: text("reply_delivery_id").references(() => botDeliveries.id),
+    lastError: text("last_error"),
+  },
+  (t) => [
+    index("bot_inbound_pending_idx").on(t.state, t.admittedAt),
+    uniqueIndex("bot_inbound_reply_delivery_uq").on(t.replyDeliveryId),
+    check("bot_inbound_chat_type_ck", sql`${t.chatType} in ('p2p', 'group')`),
+    check("bot_inbound_state_ck", sql`${t.state} in ('pending', 'leased', 'planned', 'ignored')`),
+  ],
 );
 
 /** Every table `bbs import` truncates and reloads, in foreign-key order. Thirteen; `import_runs` is deliberately absent. */

@@ -15,6 +15,7 @@
   },
   "scripts": {
     "dev": "node --watch --env-file=.env --experimental-strip-types src/main.ts",
+    "bot": "node --env-file=.env.bot --experimental-strip-types src/main.ts bot",
     "start": "node --experimental-strip-types src/main.ts",
     "import": "node --env-file=.env --experimental-strip-types src/main.ts import",
     "build": "vp pack && vp -C web build",
@@ -29,6 +30,7 @@
     "@herkules/ui": "workspace:*",
     "@hono/node-server": "catalog:",
     "@hono/zod-validator": "catalog:",
+    "@larksuiteoapi/node-sdk": "catalog:",
     "@modelcontextprotocol/server": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
