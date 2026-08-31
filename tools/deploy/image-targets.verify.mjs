@@ -15,7 +15,7 @@ test("follows shared package dependencies", () => {
     targets: ["auth", "bbs"],
     deploy: true,
   });
-  assert.deepEqual(selectImageTargets(["packages/ui/src/Button.tsx"]), {
+  assert.deepEqual(selectImageTargets(["packages/ui/src/components/button.tsx"]), {
     targets: ["bbs", "caddy"],
     deploy: true,
   });
