@@ -22,6 +22,7 @@ import { pipeline } from "node:stream/promises";
 const DEFAULT_ORIGIN = "https://bbs.herkules.dev";
 const PAGE_SIZE = 100;
 const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
+const IMAGE_STALL_MS = 30_000;
 const IMAGE_EXTENSIONS = new Set([".gif", ".jpeg", ".jpg", ".png", ".webp"]);
 const ARTICLE_ID = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
 const USAGE = "usage: node export.mjs <directory> [--origin <url>] [--concurrency N]";
@@ -153,51 +154,67 @@ async function downloadImage(source, outputDir, fetch) {
   }
   if (existing === 0) await rm(target, { force: true });
 
-  const response = await fetch(sourceUrl, {
-    headers: { "user-agent": "Herkules-BBS-Export/1.0" },
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok) throw new Error(`${String(response.status)} ${response.statusText}`);
-  if (!response.body) throw new Error("response has no body");
-  const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim();
-  if (
-    contentType &&
-    !contentType.startsWith("image/") &&
-    contentType !== "application/octet-stream"
-  ) {
-    throw new Error(`unexpected content type ${contentType}`);
-  }
-  const declared = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) {
-    throw new Error(`image exceeds ${String(MAX_IMAGE_BYTES)} bytes`);
-  }
-
-  await mkdir(dirname(target), { recursive: true });
-  const temporary = `${target}.${String(process.pid)}.${randomUUID()}.tmp`;
-  let bytes = 0;
-  const limit = new Transform({
-    transform(chunk, _encoding, callback) {
-      bytes += chunk.length;
-      callback(
-        bytes > MAX_IMAGE_BYTES
-          ? new Error(`image exceeds ${String(MAX_IMAGE_BYTES)} bytes`)
-          : null,
-        chunk,
-      );
-    },
-  });
+  // Abort when no bytes arrive for a while, not on total transfer time: a large image on a
+  // slow link must still finish, or every rerun would restart it from zero and fail again.
+  const controller = new AbortController();
+  let stall = null;
+  const armStall = () => {
+    clearTimeout(stall);
+    stall = setTimeout(() => {
+      controller.abort(new Error(`no data for ${String(IMAGE_STALL_MS)} ms`));
+    }, IMAGE_STALL_MS);
+  };
+  armStall();
   try {
-    await pipeline(
-      Readable.from(response.body),
-      limit,
-      createWriteStream(temporary, { flags: "wx" }),
-    );
-    await rename(temporary, target);
-  } catch (error) {
-    await rm(temporary, { force: true });
-    throw error;
+    const response = await fetch(sourceUrl, {
+      headers: { "user-agent": "Herkules-BBS-Export/1.0" },
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`${String(response.status)} ${response.statusText}`);
+    if (!response.body) throw new Error("response has no body");
+    const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim();
+    if (
+      contentType &&
+      !contentType.startsWith("image/") &&
+      contentType !== "application/octet-stream"
+    ) {
+      throw new Error(`unexpected content type ${contentType}`);
+    }
+    const declared = Number(response.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) {
+      throw new Error(`image exceeds ${String(MAX_IMAGE_BYTES)} bytes`);
+    }
+
+    await mkdir(dirname(target), { recursive: true });
+    const temporary = `${target}.${String(process.pid)}.${randomUUID()}.tmp`;
+    let bytes = 0;
+    const limit = new Transform({
+      transform(chunk, _encoding, callback) {
+        armStall();
+        bytes += chunk.length;
+        callback(
+          bytes > MAX_IMAGE_BYTES
+            ? new Error(`image exceeds ${String(MAX_IMAGE_BYTES)} bytes`)
+            : null,
+          chunk,
+        );
+      },
+    });
+    try {
+      await pipeline(
+        Readable.from(response.body),
+        limit,
+        createWriteStream(temporary, { flags: "wx" }),
+      );
+      await rename(temporary, target);
+    } catch (error) {
+      await rm(temporary, { force: true });
+      throw error;
+    }
+    return { url: source, file: relativeFile, bytes, status: "stored" };
+  } finally {
+    clearTimeout(stall);
   }
-  return { url: source, file: relativeFile, bytes, status: "stored" };
 }
 
 function manifestOf(origin, report, assets, complete, finishedAt) {

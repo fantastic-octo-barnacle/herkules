@@ -1,7 +1,6 @@
 # Gatus: the public status page at https://${STATUS_HOST} (tools/deploy/README.md "Monitoring").
-# Mounted read-only at /config/config.yaml by docker-compose.yml; the deploy job ships this
-# file, so an edit is a push. Manual edit on the box: scp it, then
-#   docker compose up -d --no-deps --force-recreate gatus
+# Mounted read-only at /config/config.yaml from the active release, so an edit is a push: the
+# applicator recreates gatus whenever this file's digest changes. Do not edit it on the box.
 # ${SITE_ADDRESS}, ${BBS_SITE_ADDRESS}, ${OPS_HOST}, ${GATUS_BACKUP_TOKEN} come from the
 # container environment (compose interpolates them from .env).
 #

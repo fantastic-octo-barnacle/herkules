@@ -89,6 +89,27 @@ test("plans explicit recreation for changed bind-mounted configuration", async (
   });
 });
 
+test("leaves recreation to Compose when the image changed as well", async () => {
+  const firstBundle = await fixture();
+  const secondBundle = await fixture({ caddy: "changed" });
+  const updates = Object.entries(DIGESTS).map(([target, ref]) => ({ target, image: ref }));
+  const first = await createRelease({ sourceSha: SHA, bundleDir: firstBundle, updates });
+  const second = await createRelease({
+    base: first,
+    baseReference: `ghcr.io/acme/herkules/release@sha256:${"9".repeat(64)}`,
+    sourceSha: SHA,
+    bundleDir: secondBundle,
+    updates: [{ target: "caddy", image: image("caddy", "9") }],
+  });
+
+  assert.deepEqual(planRelease(first, second), {
+    images: ["caddy"],
+    recreate: [],
+    composeChanged: false,
+  });
+  assert.deepEqual(planRelease(null, second).recreate, ["gatus"]);
+});
+
 test("rejects mutable image references", async () => {
   const bundle = await fixture();
   await assert.rejects(

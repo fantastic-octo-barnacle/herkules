@@ -50,7 +50,7 @@ had_previous=false
 had_previous_config=false
 had_previous_wrapper=false
 finish() {
-  status=$?
+  status=${1:-$?}
   trap - EXIT HUP INT TERM
   if [ "$status" -ne 0 ] && [ "$activated" = true ] && [ "$had_previous" = true ]; then
     restore_previous
@@ -60,7 +60,12 @@ finish() {
   rm -f "$archive"
   exit "$status"
 }
-trap finish EXIT HUP INT TERM
+# A signal trap sees the status of the last completed command, which may be 0; pass the
+# conventional signal status explicitly so an interrupted rollout is always restored.
+trap finish EXIT
+trap 'finish 129' HUP
+trap 'finish 130' INT
+trap 'finish 143' TERM
 
 mkdir -p "$root/releases"
 if [ ! -d "$release_dir" ]; then

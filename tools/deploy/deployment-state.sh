@@ -5,11 +5,18 @@ command=${1:-active}
 selector=${2:-}
 repository=${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}
 
+# GitHub appends "inactive" statuses to earlier deployments of an environment; the newest status
+# that is not one of those decides whether a deployment is a usable release.
 successful_deployment() {
   local id=$1
   local state
-  state=$(gh api "repos/$repository/deployments/$id/statuses" --jq '.[0].state // ""')
+  state=$(gh api "repos/$repository/deployments/$id/statuses" \
+    --jq '[.[] | select(.state != "inactive")] | first | .state // ""')
   [[ "$state" == "success" ]]
+}
+
+production_deployment_ids() {
+  gh api --paginate "repos/$repository/deployments?environment=production&per_page=100" --jq '.[].id'
 }
 
 deployment_json() {
@@ -34,7 +41,7 @@ find_active() {
     [[ -n "$payload" ]] || continue
     printf '%s\n' "$payload"
     return 0
-  done < <(gh api "repos/$repository/deployments?environment=production&per_page=100" --jq '.[].id')
+  done < <(production_deployment_ids)
   printf '{}\n'
 }
 
@@ -66,14 +73,16 @@ find_selected() {
       printf '%s\n' "$payload"
       return 0
     fi
-  done < <(gh api "repos/$repository/deployments?environment=production&per_page=100" --jq '.[].id')
+  done < <(production_deployment_ids)
   echo "no successful production release found for $selector" >&2
   return 1
 }
 
 find_cursor() {
-  gh api "repos/$repository/deployments?environment=production&per_page=100" --jq '
-    [.[].payload.ciCursor? // 0] | max // 0 | {ciCursor: .}'
+  local cursor
+  cursor=$(gh api --paginate "repos/$repository/deployments?environment=production&per_page=100" \
+    --jq '.[] | (.payload.ciCursor? // 0)' | sort -n | tail -n 1)
+  printf '{"ciCursor": %s}\n' "${cursor:-0}"
 }
 
 case "$command" in

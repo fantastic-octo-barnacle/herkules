@@ -113,6 +113,18 @@ database migrations, so an older image must remain compatible with the current
 schema. Do not edit `images.env`, `current-release`, or deployment files on the
 box by hand; use the workflow so production and GitHub retain the same state.
 
+The one repair that is done by hand: the box records `current-release` before
+the workflow records the Deployment `success` status, so a run whose log shows
+the applicator finishing but the status call failing leaves GitHub one release
+behind production, and the next run stops with "production drifted". Post the
+missing status to that run's deployment (its ID is in the run log) and the
+next run proceeds:
+
+```sh
+gh api --method POST repos/<owner>/herkules/deployments/<id>/statuses \
+  -f state=success -f environment_url=https://herkules.dev -F auto_inactive=false
+```
+
 ## Verify
 
 ```sh
@@ -355,7 +367,8 @@ For a server that lives in this repository:
 1. One line in `services/auth/src/registry.ts` (`RESOURCE_SPECS`).
 2. A stage in the root `Dockerfile` — the `build` stage already installs and builds the whole
    workspace, so it is a runtime stage `FROM runtime AS <name>` plus its `COPY --from=build`.
-3. `<name>` in `IMAGE_TARGETS` and the dependency map in `tools/deploy/image-targets.mjs`.
+3. `<name>` in `IMAGE_TARGETS` in `tools/deploy/release.mjs`, and in `allTargets` plus the
+   dependency map in `tools/deploy/image-targets.mjs`.
 4. A service in `docker-compose.yml` using `${NAME_IMAGE_REF:?}`, with
    `depends_on: postgres: service_healthy` and a `mem_limit` (the box has 4 GB).
 5. `caddy/services/<name>.caddy`: `handle /mcp/<name>* { reverse_proxy <service>:<port> }`.

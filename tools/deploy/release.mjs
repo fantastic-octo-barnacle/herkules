@@ -117,8 +117,15 @@ export function planRelease(current, candidate) {
   const images = IMAGE_TARGETS.filter(
     (target) => current === null || current.images[target] !== candidate.images[target],
   );
+  // Compose recreates a service whose image changed on its own, which also re-resolves the
+  // config bind mounts; only unchanged-image services need the explicit recreate.
   const recreate = [];
-  if (current === null || current.config.caddy !== candidate.config.caddy) recreate.push("caddy");
+  if (
+    (current === null || current.config.caddy !== candidate.config.caddy) &&
+    !images.includes("caddy")
+  ) {
+    recreate.push("caddy");
+  }
   if (current === null || current.config.gatus !== candidate.config.gatus) recreate.push("gatus");
   return {
     images,
@@ -140,7 +147,7 @@ async function configDigests(bundleDir) {
 async function digestPaths(root, paths) {
   const files = [];
   for (const path of paths) await collectFiles(root, resolve(root, path), files);
-  files.sort((a, b) => a.localeCompare(b));
+  files.sort(byteOrder);
   const hash = createHash("sha256");
   for (const file of files) {
     hash.update(relative(root, file));
@@ -170,6 +177,12 @@ async function collectFiles(root, path, output) {
   }
 }
 
+// Locale collation is not stable across runners; the digest input order must be.
+function byteOrder(a, b) {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
@@ -182,7 +195,7 @@ async function readUpdates(directory) {
   return Promise.all(
     paths
       .filter((path) => path.endsWith(".json"))
-      .sort((a, b) => a.localeCompare(b))
+      .sort(byteOrder)
       .map((path) => readJson(join(directory, path))),
   );
 }

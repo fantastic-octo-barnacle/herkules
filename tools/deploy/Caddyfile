@@ -1,9 +1,10 @@
 # Edge Caddy for the platform origin plus the bbs subdomain. TLS is automatic
 # for a real hostname (DNS-only records pointing at the box); `http://localhost:3000`
 # and `http://localhost:3003` in dev.
-# This file is bind-mounted from ~/herkules, not baked into the image, so routing
-# changes ship with `scp` + `docker compose up -d`. Only the SPA in /srv comes from
-# the image (Dockerfile, `caddy` stage: services/web's build output).
+# This file is bind-mounted from the active release, not baked into the image, so routing
+# changes ship with a push and no image rebuild; the applicator recreates caddy when the
+# Caddy configuration digest changes. Only the SPA in /srv comes from the image (Dockerfile,
+# `caddy` stage: services/web's build output).
 # Each MCP server adds one file under caddy/services/ (see bbs.caddy).
 (common_headers) {
 	header {
