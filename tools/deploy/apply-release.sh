@@ -39,11 +39,38 @@ if [ "$actual_current" != "$expected_current" ]; then
   echo "production drifted: expected $expected_current, found $actual_current" >&2
   exit 1
 fi
-if [ ! -f "$archive" ]; then echo "release archive not found: $archive" >&2; exit 1; fi
+
+# Everything the applicator creates while working is removed on exit, whatever the outcome:
+# the extraction directory, the rollback snapshot and the delivered archive (the bundle stays
+# addressable in GHCR by digest).
+incoming=""
+backup=""
+activated=false
+had_previous=false
+had_previous_config=false
+had_previous_wrapper=false
+finish() {
+  status=$?
+  trap - EXIT HUP INT TERM
+  if [ "$status" -ne 0 ] && [ "$activated" = true ] && [ "$had_previous" = true ]; then
+    restore_previous
+  fi
+  if [ -n "$incoming" ]; then rm -rf "$incoming"; fi
+  if [ -n "$backup" ]; then rm -rf "$backup"; fi
+  rm -f "$archive"
+  exit "$status"
+}
+trap finish EXIT HUP INT TERM
 
 mkdir -p "$root/releases"
 if [ ! -d "$release_dir" ]; then
+  if [ ! -f "$archive" ]; then echo "release archive not found: $archive" >&2; exit 1; fi
+  if tar -tzf "$archive" | grep -Eq '^/|(^|/)\.\.(/|$)'; then
+    echo "release archive contains paths outside the bundle" >&2
+    exit 1
+  fi
   incoming="$root/releases/.incoming-sha256-$digest-$$"
+  rm -rf "$incoming"
   mkdir "$incoming"
   tar -xzf "$archive" -C "$incoming"
   for required in release.json images.env docker-compose.yml Caddyfile gatus.yaml apply-release.sh compose.sh; do
@@ -57,13 +84,12 @@ if [ ! -d "$release_dir" ]; then
     exit 1
   fi
   mv "$incoming" "$release_dir"
+  incoming=""
 fi
 
 backup="$root/releases/.previous-$$"
+rm -rf "$backup"
 mkdir "$backup"
-had_previous=false
-had_previous_config=false
-had_previous_wrapper=false
 if [ -f "$root/docker-compose.yml" ]; then
   cp "$root/docker-compose.yml" "$backup/docker-compose.yml"
   if [ -f "$root/images.env" ]; then cp "$root/images.env" "$backup/images.env"; else : > "$backup/images.env"; fi
@@ -86,36 +112,29 @@ compose() {
     -f "$root/docker-compose.yml" "$@"
 }
 
-activated=false
 restore_previous() {
-  status=$?
-  trap - EXIT HUP INT TERM
-  if [ "$status" -ne 0 ] && [ "$activated" = true ] && [ "$had_previous" = true ]; then
-    echo "release failed; restoring previous stack" >&2
-    cp "$backup/docker-compose.yml" "$root/docker-compose.yml"
-    cp "$backup/images.env" "$root/images.env"
-    if [ "$had_previous_wrapper" = true ]; then
-      cp "$backup/compose.sh" "$root/compose.sh"
-    else
-      unlink "$root/compose.sh" 2>/dev/null || true
-    fi
-    if [ "$had_previous_config" = true ]; then
-      old_config=$(sed -n '1p' "$backup/active-config")
-      ln -sfn "$old_config" "$root/active-config"
-    else
-      unlink "$root/active-config" 2>/dev/null || true
-    fi
-    compose pull --quiet || true
-    compose up -d --remove-orphans --wait --wait-timeout 180 || true
-    if [ -n "$recreate_csv" ]; then
-      recreate=$(printf '%s' "$recreate_csv" | tr ',' ' ')
-      # shellcheck disable=SC2086 # service names are validated by the release planner.
-      compose up -d --no-deps --force-recreate $recreate || true
-    fi
+  echo "release failed; restoring previous stack" >&2
+  cp "$backup/docker-compose.yml" "$root/docker-compose.yml"
+  cp "$backup/images.env" "$root/images.env"
+  if [ "$had_previous_wrapper" = true ]; then
+    cp "$backup/compose.sh" "$root/compose.sh"
+  else
+    unlink "$root/compose.sh" 2>/dev/null || true
   fi
-  exit "$status"
+  if [ "$had_previous_config" = true ]; then
+    old_config=$(sed -n '1p' "$backup/active-config")
+    ln -sfn "$old_config" "$root/active-config"
+  else
+    unlink "$root/active-config" 2>/dev/null || true
+  fi
+  compose pull --quiet || true
+  compose up -d --remove-orphans --wait --wait-timeout 180 || true
+  if [ -n "$recreate_csv" ]; then
+    recreate=$(printf '%s' "$recreate_csv" | tr ',' ' ')
+    # shellcheck disable=SC2086 # service names are validated by the release planner.
+    compose up -d --no-deps --force-recreate $recreate || true
+  fi
 }
-trap restore_previous EXIT HUP INT TERM
 
 cp "$release_dir/docker-compose.yml" "$root/.docker-compose.yml.next"
 cp "$release_dir/images.env" "$root/.images.env.next"
@@ -141,7 +160,8 @@ curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://bbs.herkules.dev/
 curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://status.herkules.dev/api/v1/endpoints/statuses >/dev/null
 
 compose ps
-docker image prune -f >/dev/null || true
 printf '%s\n' "$release_ref" > "$root/.current-release.next"
 mv "$root/.current-release.next" "$current_file"
-trap - EXIT HUP INT TERM
+# Digest-pinned images are never dangling, so only -a reclaims superseded releases. Rollback
+# re-pulls whatever it needs by digest.
+docker image prune -af >/dev/null || true

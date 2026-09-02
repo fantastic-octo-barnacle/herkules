@@ -66,10 +66,11 @@ release applicator recreates Caddy when that configuration digest changes.
 ## Deploy
 
 Push to `main` and wait for CI. `images.yml` runs only after that commit's `CI`
-workflow succeeds. It compares this CI run with the last attempted release cursor
-and builds the affected `linux/amd64` images. This means a failed release is not
-silently retried by an unrelated later change; use a manual run to retry it. A
-manual run rebuilds all four.
+workflow succeeds. It diffs the commit against the source of the active
+production release and builds the affected `linux/amd64` images, so a failed
+release is retried by the next push whether or not that push touches the same
+files. A manual run rebuilds all four. A CI run that finishes after a newer
+commit has already been released is skipped.
 
 Every built image gets a readable `sha-<commit>` tag. The build digest is the
 version used in production. The serialized release job reads the latest successful
@@ -99,8 +100,11 @@ Roll back from GitHub Actions with **Rollback production**. Select `full` to
 activate a previous OCI bundle, or `component` to copy one image digest from a
 previous release into the currently active bundle. Identify the source release
 with its GitHub Deployment ID or full source SHA, then type
-`rollback-production`. Both modes create a new successful Deployment record, so
-the next automatic deployment starts from the rolled-back image tuple. Normal
+`rollback-production`. Both modes create a new successful Deployment record, and
+the next push to `main` diffs against that record's source. A full rollback
+carries the older commit's source, so the next push rebuilds everything that
+changed since it and the rollback lasts until then. A component rollback keeps
+the current source, so the restored image stays until its inputs change. Normal
 and rollback deployments share the `deploy-production` concurrency group.
 
 Full rollback restores images and deployment configuration. Component rollback

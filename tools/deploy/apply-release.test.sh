@@ -41,6 +41,12 @@ make_bundle() {
   tar -czf "$root/incoming/$name.tar.gz" -C "$bundle" .
 }
 
+# Nothing transient survives a run: no extraction or snapshot directories, no delivered archives.
+no_leftovers() {
+  test -z "$(find "$root/releases" -mindepth 1 -maxdepth 1 -name '.*')"
+  test -z "$(find "$root/incoming" -mindepth 1)"
+}
+
 first_digest=$(printf 'a%.0s' $(seq 1 64))
 second_digest=$(printf 'b%.0s' $(seq 1 64))
 first_ref="ghcr.io/acme/herkules/release@sha256:$first_digest"
@@ -63,6 +69,22 @@ test "$(sed -n '1p' "$root/current-release")" = "$first_ref"
 test "$(sed -n '1p' "$root/images.env")" = "AUTH_IMAGE_REF=first"
 test "$(sed -n '1p' "$root/active-config/Caddyfile")" = first
 grep -q -- '--force-recreate caddy gatus' "$docker_log"
+grep -q -- 'image prune -af' "$docker_log"
+no_leftovers
+
+# An incomplete bundle is rejected before anything changes and leaves no extraction directory.
+third_digest=$(printf 'c%.0s' $(seq 1 64))
+make_bundle broken broken
+rm "$work/broken/gatus.yaml"
+tar -czf "$root/incoming/broken.tar.gz" -C "$work/broken" .
+if DOCKER_LOG="$docker_log" PATH="$fakebin:$PATH" \
+  sh "$root/apply-release.sh" broken.tar.gz "ghcr.io/acme/herkules/release@sha256:$third_digest" "$first_ref" ""; then
+  echo "incomplete bundle unexpectedly succeeded" >&2
+  exit 1
+fi
+test "$(sed -n '1p' "$root/current-release")" = "$first_ref"
+test ! -d "$root/releases/sha256-$third_digest"
+no_leftovers
 
 make_bundle second second
 if DOCKER_LOG="$docker_log" FAIL_PS=true PATH="$fakebin:$PATH" \
@@ -74,5 +96,7 @@ fi
 test "$(sed -n '1p' "$root/current-release")" = "$first_ref"
 test "$(sed -n '1p' "$root/images.env")" = "AUTH_IMAGE_REF=first"
 test "$(sed -n '1p' "$root/active-config/Caddyfile")" = first
+test -d "$root/releases/sha256-$second_digest"
+no_leftovers
 
 echo "release applicator tests passed"

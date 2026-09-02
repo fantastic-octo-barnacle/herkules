@@ -1,5 +1,5 @@
 name: Rollback production
-run-name: Rollback ${{ inputs.mode }} production from ${{ inputs.release }}
+run-name: Rollback ${{ inputs.mode }}${{ inputs.mode == 'component' && format(' {0}', inputs.component) || '' }} production from ${{ inputs.release }}
 
 on:
   workflow_dispatch:
@@ -10,10 +10,11 @@ on:
         type: choice
         options: [full, component]
       component:
-        description: Image to restore when mode is component
+        description: Image to restore when mode is component (ignored for full)
         required: true
+        default: none
         type: choice
-        options: [bbs, auth, caddy, backup]
+        options: [none, bbs, auth, caddy, backup]
       release:
         description: Successful deployment ID or full source Git SHA
         required: true
@@ -52,14 +53,22 @@ jobs:
       - name: Resolve current and selected releases
         id: releases
         env:
+          COMPONENT: ${{ inputs.component }}
           CONFIRM: ${{ inputs.confirm }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ inputs.mode }}
           SELECTED: ${{ inputs.release }}
         run: |
           if [[ "$CONFIRM" != "rollback-production" ]]; then
             echo "confirmation must be exactly: rollback-production" >&2
             exit 1
           fi
+          if [[ "$MODE" == "component" && "$COMPONENT" == "none" ]]; then
+            echo "component rollback needs an image to restore" >&2
+            exit 1
+          fi
+          if [[ "$MODE" == "full" ]]; then COMPONENT=""; fi
+          echo "component=$COMPONENT" >> "$GITHUB_OUTPUT"
           current=$(bash tools/deploy/deployment-state.sh active)
           attempted=$(bash tools/deploy/deployment-state.sh cursor)
           selected=$(bash tools/deploy/deployment-state.sh find "$SELECTED")
@@ -91,7 +100,7 @@ jobs:
       - name: Prepare rollback release
         id: candidate
         env:
-          COMPONENT: ${{ inputs.component }}
+          COMPONENT: ${{ steps.releases.outputs.component }}
           CURRENT_RELEASE: ${{ steps.releases.outputs.current }}
           MODE: ${{ inputs.mode }}
           SELECTED_RELEASE: ${{ steps.releases.outputs.selected }}
@@ -150,8 +159,10 @@ jobs:
       - name: Apply rollback
         env:
           CI_CURSOR: ${{ steps.releases.outputs.cursor }}
+          COMPONENT: ${{ steps.releases.outputs.component }}
           CURRENT_RELEASE: ${{ steps.releases.outputs.current }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ inputs.mode }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RECREATE: ${{ steps.candidate.outputs.recreate }}
           RELEASE_REF: ${{ steps.candidate.outputs.release }}
@@ -164,8 +175,8 @@ jobs:
             --arg release "$RELEASE_REF" \
             --arg source "$SOURCE_SHA" \
             --argjson cursor "$CI_CURSOR" \
-            --arg mode "${{ inputs.mode }}" \
-            --arg component "${{ inputs.component }}" \
+            --arg mode "$MODE" \
+            --arg component "$COMPONENT" \
             '{
               ref: $ref,
               task: "deploy:rollback",
@@ -178,7 +189,7 @@ jobs:
                 release: $release,
                 sourceSha: $source,
                 ciCursor: $cursor,
-                rollback: {mode: $mode, component: $component}
+                rollback: {mode: $mode, component: (if $component == "" then null else $component end)}
               }
             }' > "$request"
           deployment_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/deployments" \
@@ -217,13 +228,17 @@ jobs:
           status success "Immutable OCI rollback is active"
           trap - EXIT
       - name: Summary
+        env:
+          COMPONENT: ${{ steps.releases.outputs.component }}
+          MODE: ${{ inputs.mode }}
+          RELEASE: ${{ steps.candidate.outputs.release }}
         run: |
           {
             echo "## Production rollback"
             echo
-            echo "- Mode: \`${{ inputs.mode }}\`"
-            echo "- Component: \`${{ inputs.component }}\`"
-            echo "- Active release: \`${{ steps.candidate.outputs.release }}\`"
+            echo "- Mode: \`$MODE\`"
+            if [[ -n "$COMPONENT" ]]; then echo "- Component: \`$COMPONENT\`"; fi
+            echo "- Active release: \`$RELEASE\`"
             echo
             echo "Database migrations were not reversed."
           } >> "$GITHUB_STEP_SUMMARY"

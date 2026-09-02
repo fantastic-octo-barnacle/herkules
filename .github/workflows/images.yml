@@ -1,8 +1,10 @@
 name: Images
 
-# CI selects and builds image inputs changed since the last attempted release cursor. The
-# serialized release job then patches those digests into the active production image tuple,
-# publishes a complete OCI release bundle, and applies that exact bundle over SSH.
+# CI selects and builds the image inputs that changed since the source of the active production
+# release, so a failed release is retried by the next push. The serialized release job then
+# patches those digests into the active image tuple, publishes a complete OCI release bundle, and
+# applies that exact bundle over SSH. The attempted-release cursor only guards against an older
+# CI run finishing after a newer one has already deployed.
 on:
   workflow_run:
     workflows: [CI]
@@ -40,20 +42,12 @@ jobs:
         shell: bash
         run: |
           active=$(bash tools/deploy/deployment-state.sh active)
-          active_release=$(jq -r '.release // ""' <<<"$active")
-          attempted=$(bash tools/deploy/deployment-state.sh cursor)
-          cursor=$(jq -r '.ciCursor // 0' <<<"$attempted")
-          if [[ -z "$active_release" || "$GITHUB_EVENT_NAME" != "workflow_run" ]]; then
-            selection=$(node tools/deploy/image-targets.mjs --all)
+          active_source=$(jq -r '.sourceSha // ""' <<<"$active")
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" && -n "$active_source" ]] \
+            && git cat-file -e "$active_source^{commit}" 2>/dev/null; then
+            selection=$(git diff --name-only "$active_source" "$BUILD_SHA" | node tools/deploy/image-targets.mjs)
           else
-            previous=$(gh api \
-              "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=100" \
-              --jq ".workflow_runs | map(select(.run_number == $cursor)) | first | .head_sha // \"\"")
-            if [[ -z "$previous" ]]; then
-              selection=$(node tools/deploy/image-targets.mjs --all)
-            else
-              selection=$(git diff --name-only "$previous" "$BUILD_SHA" | node tools/deploy/image-targets.mjs)
-            fi
+            selection=$(node tools/deploy/image-targets.mjs --all)
           fi
           echo "targets=$(jq -c '.targets' <<<"$selection")" >> "$GITHUB_OUTPUT"
           echo "deploy=$(jq -r '.deploy' <<<"$selection")" >> "$GITHUB_OUTPUT"
@@ -167,7 +161,6 @@ jobs:
           echo "release=$release" >> "$GITHUB_OUTPUT"
           echo "source=$source" >> "$GITHUB_OUTPUT"
           echo "cursor=$cursor" >> "$GITHUB_OUTPUT"
-          echo "attempted_cursor=$attempted_cursor" >> "$GITHUB_OUTPUT"
           echo "stale=$stale" >> "$GITHUB_OUTPUT"
       - name: Pull active release bundle
         if: steps.active.outputs.stale != 'true' && steps.active.outputs.release != ''
@@ -185,24 +178,17 @@ jobs:
         if: steps.active.outputs.stale != 'true'
         env:
           ACTIVE_RELEASE: ${{ steps.active.outputs.release }}
-          ATTEMPTED_CURSOR: ${{ steps.active.outputs.attempted_cursor }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTIVE_SOURCE: ${{ steps.active.outputs.source }}
         run: |
           mkdir -p bundle/caddy candidate-updates image-updates
 
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" && "$ATTEMPTED_CURSOR" -gt 0 ]]; then
-            base=$(gh api \
-              "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=100" \
-              --jq ".workflow_runs | map(select(.run_number == $ATTEMPTED_CURSOR)) | first | .head_sha // \"\"")
-            if [[ -z "$base" ]]; then
-              selected=$(node tools/deploy/image-targets.mjs --all)
-              selection_all=true
-              : > release-paths
-            else
-              git diff --name-only "$base" "$BUILD_SHA" > release-paths
-              selected=$(node tools/deploy/image-targets.mjs < release-paths)
-              selection_all=false
-            fi
+          # The active release may have moved since the changes job ran (another release or a
+          # rollback landed in between), so select again against what is active now.
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" && -n "$ACTIVE_SOURCE" ]] \
+            && git cat-file -e "$ACTIVE_SOURCE^{commit}" 2>/dev/null; then
+            git diff --name-only "$ACTIVE_SOURCE" "$BUILD_SHA" > release-paths
+            selected=$(node tools/deploy/image-targets.mjs < release-paths)
+            selection_all=false
           else
             selected=$(node tools/deploy/image-targets.mjs --all)
             selection_all=true
@@ -249,6 +235,15 @@ jobs:
             target=$(jq -r '.target' "$update")
             if jq -e --arg target "$target" '.targets | index($target) != null' <<<"$selected" >/dev/null; then
               cp "$update" candidate-updates/
+            fi
+          done
+          # Every image this selection needs must have been built by this run; otherwise the
+          # release would pair a newer source SHA with an older image. Nothing has been
+          # published yet, so the next push simply selects again.
+          for target in $(jq -r '.targets[]' <<<"$selected"); do
+            if [[ ! -f "candidate-updates/$target.json" ]]; then
+              echo "the active release changed while building: $target was not rebuilt; re-run this workflow" >&2
+              exit 1
             fi
           done
 
