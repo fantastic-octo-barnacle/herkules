@@ -29,9 +29,54 @@ test("deploys bind-mounted configuration without rebuilding images", () => {
 });
 
 test("does not deploy documentation or backup test changes", () => {
-  assert.deepEqual(selectImageTargets(["docs/README.md", "tools/deploy/backup/backup.test.sh"]), {
+  assert.deepEqual(
+    selectImageTargets([
+      "docs/README.md",
+      "apps/bbs/README.md",
+      "apps/bbs/drizzle/README.md",
+      "apps/bbs/scripts/export.mjs",
+      "apps/bbs/tests/export.test.ts",
+      "services/auth/tests/flow.test.ts",
+      "services/web/README.md",
+      "tools/deploy/backup/backup.test.sh",
+    ]),
+    {
+      targets: [],
+      deploy: false,
+    },
+  );
+});
+
+test("keeps package manifests and build configuration conservative", () => {
+  assert.deepEqual(
+    selectImageTargets([
+      "apps/bbs/package.json",
+      "services/auth/vite.config.ts",
+      "services/web/index.html",
+    ]),
+    { targets: ["auth", "bbs", "caddy"], deploy: true },
+  );
+});
+
+test("includes the nested BBS web build root but not fixtures", () => {
+  assert.deepEqual(
+    selectImageTargets([
+      "apps/bbs/web/index.html",
+      "apps/bbs/web/tsconfig.json",
+      "apps/bbs/web/vite.config.ts",
+    ]),
+    { targets: ["bbs"], deploy: true },
+  );
+  assert.deepEqual(selectImageTargets(["apps/bbs/tests/fixtures/index.html"]), {
     targets: [],
     deploy: false,
+  });
+});
+
+test("deploys a changed release applicator without rebuilding images", () => {
+  assert.deepEqual(selectImageTargets(["tools/deploy/apply-release.sh"]), {
+    targets: [],
+    deploy: true,
   });
 });
 

@@ -1,7 +1,9 @@
 # Production stack on the HK VPS. Lives at ~/herkules on the box together with
 # Caddyfile, caddy/services/*.caddy and the four env files (never committed):
-# .env (compose interpolation), .env.auth, .env.bot and .env.backup (per-container secrets).
-#   docker compose pull && docker compose up -d --remove-orphans
+# .env (compose interpolation), images.env (release-owned image refs), .env.auth,
+# .env.bot and .env.backup (per-container secrets).
+#   sh compose.sh pull
+#   sh compose.sh up -d --remove-orphans
 # Dev on a laptop: add -f docker-compose.dev.yml (builds locally, http://localhost:3000).
 name: herkules
 
@@ -10,7 +12,7 @@ services:
   # stage) rather than pulled from Docker Hub, because the SPA ships inside it; the Caddyfile
   # itself stays bind-mounted, so routing changes need no rebuild.
   caddy:
-    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX in .env, e.g. ghcr.io/<owner>/herkules}/caddy:${IMAGE_TAG:-latest}
+    image: ${CADDY_IMAGE_REF:?set CADDY_IMAGE_REF through the active release}
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env, e.g. herkules.dev}
       BBS_SITE_ADDRESS: ${BBS_SITE_ADDRESS:?set BBS_SITE_ADDRESS in .env, e.g. bbs.herkules.dev}
@@ -18,8 +20,8 @@ services:
       STATUS_HOST: ${STATUS_HOST:-status.localhost}
       OPS_HOST: ${OPS_HOST:-ops.localhost}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy/services:/etc/caddy/services:ro
+      - ${DEPLOY_CONFIG_DIR:-.}/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DEPLOY_CONFIG_DIR:-.}/caddy/services:/etc/caddy/services:ro
       - caddy_data:/data
       - caddy_config:/config
     ports:
@@ -37,7 +39,7 @@ services:
   # env_file is .env.auth, not .env: auth has no business reading the R2 credentials or
   # BBS_COOKIE_SECRET. Compose-level ${VAR} interpolation still comes from .env.
   auth:
-    image: ${IMAGE_PREFIX}/auth:${IMAGE_TAG:-latest}
+    image: ${AUTH_IMAGE_REF:?set AUTH_IMAGE_REF through the active release}
     env_file: .env.auth
     environment:
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in .env, e.g. https://herkules.dev}
@@ -57,11 +59,11 @@ services:
   # listens, so the image HEALTHCHECK on :3003 is also the "migrations are in" signal.
   # Trade-off, accepted 2026-08-28: a failed migration now crash-loops `bbs` instead of blocking
   # the rollout with the old container still serving. Run one by hand with
-  #   docker compose run --rm bbs migrate
+  #   sh compose.sh run --rm bbs migrate
   # `bbs import` is deprecated but remains the cutover tool:
-  #   docker compose run --rm bbs import /import/app.db
+  #   sh compose.sh run --rm bbs import /import/app.db
   bbs:
-    image: ${IMAGE_PREFIX}/bbs:${IMAGE_TAG:-latest}
+    image: &bbs-image ${BBS_IMAGE_REF:?set BBS_IMAGE_REF through the active release}
     environment: &bbs-env
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
       APP_ORIGIN: ${BBS_ORIGIN:?set BBS_ORIGIN in .env, e.g. https://bbs.herkules.dev}
@@ -82,11 +84,11 @@ services:
     mem_limit: 384m
     restart: unless-stopped
 
-  # The crawler. Scaled to 0 until cutover: `docker compose up -d --scale bbs-worker=1`.
-  # Manual check: docker compose run --rm bbs work --once
+  # The crawler. Scaled to 0 until cutover: `sh compose.sh up -d --scale bbs-worker=1`.
+  # Manual check: sh compose.sh run --rm bbs work --once
   # A second worker against the same database exits 3 (advisory lock) before sending any request.
   bbs-worker:
-    image: ${IMAGE_PREFIX}/bbs:${IMAGE_TAG:-latest}
+    image: *bbs-image
     command: ["work"]
     environment: *bbs-env
     healthcheck:
@@ -104,7 +106,7 @@ services:
   # Feishu WebSocket bot. The HTTP process migrates first; this process owns no port and holds a
   # dedicated Postgres advisory lock before it connects or sends.
   bbs-bot:
-    image: ${IMAGE_PREFIX}/bbs:${IMAGE_TAG:-latest}
+    image: *bbs-image
     command: ["bot"]
     env_file: .env.bot
     environment:
@@ -142,7 +144,7 @@ services:
   # Nightly pg_dump to R2 (tools/deploy/backup). Manual run: docker compose run --rm backup backup
   # env_file is .env.backup: the R2 credentials live there and nowhere else.
   backup:
-    image: ${IMAGE_PREFIX}/backup:${IMAGE_TAG:-latest}
+    image: ${BACKUP_IMAGE_REF:?set BACKUP_IMAGE_REF through the active release}
     env_file: .env.backup
     environment:
       PGHOST: postgres
@@ -165,7 +167,7 @@ services:
   gatus:
     image: ghcr.io/twin/gatus:v5.36.0
     volumes:
-      - ./gatus.yaml:/config/config.yaml:ro
+      - ${DEPLOY_CONFIG_DIR:-.}/gatus.yaml:/config/config.yaml:ro
       - gatus_data:/data
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS}
