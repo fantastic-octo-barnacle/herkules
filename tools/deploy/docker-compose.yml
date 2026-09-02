@@ -113,8 +113,15 @@ services:
       APP_ORIGIN: ${BBS_ORIGIN}
       DATABASE_URL: postgres://herkules:${POSTGRES_PASSWORD}@postgres:5432/bbs
       NODE_ENV: production
+    # The bot serves no port, so the image HEALTHCHECK on :3003 does not apply. It cannot simply
+    # be disabled either: `compose up --wait` errors with "has no healthcheck configured" for an
+    # existing container whose check is disabled (it only tolerates images with none at all).
+    # A trivial check keeps --wait meaning "running" for this service.
     healthcheck:
-      disable: true
+      test: ["CMD", "true"]
+      interval: 30s
+      timeout: 5s
+      retries: 1
     depends_on:
       bbs:
         condition: service_healthy
