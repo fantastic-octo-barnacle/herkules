@@ -4,15 +4,16 @@ One HK VPS (2 vCPU / 4 GB), Docker Compose, one container per service, one
 platform origin plus the bbs, status and ops subdomains. Four containers serve
 traffic: `caddy`, `auth`, `bbs` and `postgres`, plus `bbs-worker` (the crawler), `bbs-bot`,
 `backup`, and the monitoring trio `gatus`, `beszel`, `beszel-agent` (see
-"Monitoring"). Images are built by GitHub Actions and pulled by the box; the box
-holds only `~/herkules/{docker-compose.yml, Caddyfile, gatus.yaml,
-caddy/services/, .env, .env.auth, .env.bot, .env.backup, import/}` and its volumes
+"Monitoring"). GitHub Actions builds images and complete OCI release bundles in
+GHCR, then applies an exact release digest to the box. The box keeps
+`~/herkules/{docker-compose.yml,images.env,compose.sh,current-release,active-config,
+releases/,incoming/}`, the four server-owned env files, `import/`, and its volumes
 (`pgdata`, `avatars`, `caddy_data`, `caddy_config`, `gatus_data`, `beszel_*`).
 
 The edge Caddy is **our image**, not the stock one: `services/web`'s SPA is baked
 into it at `/srv` and served straight off disk, so there is no separate web
-container. The Caddyfile is still bind-mounted, so a routing change is `scp` +
-`up -d`; a Caddy version bump is a Dockerfile edit plus a deploy.
+container. Caddy configuration remains bind-mounted from the active release. The
+release applicator recreates Caddy when that configuration digest changes.
 
 ```
                  :443  ┌──────── caddy (edge, TLS + SPA) ──────┐
@@ -59,42 +60,70 @@ container. The Caddyfile is still bind-mounted, so a routing change is `scp` +
    `DEPLOY_USER`, `DEPLOY_SSH_KEY` (private key, PEM), `DEPLOY_KNOWN_HOSTS`
    (`ssh-keyscan -H <host>` output). The images are private: the deploy job
    logs the box into ghcr.io with its run token before pulling. For a manual
-   `docker compose pull` on the box, `docker login ghcr.io` with a
+   `sh compose.sh pull` on the box, `docker login ghcr.io` with a
    `read:packages` token first.
 
 ## Deploy
 
-Push to `main` and wait for CI. `.github/workflows/images.yml` no longer runs on
-the push itself: it triggers on `ci.yml` completing successfully for that commit
-(`workflow_run`), so a red build never reaches the box. It builds only the images affected by the
-commit for `linux/amd64`, using separate GitHub Actions cache scopes for the shared build stage and
-each image. Unchanged images keep their existing `latest` manifest and receive only a cheap
-`sha-…` alias so every deployed commit remains rollback-compatible. Runtime configuration changes
-deploy without rebuilding an image; documentation-only commits do neither. Tag and manual runs
-still build all four images. Over SSH the workflow copies the compose files and runs
-`docker compose pull && docker compose up -d --remove-orphans`.
-A `v*` tag builds directly (CI does not run on tags) and does not deploy.
+Push to `main` and wait for CI. `images.yml` runs only after that commit's `CI`
+workflow succeeds. It diffs the commit against the source of the active
+production release and builds the affected `linux/amd64` images, so a failed
+release is retried by the next push whether or not that push touches the same
+files. A manual run rebuilds all four. A CI run that finishes after a newer
+commit has already been released is skipped.
+
+Every built image gets a readable `sha-<commit>` tag. The build digest is the
+version used in production. The serialized release job reads the latest successful
+Herkules GitHub Deployment, retains its unchanged image digests, and publishes a
+complete OCI release bundle at `ghcr.io/<owner>/herkules/release`. The bundle
+contains `release.json`, `images.env`, Compose, Caddy and Gatus configuration, and
+the release scripts. It then applies that exact release digest over SSH. Mutable
+`latest` tags are never deployment inputs.
+
+The box records the active OCI reference in `current-release`. The applicator
+checks it against the GitHub Deployment before changing anything, restores the
+previous release if rollout or public verification fails, and changes
+`current-release` only after success. Documentation and standalone exporter
+changes do not deploy. Runtime configuration can deploy without rebuilding an
+image.
 
 By hand on the box:
 
 ```sh
 cd ~/herkules
-docker compose pull && docker compose up -d --remove-orphans
-docker compose ps            # every service healthy/running
-docker compose logs -f auth  # migrations run at boot; "listening on :3001"
+sh compose.sh pull && sh compose.sh up -d --remove-orphans
+sh compose.sh ps            # every service healthy/running
+sh compose.sh logs -f auth  # migrations run at boot; "listening on :3001"
 ```
 
-Roll back from GitHub Actions with **Rollback production**. Enter the full SHA of
-a previously successful production deployment and type `rollback-production` to
-confirm. The workflow verifies that all four `sha-<short>` images exist, restores
-that commit's deployment files, waits for the Compose stack to become healthy,
-and checks the public endpoints. It serializes with normal deployments through
-the same `deploy-production` concurrency group.
+Roll back from GitHub Actions with **Rollback production**. Select `full` to
+activate a previous OCI bundle, or `component` to copy one image digest from a
+previous release into the currently active bundle. Identify the source release
+with its GitHub Deployment ID or full source SHA, then type
+`rollback-production`. Both modes create a new successful Deployment record, and
+the next push to `main` diffs against that record's source. A full rollback
+carries the older commit's source, so the next push rebuilds everything that
+changed since it and the rollback lasts until then. A component rollback keeps
+the current source, so the restored image stays until its inputs change. Normal
+and rollback deployments share the `deploy-production` concurrency group.
 
-The rollback changes containers and deployment configuration only. It does not
-reverse database migrations, so an older image must remain compatible with the
-current schema. By hand on the box, the equivalent image selection is
-`IMAGE_TAG=sha-<short> docker compose up -d`.
+Full rollback restores images and deployment configuration. Component rollback
+retains the current configuration and changes one image. Neither mode reverses
+database migrations, so an older image must remain compatible with the current
+schema. Do not edit `images.env`, `current-release`, or deployment files on the
+box by hand; use the workflow so production and GitHub retain the same state.
+
+The one repair that is done by hand: the box records `current-release` before
+the workflow records the Deployment `success` status, so a run whose log shows
+the applicator finishing but the status call failing leaves GitHub one release
+behind production, and the next run stops with "production drifted". Post the
+missing status to that run's deployment (its ID is in the run log) and the
+next run proceeds:
+
+```sh
+gh api --method POST repos/<owner>/herkules/deployments/<id>/statuses \
+  -f state=success -f environment_url=https://herkules.dev -F auto_inactive=false
+```
 
 ## Verify
 
@@ -119,16 +148,16 @@ role ever loses CREATEDB), applies `apps/bbs/drizzle`, and rederives derived col
 in" signal, which is what `bbs-worker` waits for. There is no `bbs-migrate` one-shot any more.
 Accepted trade-off, 2026-08-28: a failed migration now crash-loops `bbs` instead of blocking the
 rollout with the old container still serving. Run one by hand with
-`docker compose run --rm bbs migrate` (idempotent; also the way to see the migration log without
+`sh compose.sh run --rm bbs migrate` (idempotent; also the way to see the migration log without
 starting a server).
 
 **Self-host from an empty database** — nothing to import; the worker discovers page 1 every
 10 min and backfills one page per ladder step until the forum is exhausted:
 
 ```sh
-docker compose up -d --scale bbs-worker=1
-docker compose run --rm bbs work --once                # one manual cycle; prints the counters
-docker compose logs -f bbs-worker
+sh compose.sh up -d --scale bbs-worker=1
+sh compose.sh run --rm bbs work --once                # one manual cycle; prints the counters
+sh compose.sh logs -f bbs-worker
 ```
 
 **Cutover from the Singapore rm-wenku box** (its 908 generated overviews come only through a
@@ -147,8 +176,8 @@ including everything the worker wrote, and reloads from a `wenku backup` copy of
 
 ```sh
 scp old-box:app.db ~/herkules/import/app.db          # ./import is mounted read-only at /import
-docker compose run --rm bbs import /import/app.db     # prints the per-table report; exit 0 = verified
-docker compose run --rm bbs import /import/app.db     # same dump again -> "no-op"
+sh compose.sh run --rm bbs import /import/app.db     # prints the per-table report; exit 0 = verified
+sh compose.sh run --rm bbs import /import/app.db     # same dump again -> "no-op"
 curl -fsS https://bbs.herkules.dev/api/status
 curl -sI  https://herkules.dev/mcp/bbs | grep -i www-authenticate   # 401 + resource_metadata for /mcp/bbs
 ```
@@ -167,8 +196,8 @@ chat ID in `.env.bot` as shown in `.env.example`. No Caddy route or public callb
 Start it after the normal BBS container has migrated:
 
 ```sh
-docker compose up -d bbs-bot
-docker compose logs -f bbs-bot
+sh compose.sh up -d bbs-bot
+sh compose.sh logs -f bbs-bot
 ```
 
 The first successful WebSocket connection activates notifications and baselines every article
@@ -191,12 +220,12 @@ R2 credentials into GitHub Actions.
 Manual run and restore:
 
 ```sh
-docker compose run --rm backup backup
+sh compose.sh run --rm backup backup
 # restore into a fresh database (stop the owning service first; `bbs` for the bbs dump):
-docker compose stop auth
+sh compose.sh stop auth
 rclone copy r2:<bucket>/herkules/herkules-<stamp>.dump /tmp/
-docker compose exec -T postgres pg_restore --clean --if-exists -U herkules -d herkules < /tmp/herkules-<stamp>.dump
-docker compose start auth
+sh compose.sh exec -T postgres pg_restore --clean --if-exists -U herkules -d herkules < /tmp/herkules-<stamp>.dump
+sh compose.sh start auth
 ```
 
 The bbs corpus is also reproducible from the old box's `app.db`: a re-import
@@ -220,7 +249,7 @@ Two hosts, both served by the edge Caddy from the same compose file:
   `crawler.lastCheckedAgeSeconds < 1800`) / MCP (the 401 challenge), Backups
   (pushed by `backup.sh`), Monitoring (the hub). Editing `gatus.yaml` is a push;
   the deploy and rollback jobs force-recreate Gatus so it reads the changed bind mount. On
-  the box, use `docker compose up -d --no-deps --force-recreate gatus`.
+  the box, use `sh compose.sh up -d --no-deps --force-recreate gatus`.
 - **`https://ops.herkules.dev`** — the Beszel hub: metrics for this box and for
   every team machine (NUCs, Jetsons, servers), which dial in over WebSocket.
   Sign-in is the herkules auth service, so org membership is the access
@@ -257,7 +286,7 @@ No alerting channel is configured (the team has not picked one). The external
 2. Create the PocketBase superuser (break-glass account, password manager) and
    open `/_/` through a tunnel — it is blocked at the edge, never over the internet:
    ```sh
-   docker compose exec beszel /beszel superuser upsert <email> '<password>'
+   sh compose.sh exec beszel /beszel superuser upsert <email> '<password>'
    ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' herkules-beszel-1)
    # from the laptop:  ssh -L 8090:$ip:8090 <box>   →   http://127.0.0.1:8090/_/
    ```
@@ -282,7 +311,7 @@ No alerting channel is configured (the team has not picked one). The external
    docker run --rm -v herkules_beszel_data:/d:ro alpine:3.23 sh -c \
      'apk add -q openssh-keygen && cp /d/id_ed25519 /tmp/k && chmod 600 /tmp/k && ssh-keygen -y -f /tmp/k'
    ```
-   then `docker compose up -d beszel-agent` (it restart-loops harmlessly while
+   then `sh compose.sh up -d beszel-agent` (it restart-loops harmlessly while
    the key is empty), then **Add system** in the hub with host
    `/beszel_socket/beszel.sock`, name `herkules-hk`.
 6. Settings → Tokens: enable the **universal token** and put it in the team
@@ -290,7 +319,7 @@ No alerting channel is configured (the team has not picked one). The external
 7. Optional dead-man switch: in Better Stack (free) create an HTTP monitor on
    `https://status.herkules.dev/` (email alert) and a **heartbeat** with a 2-min
    period / 5-min grace; put its URL in `.env` as `BESZEL_HEARTBEAT_URL` and
-   `docker compose up -d beszel`.
+   `sh compose.sh up -d beszel`.
 
 ### Enrolling a team machine
 
@@ -317,7 +346,7 @@ cd tools/deploy
 # .env, .env.auth, .env.bot and .env.backup, from the blocks in .env.example.
 #   .env:       SITE_ADDRESS=http://localhost:3000, PUBLIC_ORIGIN=http://localhost:3000,
 #               BBS_SITE_ADDRESS=http://localhost:3003, BBS_ORIGIN=http://localhost:3003,
-#               any POSTGRES_PASSWORD; IMAGE_PREFIX can stay (the overlay builds locally)
+#               any POSTGRES_PASSWORD; the four *_IMAGE_REF values can stay (the overlay builds locally)
 #   .env.auth:  the dev GitHub app
 #   .env.backup: may be empty — the backup service is scaled to 0 in the overlay
 #   .env.bot: required by Compose, but bbs-bot is scaled to 0 in the overlay
@@ -338,8 +367,9 @@ For a server that lives in this repository:
 1. One line in `services/auth/src/registry.ts` (`RESOURCE_SPECS`).
 2. A stage in the root `Dockerfile` — the `build` stage already installs and builds the whole
    workspace, so it is a runtime stage `FROM runtime AS <name>` plus its `COPY --from=build`.
-3. `<name>` in the `target` matrix of `.github/workflows/images.yml`.
-4. A service in `docker-compose.yml` using `${IMAGE_PREFIX}/<name>:${IMAGE_TAG:-latest}`, with
+3. `<name>` in `IMAGE_TARGETS` in `tools/deploy/release.mjs`, and in `allTargets` plus the
+   dependency map in `tools/deploy/image-targets.mjs`.
+4. A service in `docker-compose.yml` using `${NAME_IMAGE_REF:?}`, with
    `depends_on: postgres: service_healthy` and a `mem_limit` (the box has 4 GB).
 5. `caddy/services/<name>.caddy`: `handle /mcp/<name>* { reverse_proxy <service>:<port> }`.
 6. If it owns a database: add it to `DATABASES` on the `backup` service, and give it a

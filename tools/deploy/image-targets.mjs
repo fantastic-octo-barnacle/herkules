@@ -11,6 +11,8 @@ const deploymentFiles = new Set([
   "tools/deploy/docker-compose.yml",
   "tools/deploy/Caddyfile",
   "tools/deploy/gatus.yaml",
+  "tools/deploy/apply-release.sh",
+  "tools/deploy/compose.sh",
 ]);
 const backupImageFiles = new Set([
   "tools/deploy/backup/backup.sh",
@@ -27,20 +29,39 @@ export function selectImageTargets(paths, { all = false } = {}) {
 
   for (const path of paths) {
     if (!path) continue;
+    if (path === "README.md" || path.endsWith("/README.md")) continue;
     if (path === "Dockerfile") add(...allTargets);
     if (nodeBuildInputs.has(path) || path.startsWith("tsconfig")) add("auth", "bbs", "caddy");
-    if (path.startsWith("services/auth/")) add("auth");
-    if (path.startsWith("services/web/")) add("caddy");
-    if (path.startsWith("apps/bbs/")) add("bbs");
-    if (path.startsWith("packages/auth-middleware/")) add("auth", "bbs");
-    if (path.startsWith("packages/oauth-client/")) add("bbs");
-    if (path.startsWith("packages/ui/")) add("bbs", "caddy");
+    if (isBuildInput(path, "services/auth", ["src", "drizzle"])) add("auth");
+    if (isBuildInput(path, "services/web", ["src", "public"])) add("caddy");
+    if (isBuildInput(path, "apps/bbs", ["src", "drizzle", "web/src", "web/public"])) add("bbs");
+    if (isBuildInput(path, "packages/auth-middleware", ["src"])) add("auth", "bbs");
+    if (isBuildInput(path, "packages/oauth-client", ["src"])) add("bbs");
+    if (isBuildInput(path, "packages/ui", ["src"])) add("bbs", "caddy");
     if (backupImageFiles.has(path)) add("backup");
     if (deploymentFiles.has(path) || path.startsWith("tools/deploy/caddy/services/")) deploy = true;
   }
 
   const selected = allTargets.filter((target) => targets.has(target));
   return { targets: selected, deploy: deploy || selected.length > 0 };
+}
+
+function isBuildInput(path, root, directories) {
+  if (!path.startsWith(`${root}/`)) return false;
+  if (directories.some((directory) => path.startsWith(`${root}/${directory}/`))) return true;
+
+  const name = path.slice(root.length + 1);
+  const parts = name.split("/");
+  const leaf = parts.at(-1);
+  const buildRoot = parts.length === 1 || (parts.length === 2 && parts[0] === "web");
+  return (
+    buildRoot &&
+    (leaf === "package.json" ||
+      leaf === "index.html" ||
+      leaf === "components.json" ||
+      leaf.startsWith("tsconfig") ||
+      leaf.endsWith(".config.ts"))
+  );
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

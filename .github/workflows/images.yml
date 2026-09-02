@@ -1,31 +1,28 @@
 name: Images
-# Build changed images, alias unchanged sha tags for rollback, then deploy only when runtime files changed.
-#
-# Triggers, and why:
-#   workflow_run "CI"  — main is built only after ci.yml's `ready` job went green on that commit.
-#                        A push to main no longer builds directly; a red CI can no longer reach
-#                        the box. workflow_run also fires for failure and cancelled, hence the
-#                        conclusion check on the build job.
-#   push tags v*       — ci.yml does not run on tags, so a release tag builds on its own. No deploy.
-#   workflow_dispatch  — manual rebuild.
-#
-# Under workflow_run, github.sha and github.ref describe the DEFAULT BRANCH TIP, not the commit CI
-# tested; two quick pushes to main would make them disagree. Everything below therefore pins
-# github.event.workflow_run.head_sha (falling back to github.sha for the other two triggers),
-# including the image tags — `type=sha` would have used the unpinned github.sha.
+
+# CI selects and builds the image inputs that changed since the source of the active production
+# release, so a failed release is retried by the next push. The serialized release job then
+# patches those digests into the active image tuple, publishes a complete OCI release bundle, and
+# applies that exact bundle over SSH. The attempted-release cursor only guards against an older
+# CI run finishing after a newer one has already deployed.
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
     branches: [main]
-  push:
-    tags: ["v*"]
   workflow_dispatch:
+
 permissions:
+  actions: read
   contents: read
+  deployments: write
   packages: write
+
 env:
   BUILD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  CI_RUN_NUMBER: ${{ github.event.workflow_run.run_number || 0 }}
+  RELEASE_REPOSITORY: ghcr.io/${{ github.repository }}/release
+
 jobs:
   changes:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
@@ -37,14 +34,18 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ env.BUILD_SHA }}
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: false
       - id: select
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
-            base=$(git rev-parse "$BUILD_SHA^")
-            selection=$(git diff --name-only "$base" "$BUILD_SHA" | node tools/deploy/image-targets.mjs)
+          active=$(bash tools/deploy/deployment-state.sh active)
+          active_source=$(jq -r '.sourceSha // ""' <<<"$active")
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" && -n "$active_source" ]] \
+            && git cat-file -e "$active_source^{commit}" 2>/dev/null; then
+            selection=$(git diff --name-only "$active_source" "$BUILD_SHA" | node tools/deploy/image-targets.mjs)
           else
             selection=$(node tools/deploy/image-targets.mjs --all)
           fi
@@ -63,24 +64,25 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ env.BUILD_SHA }}
+          fetch-depth: 0
           persist-credentials: false
       - id: rev
         run: echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.target }}
           tags: |
             type=raw,value=latest,enable=${{ github.event_name == 'workflow_run' || github.ref == 'refs/heads/main' }}
-            type=ref,event=tag
             type=raw,value=sha-${{ steps.rev.outputs.short }}
-      - uses: docker/build-push-action@v6
+      - id: image
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: ${{ matrix.target }}
@@ -88,56 +90,38 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Two scopes each (cache-from/cache-to take a list). `build` is the byte-identical
-          # install+build stage all four targets share, so the first job to finish warms the
-          # other three instead of each rebuilding the workspace; the per-target scope keeps
-          # the runtime layers apart. The four jobs race to write `build`, and last writer wins
-          # — harmless, the content is identical.
           cache-from: |
             type=gha,scope=build
             type=gha,scope=${{ matrix.target }}
           cache-to: |
             type=gha,scope=build,mode=max
             type=gha,scope=${{ matrix.target }},mode=max
+      - name: Record immutable image reference
+        env:
+          TARGET: ${{ matrix.target }}
+          SHORT_SHA: ${{ steps.rev.outputs.short }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          mkdir -p image-update
+          jq -n \
+            --arg target "$TARGET" \
+            --arg image "ghcr.io/$GITHUB_REPOSITORY/$TARGET:sha-$SHORT_SHA@$DIGEST" \
+            '{target: $target, image: $image}' > "image-update/$TARGET.json"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ matrix.target }}
+          path: image-update/${{ matrix.target }}.json
+          if-no-files-found: error
 
-  alias-unchanged:
+  release:
     needs: [changes, build]
+    # Only main reaches production. Under workflow_run github.ref is the default branch, which
+    # the branches filter above already restricted; this guards manual runs from other branches.
     if: >-
       always() &&
       github.ref == 'refs/heads/main' &&
       needs.changes.outputs.deploy == 'true' &&
       (needs.build.result == 'success' || needs.build.result == 'skipped')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Add rollback tags to unchanged images
-        env:
-          TARGETS: ${{ needs.changes.outputs.targets }}
-        run: |
-          short=${BUILD_SHA:0:7}
-          for target in auth bbs caddy backup; do
-            if jq -e --arg target "$target" 'index($target) != null' <<<"$TARGETS" >/dev/null; then
-              continue
-            fi
-            image="ghcr.io/$GITHUB_REPOSITORY/$target"
-            docker buildx imagetools create --tag "$image:sha-$short" "$image:latest"
-          done
-
-  deploy:
-    needs: [changes, build, alias-unchanged]
-    # Tag builds do not deploy. Under workflow_run github.ref is the default branch, which is
-    # what the branches filter above already restricted to.
-    if: >-
-      always() &&
-      github.ref == 'refs/heads/main' &&
-      needs.changes.outputs.deploy == 'true' &&
-      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
-      needs.alias-unchanged.result == 'success'
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -147,8 +131,164 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ env.BUILD_SHA }}
+          fetch-depth: 0
           persist-credentials: false
-      - name: SSH key
+      - uses: actions/download-artifact@v8
+        if: needs.changes.outputs.targets != '[]'
+        with:
+          pattern: image-*
+          path: image-updates
+          merge-multiple: true
+      - uses: oras-project/setup-oras@v1
+        with:
+          version: 1.3.0
+      - name: Log in to the release registry
+        run: printf '%s' "$GH_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve active production release
+        id: active
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          state=$(bash tools/deploy/deployment-state.sh active)
+          attempted=$(bash tools/deploy/deployment-state.sh cursor)
+          release=$(jq -r '.release // ""' <<<"$state")
+          source=$(jq -r '.sourceSha // ""' <<<"$state")
+          cursor=$(jq -r '.ciCursor // 0' <<<"$state")
+          attempted_cursor=$(jq -r '.ciCursor // 0' <<<"$attempted")
+          stale=false
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" && "$attempted_cursor" -gt "$CI_RUN_NUMBER" ]]; then
+            stale=true
+          fi
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "source=$source" >> "$GITHUB_OUTPUT"
+          echo "cursor=$cursor" >> "$GITHUB_OUTPUT"
+          echo "stale=$stale" >> "$GITHUB_OUTPUT"
+      - name: Pull active release bundle
+        if: steps.active.outputs.stale != 'true' && steps.active.outputs.release != ''
+        env:
+          ACTIVE_RELEASE: ${{ steps.active.outputs.release }}
+        run: |
+          mkdir -p active-artifact active-release
+          oras pull "$ACTIVE_RELEASE" --output active-artifact
+          tar -xzf active-artifact/release.tar.gz -C active-release
+          node tools/deploy/release.mjs verify \
+            --release active-release/release.json \
+            --bundle active-release
+      - name: Assemble and publish release
+        id: candidate
+        if: steps.active.outputs.stale != 'true'
+        env:
+          ACTIVE_RELEASE: ${{ steps.active.outputs.release }}
+          ACTIVE_SOURCE: ${{ steps.active.outputs.source }}
+        run: |
+          mkdir -p bundle/caddy candidate-updates image-updates
+
+          # The active release may have moved since the changes job ran (another release or a
+          # rollback landed in between), so select again against what is active now.
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" && -n "$ACTIVE_SOURCE" ]] \
+            && git cat-file -e "$ACTIVE_SOURCE^{commit}" 2>/dev/null; then
+            git diff --name-only "$ACTIVE_SOURCE" "$BUILD_SHA" > release-paths
+            selected=$(node tools/deploy/image-targets.mjs < release-paths)
+            selection_all=false
+          else
+            selected=$(node tools/deploy/image-targets.mjs --all)
+            selection_all=true
+            : > release-paths
+          fi
+
+          if [[ -n "$ACTIVE_RELEASE" ]]; then
+            cp active-release/docker-compose.yml bundle/docker-compose.yml
+            cp active-release/Caddyfile bundle/Caddyfile
+            cp active-release/gatus.yaml bundle/gatus.yaml
+            cp active-release/apply-release.sh bundle/apply-release.sh
+            cp active-release/compose.sh bundle/compose.sh
+            cp -R active-release/caddy/services bundle/caddy/services
+          else
+            cp tools/deploy/docker-compose.yml bundle/docker-compose.yml
+            cp tools/deploy/Caddyfile bundle/Caddyfile
+            cp tools/deploy/gatus.yaml bundle/gatus.yaml
+            cp tools/deploy/apply-release.sh bundle/apply-release.sh
+            cp tools/deploy/compose.sh bundle/compose.sh
+            cp -R tools/deploy/caddy/services bundle/caddy/services
+          fi
+          if [[ "$selection_all" == "true" || -z "$ACTIVE_RELEASE" ]]; then
+            refresh_all=true
+          else
+            refresh_all=false
+          fi
+          if [[ "$refresh_all" == "true" ]] || grep -qx 'tools/deploy/docker-compose.yml' release-paths; then
+            cp tools/deploy/docker-compose.yml bundle/docker-compose.yml
+          fi
+          if [[ "$refresh_all" == "true" ]] || grep -Eq '^tools/deploy/(Caddyfile|caddy/services/)' release-paths; then
+            cp tools/deploy/Caddyfile bundle/Caddyfile
+            rm -rf bundle/caddy/services
+            cp -R tools/deploy/caddy/services bundle/caddy/services
+          fi
+          if [[ "$refresh_all" == "true" ]] || grep -qx 'tools/deploy/gatus.yaml' release-paths; then
+            cp tools/deploy/gatus.yaml bundle/gatus.yaml
+          fi
+          if [[ "$refresh_all" == "true" ]] || grep -Eq '^tools/deploy/(apply-release|compose)\.sh$' release-paths; then
+            cp tools/deploy/apply-release.sh bundle/apply-release.sh
+            cp tools/deploy/compose.sh bundle/compose.sh
+          fi
+          for update in image-updates/*.json; do
+            [[ -f "$update" ]] || continue
+            target=$(jq -r '.target' "$update")
+            if jq -e --arg target "$target" '.targets | index($target) != null' <<<"$selected" >/dev/null; then
+              cp "$update" candidate-updates/
+            fi
+          done
+          # Every image this selection needs must have been built by this run; otherwise the
+          # release would pair a newer source SHA with an older image. Nothing has been
+          # published yet, so the next push simply selects again.
+          for target in $(jq -r '.targets[]' <<<"$selected"); do
+            if [[ ! -f "candidate-updates/$target.json" ]]; then
+              echo "the active release changed while building: $target was not rebuilt; re-run this workflow" >&2
+              exit 1
+            fi
+          done
+
+          create=(node tools/deploy/release.mjs create
+            --bundle bundle
+            --source "$BUILD_SHA"
+            --updates candidate-updates
+            --output bundle/release.json)
+          if [[ -n "$ACTIVE_RELEASE" ]]; then
+            create+=(--base active-release/release.json --base-ref "$ACTIVE_RELEASE")
+          fi
+          "${create[@]}"
+          node tools/deploy/release.mjs env \
+            --release bundle/release.json \
+            --output bundle/images.env
+
+          plan=(node tools/deploy/release.mjs plan --candidate bundle/release.json)
+          if [[ -n "$ACTIVE_RELEASE" ]]; then plan+=(--current active-release/release.json); fi
+          "${plan[@]}" > release-plan.json
+          recreate=$(jq -r '.recreate | join(",")' release-plan.json)
+
+          tar -czf release.tar.gz -C bundle .
+          short=${BUILD_SHA:0:7}
+          tag="sha-$short-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          digest=$(oras push \
+            --artifact-type application/vnd.herkules.release.v1 \
+            --annotation "org.opencontainers.image.revision=$BUILD_SHA" \
+            "$RELEASE_REPOSITORY:$tag" \
+            release.tar.gz:application/vnd.herkules.release.bundle.v1+tar+gzip \
+            --format go-template --template '{{.digest}}')
+          echo "release=$RELEASE_REPOSITORY@$digest" >> "$GITHUB_OUTPUT"
+          echo "recreate=$recreate" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
+            echo "cursor=$CI_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+          else
+            echo "cursor=${{ steps.active.outputs.cursor }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Skip stale release
+        if: steps.active.outputs.stale == 'true'
+        run: echo "A newer CI run is already active; skipping this stale release." >> "$GITHUB_STEP_SUMMARY"
+      - name: Install SSH key
+        if: steps.active.outputs.stale != 'true'
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -157,21 +297,76 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/deploy ~/.ssh/known_hosts
-      - name: Sync compose files and roll the stack
+      - name: Deploy immutable release
+        if: steps.active.outputs.stale != 'true'
         env:
-          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
-          # The images are private (private repo): log the box in with this run's token before pulling.
-          # It expires with the run, so a later manual `docker compose pull` on the box needs its own read:packages login.
+          ACTIVE_RELEASE: ${{ steps.active.outputs.release }}
+          CI_CURSOR: ${{ steps.candidate.outputs.cursor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RECREATE: ${{ steps.candidate.outputs.recreate }}
+          RELEASE_REF: ${{ steps.candidate.outputs.release }}
+          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
         run: |
-          # ~/herkules/import stays: `bbs import` is still the cutover tool and compose mounts ./import.
-          ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/caddy/services ~/herkules/import'
-          ssh -i ~/.ssh/deploy "$TARGET" 'unlink ~/herkules/caddy/services/directory.caddy 2>/dev/null || true'
-          scp -i ~/.ssh/deploy -r tools/deploy/docker-compose.yml tools/deploy/Caddyfile tools/deploy/gatus.yaml tools/deploy/caddy/services "$TARGET":~/herkules/
-          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" 'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
-          # gatus.yaml is bind-mounted. Compose does not recreate the container when only the
-          # file contents change, and Gatus does not reload it, so force the cheap restart.
-          ssh -i ~/.ssh/deploy "$TARGET" 'cd ~/herkules && docker compose pull --quiet && docker compose up -d --remove-orphans --wait --wait-timeout 180 && docker compose up -d --no-deps --force-recreate gatus && docker image prune -f >/dev/null && docker compose ps'
+          expected=${ACTIVE_RELEASE:-none}
+          request=$(mktemp)
+          jq -n \
+            --arg ref "$BUILD_SHA" \
+            --arg release "$RELEASE_REF" \
+            --arg source "$BUILD_SHA" \
+            --argjson cursor "$CI_CURSOR" \
+            '{
+              ref: $ref,
+              task: "deploy:release",
+              auto_merge: false,
+              required_contexts: [],
+              environment: "production",
+              production_environment: true,
+              description: "Deploy an immutable Herkules OCI release",
+              payload: {release: $release, sourceSha: $source, ciCursor: $cursor}
+            }' > "$request"
+          deployment_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/deployments" \
+            --input "$request" --jq '.id')
 
-      - name: Verify status page
-        run: curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://status.herkules.dev/api/v1/endpoints/statuses >/dev/null
+          status() {
+            state=$1
+            description=$2
+            jq -n \
+              --arg state "$state" \
+              --arg description "$description" \
+              --arg log_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+              --arg environment_url "https://herkules.dev" \
+              '{state: $state, description: $description, log_url: $log_url, environment_url: $environment_url, auto_inactive: false}' \
+              > deployment-status.json
+            # The box commits current-release before this runs, so a lost status would leave
+            # GitHub behind production and fail the next drift check. Retry before giving up;
+            # the README documents the manual repair.
+            for attempt in 1 2 3; do
+              if gh api --method POST "repos/$GITHUB_REPOSITORY/deployments/$deployment_id/statuses" \
+                --input deployment-status.json >/dev/null; then
+                return 0
+              fi
+              sleep $((attempt * 5))
+            done
+            echo "could not record deployment status: $state" >&2
+            return 1
+          }
+          failed() {
+            result=$?
+            if [[ "$result" -ne 0 ]]; then status failure "OCI release failed; the previous OCI release was restored when available"; fi
+            exit "$result"
+          }
+          trap failed EXIT
+          status in_progress "Applying immutable OCI release"
+
+          archive="release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz"
+          ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/incoming ~/herkules/import'
+          scp -i ~/.ssh/deploy release.tar.gz "$TARGET:~/herkules/incoming/$archive"
+          scp -i ~/.ssh/deploy bundle/apply-release.sh "$TARGET:~/herkules/apply-release.sh"
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" \
+            'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
+          ssh -i ~/.ssh/deploy "$TARGET" \
+            "sh ~/herkules/apply-release.sh '$archive' '$RELEASE_REF' '$expected' '$RECREATE'"
+
+          status success "Immutable OCI release is active"
+          trap - EXIT

@@ -11,12 +11,26 @@ Copy `.env.example` to `.env`, then:
 ```sh
 vp run dev
 vp run dev:web
+vp run export <directory>
 vp test
 vp check
 vp run build
 ```
 
 The config default is port 3003. The checked-in `.env.example` sets Hono to 3103 so the SPA dev server can own port 3003 and proxy through `web/vite.config.ts`. One image, six commands, dispatched in `src/main.ts`: serve (the default), `migrate`, `work [--once]`, `bot`, `rederive`, and `import`, the deprecated cutover tool and dev loader. Deployment, worker startup, bot setup, import, cutover, and backup commands live in [`../../tools/deploy/README.md`](../../tools/deploy/README.md).
+
+## Exporting the public archive
+
+[`scripts/export.mjs`](scripts/export.mjs) is a standalone Node 22+ script. It uses only Node built-ins and the anonymous REST API, so it can be copied out of this repository and needs no BBS database, `.env` file, package install, or authentication. It writes one JSON file per article, including its AI record and local image mapping, plus `manifest.json`, `tags.json`, `status.json`, and deduplicated image files. The default source is `https://bbs.herkules.dev`.
+
+```sh
+node scripts/export.mjs ./bbs-export
+node scripts/export.mjs ./bbs-export --origin http://localhost:3103 --concurrency 8
+# Inside this workspace, the shorter equivalent is:
+vp run export ./bbs-export
+```
+
+Rerun the same directory to resume an interrupted export. The command refreshes JSON and reuses completed image files. It records failed articles and images in `manifest.json` and exits 1 until a later run completes them.
 
 ## Feishu bot
 

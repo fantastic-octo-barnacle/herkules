@@ -1,11 +1,22 @@
 name: Rollback production
-run-name: Rollback production to ${{ inputs.commit }}
+run-name: Rollback ${{ inputs.mode }}${{ inputs.mode == 'component' && format(' {0}', inputs.component) || '' }} production from ${{ inputs.release }}
 
 on:
   workflow_dispatch:
     inputs:
-      commit:
-        description: Full SHA of a previously successful production deployment
+      mode:
+        description: Roll back the complete release or one image
+        required: true
+        type: choice
+        options: [full, component]
+      component:
+        description: Image to restore when mode is component (ignored for full)
+        required: true
+        default: none
+        type: choice
+        options: [none, bbs, auth, caddy, backup]
+      release:
+        description: Successful deployment ID or full source Git SHA
         required: true
         type: string
       confirm:
@@ -15,8 +26,11 @@ on:
 
 permissions:
   contents: read
-  deployments: read
-  packages: read
+  deployments: write
+  packages: write
+
+env:
+  RELEASE_REPOSITORY: ghcr.io/${{ github.repository }}/release
 
 jobs:
   rollback:
@@ -25,73 +39,115 @@ jobs:
       name: production
       url: https://herkules.dev
     concurrency: deploy-production
-    env:
-      ROLLBACK_SHA: ${{ inputs.commit }}
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.commit }}
           persist-credentials: false
-
-      - name: Validate rollback target
-        id: target
+      - uses: oras-project/setup-oras@v1
+        with:
+          version: 1.3.0
+      - name: Log in to the release registry
+        run: printf '%s' "$GH_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve current and selected releases
+        id: releases
+        env:
+          COMPONENT: ${{ inputs.component }}
           CONFIRM: ${{ inputs.confirm }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ inputs.mode }}
+          SELECTED: ${{ inputs.release }}
         run: |
           if [[ "$CONFIRM" != "rollback-production" ]]; then
             echo "confirmation must be exactly: rollback-production" >&2
             exit 1
           fi
-          if [[ ! "$ROLLBACK_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
-            echo "commit must be a full 40-character SHA" >&2
+          if [[ "$MODE" == "component" && "$COMPONENT" == "none" ]]; then
+            echo "component rollback needs an image to restore" >&2
             exit 1
           fi
-
-          actual=$(git rev-parse HEAD)
-          if [[ "${actual,,}" != "${ROLLBACK_SHA,,}" ]]; then
-            echo "checked out $actual, expected $ROLLBACK_SHA" >&2
+          if [[ "$MODE" == "full" ]]; then COMPONENT=""; fi
+          echo "component=$COMPONENT" >> "$GITHUB_OUTPUT"
+          current=$(bash tools/deploy/deployment-state.sh active)
+          attempted=$(bash tools/deploy/deployment-state.sh cursor)
+          selected=$(bash tools/deploy/deployment-state.sh find "$SELECTED")
+          current_release=$(jq -r '.release // ""' <<<"$current")
+          if [[ -z "$current_release" ]]; then
+            echo "production has no active OCI release" >&2
             exit 1
           fi
-
-          successful=false
-          while read -r deployment_id; do
-            [[ -n "$deployment_id" ]] || continue
-            state=$(gh api "repos/$GITHUB_REPOSITORY/deployments/$deployment_id/statuses" --jq '.[0].state // ""')
-            if [[ "$state" == "success" ]]; then
-              successful=true
-              break
-            fi
-          done < <(
-            gh api "repos/$GITHUB_REPOSITORY/deployments?sha=$actual&environment=production&per_page=100" \
-              --jq '.[].id'
-          )
-          if [[ "$successful" != "true" ]]; then
-            echo "$actual has no successful production deployment" >&2
-            exit 1
-          fi
-
-          short=${actual:0:7}
-          echo "sha=$actual" >> "$GITHUB_OUTPUT"
-          echo "image_tag=sha-$short" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify rollback images
+          echo "current=$current_release" >> "$GITHUB_OUTPUT"
+          echo "current_source=$(jq -r '.sourceSha' <<<"$current")" >> "$GITHUB_OUTPUT"
+          echo "cursor=$(jq -r '.ciCursor // 0' <<<"$attempted")" >> "$GITHUB_OUTPUT"
+          echo "selected=$(jq -r '.release' <<<"$selected")" >> "$GITHUB_OUTPUT"
+      - name: Pull release bundles
         env:
-          IMAGE_TAG: ${{ steps.target.outputs.image_tag }}
+          CURRENT_RELEASE: ${{ steps.releases.outputs.current }}
+          SELECTED_RELEASE: ${{ steps.releases.outputs.selected }}
         run: |
-          for target in auth bbs caddy backup; do
-            image="ghcr.io/$GITHUB_REPOSITORY/$target:$IMAGE_TAG"
-            echo "checking $image"
-            docker manifest inspect "$image" >/dev/null
-          done
+          mkdir -p current-artifact current-release selected-artifact selected-release
+          oras pull "$CURRENT_RELEASE" --output current-artifact
+          tar -xzf current-artifact/release.tar.gz -C current-release
+          oras pull "$SELECTED_RELEASE" --output selected-artifact
+          tar -xzf selected-artifact/release.tar.gz -C selected-release
+          node tools/deploy/release.mjs verify \
+            --release current-release/release.json \
+            --bundle current-release
+          node tools/deploy/release.mjs verify \
+            --release selected-release/release.json \
+            --bundle selected-release
+      - name: Prepare rollback release
+        id: candidate
+        env:
+          COMPONENT: ${{ steps.releases.outputs.component }}
+          CURRENT_RELEASE: ${{ steps.releases.outputs.current }}
+          MODE: ${{ inputs.mode }}
+          SELECTED_RELEASE: ${{ steps.releases.outputs.selected }}
+        run: |
+          if [[ "$MODE" == "full" ]]; then
+            cp selected-artifact/release.tar.gz release.tar.gz
+            cp selected-release/release.json candidate-release.json
+            cp selected-release/apply-release.sh candidate-apply-release.sh
+            release_ref=$SELECTED_RELEASE
+          else
+            mkdir -p bundle image-updates
+            cp -R current-release/. bundle/
+            image=$(jq -r --arg component "$COMPONENT" '.images[$component]' selected-release/release.json)
+            jq -n --arg target "$COMPONENT" --arg image "$image" \
+              '{target: $target, image: $image}' > "image-updates/$COMPONENT.json"
+            source=$(jq -r '.sourceSha' current-release/release.json)
+            node tools/deploy/release.mjs create \
+              --base current-release/release.json \
+              --base-ref "$CURRENT_RELEASE" \
+              --bundle bundle \
+              --source "$source" \
+              --updates image-updates \
+              --reason rollback-component \
+              --output bundle/release.json
+            node tools/deploy/release.mjs env \
+              --release bundle/release.json \
+              --output bundle/images.env
+            cp bundle/release.json candidate-release.json
+            cp bundle/apply-release.sh candidate-apply-release.sh
+            tar -czf release.tar.gz -C bundle .
+            digest=$(oras push \
+              --artifact-type application/vnd.herkules.release.v1 \
+              --annotation "org.opencontainers.image.revision=$source" \
+              "$RELEASE_REPOSITORY:rollback-$COMPONENT-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+              release.tar.gz:application/vnd.herkules.release.bundle.v1+tar+gzip \
+              --format go-template --template '{{.digest}}')
+            release_ref="$RELEASE_REPOSITORY@$digest"
+          fi
 
-      - name: SSH key
+          node tools/deploy/release.mjs plan \
+            --current current-release/release.json \
+            --candidate candidate-release.json \
+            --output rollback-plan.json
+          echo "recreate=$(jq -r '.recreate | join(",")' rollback-plan.json)" >> "$GITHUB_OUTPUT"
+          echo "release=$release_ref" >> "$GITHUB_OUTPUT"
+          echo "source=$(jq -r '.sourceSha' candidate-release.json)" >> "$GITHUB_OUTPUT"
+      - name: Install SSH key
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -100,39 +156,99 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/deploy ~/.ssh/known_hosts
-
-      - name: Restore deployment files and roll back
+      - name: Apply rollback
         env:
-          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+          CI_CURSOR: ${{ steps.releases.outputs.cursor }}
+          COMPONENT: ${{ steps.releases.outputs.component }}
+          CURRENT_RELEASE: ${{ steps.releases.outputs.current }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ inputs.mode }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IMAGE_TAG: ${{ steps.target.outputs.image_tag }}
+          RECREATE: ${{ steps.candidate.outputs.recreate }}
+          RELEASE_REF: ${{ steps.candidate.outputs.release }}
+          SOURCE_SHA: ${{ steps.candidate.outputs.source }}
+          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
         run: |
-          ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/caddy/services ~/herkules/import'
-          ssh -i ~/.ssh/deploy "$TARGET" 'unlink ~/herkules/caddy/services/directory.caddy 2>/dev/null || true'
-          scp -i ~/.ssh/deploy -r tools/deploy/docker-compose.yml tools/deploy/Caddyfile tools/deploy/gatus.yaml tools/deploy/caddy/services "$TARGET":~/herkules/
-          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" 'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
-          # A bind-mounted gatus.yaml change is invisible to Compose's service-config hash.
-          ssh -i ~/.ssh/deploy "$TARGET" "cd ~/herkules && export IMAGE_TAG='$IMAGE_TAG' && docker compose pull --quiet && docker compose up -d --remove-orphans --wait --wait-timeout 180 && docker compose up -d --no-deps --force-recreate gatus && docker image prune -f >/dev/null && docker compose ps"
+          request=$(mktemp)
+          jq -n \
+            --arg ref "$SOURCE_SHA" \
+            --arg release "$RELEASE_REF" \
+            --arg source "$SOURCE_SHA" \
+            --argjson cursor "$CI_CURSOR" \
+            --arg mode "$MODE" \
+            --arg component "$COMPONENT" \
+            '{
+              ref: $ref,
+              task: "deploy:rollback",
+              auto_merge: false,
+              required_contexts: [],
+              environment: "production",
+              production_environment: true,
+              description: "Roll back an immutable Herkules OCI release",
+              payload: {
+                release: $release,
+                sourceSha: $source,
+                ciCursor: $cursor,
+                rollback: {mode: $mode, component: (if $component == "" then null else $component end)}
+              }
+            }' > "$request"
+          deployment_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/deployments" \
+            --input "$request" --jq '.id')
 
-      - name: Verify production
-        run: |
-          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://herkules.dev/auth/healthz
-          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://herkules.dev/.well-known/oauth-authorization-server/auth >/dev/null
-          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://herkules.dev/ >/dev/null
-          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://bbs.herkules.dev/healthz
-          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors https://status.herkules.dev/api/v1/endpoints/statuses >/dev/null
+          status() {
+            state=$1
+            description=$2
+            jq -n \
+              --arg state "$state" \
+              --arg description "$description" \
+              --arg log_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+              --arg environment_url "https://herkules.dev" \
+              '{state: $state, description: $description, log_url: $log_url, environment_url: $environment_url, auto_inactive: false}' \
+              > deployment-status.json
+            # The box commits current-release before this runs, so a lost status would leave
+            # GitHub behind production and fail the next drift check. Retry before giving up;
+            # the README documents the manual repair.
+            for attempt in 1 2 3; do
+              if gh api --method POST "repos/$GITHUB_REPOSITORY/deployments/$deployment_id/statuses" \
+                --input deployment-status.json >/dev/null; then
+                return 0
+              fi
+              sleep $((attempt * 5))
+            done
+            echo "could not record deployment status: $state" >&2
+            return 1
+          }
+          failed() {
+            result=$?
+            if [[ "$result" -ne 0 ]]; then status failure "Rollback failed; the previous OCI release was restored when available"; fi
+            exit "$result"
+          }
+          trap failed EXIT
+          status in_progress "Applying immutable OCI rollback"
 
+          archive="rollback-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz"
+          ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/incoming ~/herkules/import'
+          scp -i ~/.ssh/deploy release.tar.gz "$TARGET:~/herkules/incoming/$archive"
+          scp -i ~/.ssh/deploy candidate-apply-release.sh "$TARGET:~/herkules/apply-release.sh"
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" \
+            'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
+          ssh -i ~/.ssh/deploy "$TARGET" \
+            "sh ~/herkules/apply-release.sh '$archive' '$RELEASE_REF' '$CURRENT_RELEASE' '$RECREATE'"
+
+          status success "Immutable OCI rollback is active"
+          trap - EXIT
       - name: Summary
         env:
-          ROLLBACK_TARGET: ${{ steps.target.outputs.sha }}
-          IMAGE_TAG: ${{ steps.target.outputs.image_tag }}
+          COMPONENT: ${{ steps.releases.outputs.component }}
+          MODE: ${{ inputs.mode }}
+          RELEASE: ${{ steps.candidate.outputs.release }}
         run: |
           {
             echo "## Production rollback"
             echo
-            echo "- Commit: \`$ROLLBACK_TARGET\`"
-            echo "- Image tag: \`$IMAGE_TAG\`"
-            echo "- Site: https://herkules.dev"
+            echo "- Mode: \`$MODE\`"
+            if [[ -n "$COMPONENT" ]]; then echo "- Component: \`$COMPONENT\`"; fi
+            echo "- Active release: \`$RELEASE\`"
             echo
             echo "Database migrations were not reversed."
           } >> "$GITHUB_STEP_SUMMARY"
