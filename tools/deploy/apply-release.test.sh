@@ -86,6 +86,20 @@ test "$(sed -n '1p' "$root/current-release")" = "$first_ref"
 test ! -d "$root/releases/sha256-$third_digest"
 no_leftovers
 
+# A bundle carrying a symlink is rejected before extraction; a bind mount must never follow one.
+fourth_digest=$(printf 'd%.0s' $(seq 1 64))
+make_bundle linked linked
+rm "$work/linked/Caddyfile"
+ln -s /etc/hosts "$work/linked/Caddyfile"
+tar -czf "$root/incoming/linked.tar.gz" -C "$work/linked" .
+if DOCKER_LOG="$docker_log" PATH="$fakebin:$PATH" \
+  sh "$root/apply-release.sh" linked.tar.gz "ghcr.io/acme/herkules/release@sha256:$fourth_digest" "$first_ref" "" 2>/dev/null; then
+  echo "symlinked bundle unexpectedly succeeded" >&2
+  exit 1
+fi
+test ! -d "$root/releases/sha256-$fourth_digest"
+no_leftovers
+
 make_bundle second second
 if DOCKER_LOG="$docker_log" FAIL_PS=true PATH="$fakebin:$PATH" \
   sh "$root/apply-release.sh" second.tar.gz "$second_ref" "$first_ref" "caddy"; then

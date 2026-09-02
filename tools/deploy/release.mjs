@@ -70,7 +70,7 @@ export function validateRelease(value) {
   }
   if (!REASONS.has(value.reason)) throw new TypeError("release reason is invalid");
   if (value.parentRelease !== null && !RELEASE_REF.test(value.parentRelease ?? "")) {
-    throw new TypeError("release parentReference is invalid");
+    throw new TypeError("release parentRelease is invalid");
   }
   for (const target of IMAGE_TARGETS) {
     if (!IMAGE_REF.test(value.images?.[target] ?? "")) {

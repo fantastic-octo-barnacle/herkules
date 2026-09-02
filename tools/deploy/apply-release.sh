@@ -65,8 +65,14 @@ trap finish EXIT HUP INT TERM
 mkdir -p "$root/releases"
 if [ ! -d "$release_dir" ]; then
   if [ ! -f "$archive" ]; then echo "release archive not found: $archive" >&2; exit 1; fi
+  # Only regular files and directories, all inside the bundle: no absolute or parent paths, and
+  # no symlinks or device nodes that could point a bind mount at a host path.
   if tar -tzf "$archive" | grep -Eq '^/|(^|/)\.\.(/|$)'; then
     echo "release archive contains paths outside the bundle" >&2
+    exit 1
+  fi
+  if tar -tvzf "$archive" | grep -Evq '^[-d]'; then
+    echo "release archive contains entries that are not regular files or directories" >&2
     exit 1
   fi
   incoming="$root/releases/.incoming-sha256-$digest-$$"
