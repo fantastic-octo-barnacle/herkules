@@ -16,6 +16,7 @@
   "scripts": {
     "dev": "node --watch --env-file=.env --experimental-strip-types src/main.ts",
     "bot": "node --env-file=.env.bot --experimental-strip-types src/main.ts bot",
+    "export": "node scripts/export.mjs",
     "start": "node --experimental-strip-types src/main.ts",
     "import": "node --env-file=.env --experimental-strip-types src/main.ts import",
     "build": "vp pack && vp -C web build",
