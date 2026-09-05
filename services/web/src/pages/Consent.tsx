@@ -5,18 +5,17 @@
  */
 import { Button } from "@herkules/ui/components/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useLocation } from "@tanstack/react-router";
 
 import { resourceName } from "../format.ts";
 import { Actions, CenteredCard, Eyebrow, Lede, Loading, PageTitle } from "../layout.tsx";
 import { ErrorNotice } from "../notices.tsx";
+import { readOAuthPageQuery } from "../oauth-query.ts";
 import { HardRedirect, useSession } from "../session.tsx";
 
 export function ConsentPage() {
   const { api, session } = useSession();
-  const params = new URLSearchParams(useLocation().searchStr);
+  const { params, continuation } = readOAuthPageQuery();
 
-  const oauthQuery = params.toString();
   const clientId = params.get("client_id") ?? "";
   const resources = params.getAll("resource");
   const scopes = (params.get("scope") ?? "").split(" ").filter(Boolean);
@@ -34,7 +33,8 @@ export function ConsentPage() {
   });
   const answer = useMutation({
     mutationFn: async (accept: boolean) => {
-      const r = await api.consent(accept, oauthQuery);
+      if (!continuation) throw new Error("The authorization request is missing its signature.");
+      const r = await api.consent(accept, continuation);
       const url = r.url ?? r.redirect_uri;
       if (!url) throw new Error("The authorization server returned no redirect.");
       return url;
@@ -45,8 +45,9 @@ export function ConsentPage() {
   });
 
   if (session === undefined) return <Loading />;
-  if (session === null) return <HardRedirect to={`/login?${oauthQuery}`} />;
-  if (!clientId || !params.has("sig"))
+  if (session === null)
+    return <HardRedirect to={continuation ? `/login?${continuation}` : "/login"} />;
+  if (!clientId || !continuation)
     return (
       <CenteredCard>
         <PageTitle>Nothing to approve</PageTitle>
