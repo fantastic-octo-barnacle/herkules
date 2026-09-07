@@ -5,36 +5,35 @@
  */
 import { Button } from "@herkules/ui/components/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useLocation } from "@tanstack/react-router";
 
 import { loginErrorMessage } from "../format.ts";
 import { Actions, CenteredCard, Eyebrow, Lede, PageTitle } from "../layout.tsx";
 import { ErrorNotice, Notice } from "../notices.tsx";
+import { readOAuthPageQuery } from "../oauth-query.ts";
 import { HardRedirect, safeNext, useSession } from "../session.tsx";
 
 export function LoginPage() {
   const { api, session } = useSession();
-  const params = new URLSearchParams(useLocation().searchStr);
+  const { params, continuation } = readOAuthPageQuery();
 
   const rejection = params.get("error");
-  const clientId = params.get("client_id");
-  const signed = params.has("sig") ? params.toString() : undefined;
+  const clientId = new URLSearchParams(continuation).get("client_id");
   const next = safeNext(params.get("next"));
 
   const client = useQuery({
-    queryKey: ["public-client", clientId, signed],
-    queryFn: () => api.publicClient(clientId!, signed).catch(() => null),
+    queryKey: ["public-client", clientId, continuation],
+    queryFn: () => api.publicClient(clientId!, continuation).catch(() => null),
     enabled: !!clientId,
   });
   const start = useMutation({
-    mutationFn: () => api.signInWithGithub(next, signed),
+    mutationFn: () => api.signInWithGithub(next, continuation),
     onSuccess: ({ url }) => {
       location.href = url;
     },
   });
 
   // Already signed in and no OAuth continuation: nothing to do here.
-  if (session && !signed && !rejection) return <HardRedirect to={next} />;
+  if (session && !continuation && !rejection) return <HardRedirect to={next} />;
 
   const clientName = client.data?.client_name ?? (clientId ? `client ${clientId}` : undefined);
   return (

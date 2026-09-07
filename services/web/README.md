@@ -18,7 +18,7 @@ The development server runs on `http://localhost:3000` and proxies auth, metadat
 
 - The browser's origin is the public platform origin. There is no build-time API base URL and no cross-origin session setup.
 - `src/api.ts` owns calls to Better Auth and `/auth/api/*`. Pages do not construct auth URLs or reinterpret service errors.
-- Consent posts the signed query from Better Auth. It fetches client and resource display names from the auth service and does not trust unsigned URL fields as authority.
+- `src/oauth-query.ts` owns Better Auth's signed browser continuation. It reads the address bar directly, preserves repeated signed fields, and removes page-only fields before login or consent posts it. Router search serialization must not touch this protocol message.
 - The developer-token page runs a real authorization-code and PKCE flow through the `herkules-web` client. It requests `offline_access` so the token keeps a single resource audience; the issuer refuses refresh for this public client.
 - `/` is public and works without a session; it is the only screen that does. Two pathless layouts stack in `src/routes.tsx`: `app` owns the shell that the landing page and every signed-in screen share, and `authed` sits inside it and owns the guard. A wrong address is public too.
 - Guards are routing, not rendering: the `authed` layout's `beforeLoad` settles the one session query and redirects to `/login?next=<here>` when nobody is signed in; the `/admin` layout renders a plain refusal for non-admins. `src/session.tsx` owns the session query and safe `next` handling. Admin mutations remain server-enforced and audited.
@@ -33,6 +33,7 @@ The development server runs on `http://localhost:3000` and proxies auth, metadat
 - `src/routes.tsx`: the route table and the access guards
 - `src/shell.tsx`: header, nav, and the page column every signed-in screen sits in
 - `src/api.ts`: typed auth-service client
+- `src/oauth-query.ts`: Better Auth signed-query adapter for login and consent
 - `src/session.tsx`: the session query, `useSession`, safe `next` handling
 - `src/devtoken.ts`: PKCE and token display helpers
 - `src/services.ts`: the services the landing page lists, and the origin-relative host derivation
