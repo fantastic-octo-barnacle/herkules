@@ -96,6 +96,20 @@ describe("Better Auth signed query handoff", () => {
     expect(page.continuation).toBe("sig=signature%2Bvalue");
   });
 
+  test("excludes unsigned OAuth display fields from the continuation", () => {
+    const page = readOAuthPageQuery(
+      "?sig=signature&ba_param=client_id&client_id=signed-client" +
+        "&resource=https%3A%2F%2Funsigned.example&scope=offline_access",
+    );
+    const continuation = new URLSearchParams(page.continuation);
+    expect(continuation.get("client_id")).toBe("signed-client");
+    expect(continuation.getAll("resource")).toEqual([]);
+    expect(continuation.get("scope")).toBeNull();
+
+    const unsignedClient = readOAuthPageQuery("?sig=signature&client_id=unsigned-client");
+    expect(new URLSearchParams(unsignedClient.continuation).get("client_id")).toBeNull();
+  });
+
   test("does not invent a continuation for an ordinary page query", () => {
     const page = readOAuthPageQuery("?next=%2Fsettings");
     expect(page.params.get("next")).toBe("/settings");

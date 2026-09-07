@@ -14,7 +14,8 @@ import { HardRedirect, useSession } from "../session.tsx";
 
 export function ConsentPage() {
   const { api, session } = useSession();
-  const { params, continuation } = readOAuthPageQuery();
+  const { continuation } = readOAuthPageQuery();
+  const params = new URLSearchParams(continuation);
 
   const clientId = params.get("client_id") ?? "";
   const resources = params.getAll("resource");

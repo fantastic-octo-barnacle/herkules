@@ -17,7 +17,7 @@ export function LoginPage() {
   const { params, continuation } = readOAuthPageQuery();
 
   const rejection = params.get("error");
-  const clientId = params.get("client_id");
+  const clientId = new URLSearchParams(continuation).get("client_id");
   const next = safeNext(params.get("next"));
 
   const client = useQuery({
