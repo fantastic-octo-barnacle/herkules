@@ -90,6 +90,12 @@ describe("Better Auth signed query handoff", () => {
     });
   });
 
+  test("preserves a signature-only continuation and excludes page-only fields", () => {
+    const page = readOAuthPageQuery("?sig=signature%2Bvalue&next=%2Fsettings");
+    expect(page.params.get("next")).toBe("/settings");
+    expect(page.continuation).toBe("sig=signature%2Bvalue");
+  });
+
   test("does not invent a continuation for an ordinary page query", () => {
     const page = readOAuthPageQuery("?next=%2Fsettings");
     expect(page.params.get("next")).toBe("/settings");

@@ -19,7 +19,7 @@ export function ConsentPage() {
   const clientId = params.get("client_id") ?? "";
   const resources = params.getAll("resource");
   const scopes = (params.get("scope") ?? "").split(" ").filter(Boolean);
-  const ready = !!session && !!clientId;
+  const ready = !!session && !!clientId && !!continuation;
 
   const client = useQuery({
     queryKey: ["public-client", clientId],

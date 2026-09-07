@@ -18,8 +18,6 @@ export function readOAuthPageQuery(search: string = location.search): OAuthPageQ
   if (!params.has(SIGNATURE)) return { params };
 
   const signedNames = params.getAll(SIGNED_PARAMETER_NAME);
-  if (signedNames.length === 0) return { params };
-
   const included = new Set(signedNames);
   const continuation = new URLSearchParams();
   for (const [name, value] of params) {
