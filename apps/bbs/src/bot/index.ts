@@ -19,9 +19,9 @@ export async function runBot(options: BotRuntimeOptions): Promise<void> {
 
   let connected = false;
   try {
-    await options.transport.connect(async (message) => {
-      const result = await options.store.accept(message, clock.now());
-      if (result !== "ignored") log("inbound", { messageId: message.messageId, result });
+    await options.transport.connect(async (inbound) => {
+      const result = await options.store.accept(inbound, clock.now());
+      if (result !== "ignored") log("inbound", { kind: inbound.kind, result });
     });
     connected = true;
     const baseline = await options.store.activateAndBaseline(clock.now());

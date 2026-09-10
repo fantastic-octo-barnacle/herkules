@@ -4,10 +4,19 @@ import {
   createLarkChannel,
   type LarkChannel,
   type Logger,
+  type CardActionEvent,
   type NormalizedMessage,
 } from "@larksuiteoapi/node-sdk";
 
-import type { BotTransport, IncomingMessage, OutboundEnvelope, SendOutcome } from "./contract.ts";
+import type {
+  BotTransport,
+  Inbound,
+  IncomingCardAction,
+  IncomingMenuClick,
+  IncomingMessage,
+  OutboundEnvelope,
+  SendOutcome,
+} from "./contract.ts";
 
 interface FeishuTransportOptions {
   readonly appId: string;
@@ -82,6 +91,53 @@ function incoming(message: NormalizedMessage): IncomingMessage {
   };
 }
 
+function incomingAction(event: CardActionEvent): IncomingCardAction {
+  return {
+    messageId: event.messageId,
+    chatId: event.chatId,
+    operatorOpenId: event.operator.openId,
+    value: event.action.value,
+  };
+}
+
+/** `application.bot.menu_v6` is not normalised by the channel; this is the raw event body. */
+function incomingMenu(raw: unknown): IncomingMenuClick | null {
+  const value = raw as {
+    operator?: { operator_id?: { open_id?: unknown } };
+    event_key?: unknown;
+    timestamp?: unknown;
+  };
+  const openId = value?.operator?.operator_id?.open_id;
+  const eventKey = value?.event_key;
+  if (typeof openId !== "string" || !openId || typeof eventKey !== "string" || !eventKey) {
+    return null;
+  }
+  const timestamp = Number(value.timestamp);
+  return {
+    operatorOpenId: openId,
+    eventKey,
+    timestamp: Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Date.now(),
+  };
+}
+
+const BOT_MENU_EVENT = "application.bot.menu_v6";
+
+interface RawDispatcher {
+  register(handles: Record<string, (data: unknown) => Promise<void>>): unknown;
+}
+
+/**
+ * The channel only normalises messages, card actions, reactions and membership. Bot-menu clicks
+ * go straight to its event dispatcher, which the SDK keeps private; when a future SDK moves it,
+ * menu clicks stop working and the bot logs once rather than failing to start.
+ */
+function menuDispatcher(channel: LarkChannel): RawDispatcher | null {
+  const dispatcher = (channel as unknown as { dispatcher?: unknown }).dispatcher;
+  return dispatcher && typeof (dispatcher as RawDispatcher).register === "function"
+    ? (dispatcher as RawDispatcher)
+    : null;
+}
+
 function errorDetails(error: unknown): {
   code: string;
   status: number | null;
@@ -146,6 +202,11 @@ function connectionError(error: unknown): Error {
   return new Error(`Feishu connection failed: ${code}`);
 }
 
+/** Menu-triggered replies address the operator directly; everything else addresses a chat. */
+function receiveIdType(chatId: string): "open_id" | "chat_id" {
+  return chatId.startsWith("ou_") ? "open_id" : "chat_id";
+}
+
 export class FeishuTransport implements BotTransport {
   readonly #channel: LarkChannel;
   readonly #logger: Logger;
@@ -169,12 +230,29 @@ export class FeishuTransport implements BotTransport {
       });
   }
 
-  async connect(onMessage: (message: IncomingMessage) => Promise<void>): Promise<void> {
-    this.#channel.on("message", (message) => {
+  async connect(onInbound: (inbound: Inbound) => Promise<void>): Promise<void> {
+    const deliver = (label: string, inbound: Inbound) => {
       void Promise.resolve()
-        .then(() => onMessage(incoming(message)))
-        .catch((error: unknown) => this.#logger.error("message handler failed", error));
+        .then(() => onInbound(inbound))
+        .catch((error: unknown) => this.#logger.error(`${label} handler failed`, error));
+    };
+    this.#channel.on("message", (message) => {
+      deliver("message", { kind: "message", message: incoming(message) });
     });
+    this.#channel.on("cardAction", (event) => {
+      deliver("card action", { kind: "action", action: incomingAction(event) });
+    });
+    const dispatcher = menuDispatcher(this.#channel);
+    if (dispatcher) {
+      dispatcher.register({
+        [BOT_MENU_EVENT]: async (raw) => {
+          const menu = incomingMenu(raw);
+          if (menu) deliver("bot menu", { kind: "menu", menu });
+        },
+      });
+    } else {
+      void this.#logger.warn("bot menu events unavailable: channel exposes no event dispatcher");
+    }
     try {
       await this.#channel.connect();
     } catch (error) {
@@ -187,6 +265,17 @@ export class FeishuTransport implements BotTransport {
   async send(envelope: OutboundEnvelope, signal: AbortSignal): Promise<SendOutcome> {
     if (signal.aborted) return { kind: "ambiguous", code: "shutdown" };
     try {
+      if (envelope.kind === "update") {
+        if (!envelope.replyToMessageId) {
+          return { kind: "permanent", code: "missing_card_message_id", fatal: false };
+        }
+        const response = await this.#channel.rawClient.im.v1.message.patch({
+          path: { message_id: envelope.replyToMessageId },
+          data: { content: envelope.content },
+        });
+        if (response.code && response.code !== 0) return classifyResponse(response.code);
+        return { kind: "sent", messageId: envelope.replyToMessageId };
+      }
       const response = envelope.replyToMessageId
         ? await this.#channel.rawClient.im.v1.message.reply({
             path: { message_id: envelope.replyToMessageId },
@@ -197,7 +286,7 @@ export class FeishuTransport implements BotTransport {
             },
           })
         : await this.#channel.rawClient.im.v1.message.create({
-            params: { receive_id_type: "chat_id" },
+            params: { receive_id_type: receiveIdType(envelope.chatId) },
             data: {
               receive_id: envelope.chatId,
               msg_type: envelope.msgType,
@@ -226,5 +315,6 @@ export {
   classifyError as classifyFeishuError,
   classifyResponse as classifyFeishuResponse,
   connectionError as safeFeishuConnectionError,
+  incomingMenu as parseFeishuMenuEvent,
   redactSdkLog as redactFeishuSdkLog,
 };

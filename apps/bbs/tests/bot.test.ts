@@ -5,15 +5,25 @@ import { join } from "node:path";
 import type { LarkChannel, NormalizedMessage } from "@larksuiteoapi/node-sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { parseCommand } from "../src/bot/command.ts";
-import type { IncomingMessage } from "../src/bot/contract.ts";
+import type { Card } from "../src/bot/cards.ts";
+import { md } from "../src/bot/cards.ts";
+import {
+  actionReceiptId,
+  parseAction,
+  parseCommand,
+  parseMenuCommand,
+} from "../src/bot/command.ts";
+import type { SearchAction } from "../src/bot/command.ts";
+import type { Inbound, IncomingMessage, OutboundEnvelope } from "../src/bot/contract.ts";
 import {
   FeishuTransport,
   classifyFeishuError,
   classifyFeishuResponse,
+  parseFeishuMenuEvent,
   redactFeishuSdkLog,
   safeFeishuConnectionError,
 } from "../src/bot/feishu.ts";
+import { presentArticle, presentSearch, snippetMarkdown } from "../src/bot/present.ts";
 import { acquireBotProcessLock } from "../src/bot/lock.ts";
 import { BotStore } from "../src/bot/store.ts";
 import { digestDueAt, hongKongDay } from "../src/bot/time.ts";
@@ -40,6 +50,41 @@ function message(overrides: Partial<IncomingMessage> = {}): IncomingMessage {
   };
 }
 
+function inbound(overrides: Partial<IncomingMessage> = {}): Inbound {
+  return { kind: "message", message: message(overrides) };
+}
+
+function cardOf(envelope: OutboundEnvelope | null | undefined): Card {
+  expect(envelope?.msgType).toBe("interactive");
+  return JSON.parse(envelope!.content) as Card;
+}
+
+/** Every markdown element's text, plus every button's value, flattened for assertions. */
+function cardText(card: Card): string {
+  return JSON.stringify(card.body.elements);
+}
+
+function buttons(card: Card): { text: string; value?: unknown; url?: string }[] {
+  const found: { text: string; value?: unknown; url?: string }[] = [];
+  const walk = (element: unknown) => {
+    if (!element || typeof element !== "object") return;
+    const node = element as Record<string, unknown>;
+    if (node.tag === "button") {
+      const behavior = (node.behaviors as Record<string, unknown>[])[0]!;
+      found.push({
+        text: (node.text as { content: string }).content,
+        value: behavior.value,
+        url: behavior.default_url as string | undefined,
+      });
+    }
+    for (const child of Object.values(node)) {
+      if (Array.isArray(child)) child.forEach(walk);
+    }
+  };
+  card.body.elements.forEach(walk);
+  return found;
+}
+
 describe("bot commands and time", () => {
   it("requires a group mention and explicit group command, while DM text searches", () => {
     expect(parseCommand(message({ chatType: "group", content: "搜索 PID" }))).toEqual({
@@ -47,13 +92,180 @@ describe("bot commands and time", () => {
     });
     expect(
       parseCommand(message({ chatType: "group", mentionedBot: true, content: "搜索 PID" })),
-    ).toEqual({ kind: "search", query: "PID" });
-    expect(parseCommand(message())).toEqual({ kind: "search", query: "PID 整定" });
+    ).toEqual({ kind: "search", query: "PID", scope: "all" });
+    expect(
+      parseCommand(message({ chatType: "group", mentionedBot: true, content: "PID 整定" })),
+    ).toEqual({ kind: "ignore" });
+    expect(parseCommand(message())).toEqual({ kind: "search", query: "PID 整定", scope: "all" });
     expect(parseCommand(message({ content: "help" }))).toEqual({ kind: "help" });
     expect(parseCommand(message({ content: "x".repeat(201) }))).toEqual({
       kind: "invalid",
       reason: "too_long",
     });
+  });
+
+  it("parses slash commands, scopes, aliases and unknown names", () => {
+    expect(parseCommand(message({ content: "/search 云台 PID" }))).toEqual({
+      kind: "search",
+      query: "云台 PID",
+      scope: "all",
+    });
+    expect(parseCommand(message({ content: "/title 步兵" }))).toEqual({
+      kind: "search",
+      query: "步兵",
+      scope: "title",
+    });
+    expect(parseCommand(message({ content: "/kb HPM5361" }))).toEqual({
+      kind: "search",
+      query: "HPM5361",
+      scope: "kb",
+    });
+    expect(parseCommand(message({ content: "标题步兵" }))).toEqual({
+      kind: "search",
+      query: "步兵",
+      scope: "title",
+    });
+    expect(parseCommand(message({ content: "/latest" }))).toEqual({ kind: "latest" });
+    expect(parseCommand(message({ content: "/Status" }))).toEqual({ kind: "status" });
+    expect(parseCommand(message({ content: "/search" }))).toEqual({
+      kind: "invalid",
+      reason: "empty",
+    });
+    expect(parseCommand(message({ content: "/whoami" }))).toEqual({
+      kind: "unknown",
+      name: "whoami",
+    });
+    // A latin alias needs whitespace after it, so this DM is a phrase search.
+    expect(parseCommand(message({ content: "searching motors" }))).toEqual({
+      kind: "search",
+      query: "searching motors",
+      scope: "all",
+    });
+    expect(parseMenuCommand("latest")).toEqual({ kind: "latest" });
+    expect(parseMenuCommand("search")).toEqual({ kind: "help" });
+    expect(parseMenuCommand("nope")).toEqual({ kind: "unknown", name: "nope" });
+  });
+
+  it("validates card button values and keys their receipts per render", () => {
+    const action: SearchAction = {
+      v: 1,
+      cmd: "search",
+      q: "PID",
+      scope: "all",
+      trail: ["c1"],
+      chatType: "p2p",
+      nonce: "abc",
+    };
+    expect(parseAction(action)).toEqual(action);
+    expect(parseAction({ ...action, scope: "body" })).toBeNull();
+    expect(parseAction("next")).toBeNull();
+    expect(actionReceiptId("om_card", action)).toBe("action:om_card:abc:1");
+    expect(
+      parseFeishuMenuEvent({
+        operator: { operator_id: { open_id: "ou_1" } },
+        event_key: "latest",
+        timestamp: "1700",
+      }),
+    ).toEqual({
+      operatorOpenId: "ou_1",
+      eventKey: "latest",
+      timestamp: 1700,
+    });
+    expect(parseFeishuMenuEvent({ event_key: "latest" })).toBeNull();
+  });
+
+  it("renders search results as a card with bold hits and paging buttons", async () => {
+    const hit = (await fakeLibrary().search({ q: "PID", limit: 5 })).items[0]!;
+    const page = {
+      items: [
+        {
+          ...hit,
+          title: "带 [1] 标记 *和* <b>标签</b> 的标题",
+        },
+      ],
+      nextCursor: "c2" as never,
+      terms: ["PID", "整定"],
+    };
+    const card = cardOf({
+      ...presentSearch({
+        query: "PID 整定",
+        scope: "all",
+        trail: ["c1"],
+        chatType: "group",
+        page,
+        appOrigin: APP_ORIGIN,
+        nonce: "n1",
+      }),
+      id: "",
+      kind: "reply",
+      chatId: "",
+      replyToMessageId: null,
+      uuid: "",
+      leaseToken: "",
+      attemptNo: 1,
+    });
+    expect(card.schema).toBe("2.0");
+    expect(card.header.title.content).toBe("搜索：PID 整定");
+    expect(card.header.subtitle?.content).toBe("全文 · 第 2 页");
+    const text = cardText(card);
+    expect(text).toContain(
+      `[带 ［1］ 标记 ＊和＊ ＜b＞标签＜/b＞ 的标题](${APP_ORIGIN}/articles/${hit.id})`,
+    );
+    expect(text).toContain("**PID**");
+    expect(text).toContain("**整定**");
+    const [previous, next, site] = buttons(card);
+    expect(previous?.text).toBe("上一页");
+    expect(previous?.value).toMatchObject({ cmd: "search", q: "PID 整定", trail: [], nonce: "n1" });
+    expect(next?.text).toBe("下一页");
+    expect(next?.value).toMatchObject({ trail: ["c1", "c2"], chatType: "group" });
+    expect(site?.url).toBe(`${APP_ORIGIN}/search?q=PID+%E6%95%B4%E5%AE%9A`);
+
+    const empty = cardOf({
+      ...presentSearch({
+        query: "nothing",
+        scope: "kb",
+        trail: [],
+        chatType: "p2p",
+        page: { items: [], nextCursor: null, terms: ["nothing"] },
+        appOrigin: APP_ORIGIN,
+        nonce: "n2",
+      }),
+      id: "",
+      kind: "reply",
+      chatId: "",
+      replyToMessageId: null,
+      uuid: "",
+      leaseToken: "",
+      attemptNo: 1,
+    });
+    expect(empty.header.template).toBe("orange");
+    expect(buttons(empty).map((button) => button.text)).toEqual(["在网站中打开"]);
+    expect(buttons(empty)[0]?.url).toBe(`${APP_ORIGIN}/search?q=nothing&scope=kb`);
+
+    expect(md("a  [1]\n*b*")).toBe("a ［1］ ＊b＊");
+    expect(
+      snippetMarkdown(
+        [
+          { text: "x".repeat(100), hit: false },
+          { text: "PID", hit: true },
+          { text: "y".repeat(100), hit: false },
+        ],
+        10,
+      ),
+    ).toBe(`…${"x".repeat(10)}**PID**${"y".repeat(10)}…`);
+
+    const article = cardOf({
+      ...presentArticle({ title: "T", excerpt: "E", articleLink: `${APP_ORIGIN}/articles/x` }),
+      id: "",
+      kind: "article",
+      chatId: "",
+      replyToMessageId: null,
+      uuid: "",
+      leaseToken: "",
+      attemptNo: 1,
+    });
+    expect(article.header.title.content).toBe("RM 文库新文章");
+    expect(buttons(article)[0]?.url).toBe(`${APP_ORIGIN}/articles/x`);
   });
 
   it("uses Hong Kong calendar days and the following 09:00", () => {
@@ -116,8 +328,8 @@ describe("bot commands and time", () => {
   it("handles rejected inbound message callbacks", async () => {
     let listener: ((message: NormalizedMessage) => unknown) | undefined;
     const channel = {
-      on: (_event: string, callback: (message: NormalizedMessage) => unknown) => {
-        listener = callback;
+      on: (event: string, callback: (message: NormalizedMessage) => unknown) => {
+        if (event === "message") listener = callback;
       },
       connect: async () => undefined,
     } as unknown as LarkChannel;
@@ -139,6 +351,107 @@ describe("bot commands and time", () => {
       message: "database unavailable",
     });
     logged.mockRestore();
+  });
+
+  it("routes card clicks and menu clicks inbound, patches cards, and addresses users by open id", async () => {
+    const calls: { method: string; args: unknown }[] = [];
+    const handlers: Record<string, (event: unknown) => unknown> = {};
+    const channel = {
+      on: (event: string, callback: (event: unknown) => unknown) => {
+        handlers[event] = callback;
+      },
+      dispatcher: {
+        register: (handles: Record<string, (event: unknown) => unknown>) =>
+          Object.assign(handlers, handles),
+      },
+      connect: async () => undefined,
+      rawClient: {
+        im: {
+          v1: {
+            message: {
+              patch: async (args: unknown) => {
+                calls.push({ method: "patch", args });
+                return { code: 0 };
+              },
+              create: async (args: unknown) => {
+                calls.push({ method: "create", args });
+                return { code: 0, data: { message_id: "om_new" } };
+              },
+              reply: async (args: unknown) => {
+                calls.push({ method: "reply", args });
+                return { code: 0, data: { message_id: "om_reply" } };
+              },
+            },
+          },
+        },
+      },
+    } as unknown as LarkChannel;
+    const received: Inbound[] = [];
+    const transport = new FeishuTransport({
+      appId: "cli_test",
+      appSecret: "development-secret",
+      channel,
+    });
+    await transport.connect(async (inbound) => {
+      received.push(inbound);
+    });
+    handlers.cardAction!({
+      messageId: "om_card",
+      chatId: "oc_chat",
+      operator: { openId: "ou_1" },
+      action: { value: { cmd: "search" }, tag: "button" },
+    });
+    await handlers["application.bot.menu_v6"]!({
+      operator: { operator_id: { open_id: "ou_1" } },
+      event_key: "latest",
+      timestamp: "1700",
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(received).toEqual([
+      {
+        kind: "action",
+        action: {
+          messageId: "om_card",
+          chatId: "oc_chat",
+          operatorOpenId: "ou_1",
+          value: { cmd: "search" },
+        },
+      },
+      { kind: "menu", menu: { operatorOpenId: "ou_1", eventKey: "latest", timestamp: 1700 } },
+    ]);
+
+    const envelope: OutboundEnvelope = {
+      id: "d1",
+      kind: "update",
+      chatId: "oc_chat",
+      replyToMessageId: "om_card",
+      msgType: "interactive",
+      content: "{}",
+      uuid: "u1",
+      leaseToken: "l1",
+      attemptNo: 1,
+    };
+    const signal = new AbortController().signal;
+    expect(await transport.send(envelope, signal)).toEqual({ kind: "sent", messageId: "om_card" });
+    expect(
+      await transport.send(
+        { ...envelope, kind: "reply", replyToMessageId: null, chatId: "ou_1" },
+        signal,
+      ),
+    ).toEqual({
+      kind: "sent",
+      messageId: "om_new",
+    });
+    expect(calls).toEqual([
+      { method: "patch", args: { path: { message_id: "om_card" }, data: { content: "{}" } } },
+      {
+        method: "create",
+        args: {
+          params: { receive_id_type: "open_id" },
+          data: { receive_id: "ou_1", msg_type: "interactive", content: "{}", uuid: "u1" },
+        },
+      },
+    ]);
   });
 });
 
@@ -202,8 +515,8 @@ describe("durable bot store", () => {
     expect(await store.reconcile(digestTime)).toMatchObject({ digests: 1 });
     const digest = await store.leaseNext(digestTime);
     expect(digest?.kind).toBe("digest");
-    expect(JSON.parse(digest!.content).text).toContain("Article 4");
-    expect(JSON.parse(digest!.content).text).not.toContain("Article 3");
+    expect(cardText(cardOf(digest))).toContain("Article 4");
+    expect(cardText(cardOf(digest))).not.toContain("Article 3");
 
     await addArticle(db, 5, new Date(digestTime.getTime() + 60_000));
     expect(await store.reconcile(new Date(digestTime.getTime() + 120_000))).toMatchObject({
@@ -242,12 +555,12 @@ describe("durable bot store", () => {
     await store.activateAndBaseline(ACTIVATION);
     expect(
       await store.accept(
-        message({ chatType: "group", mentionedBot: false, content: "搜索 PID" }),
+        inbound({ chatType: "group", mentionedBot: false, content: "搜索 PID" }),
         ACTIVATION,
       ),
     ).toBe("ignored");
-    expect(await store.accept(message(), ACTIVATION)).toBe("accepted");
-    expect(await store.accept(message(), ACTIVATION)).toBe("duplicate");
+    expect(await store.accept(inbound(), ACTIVATION)).toBe("accepted");
+    expect(await store.accept(inbound(), ACTIVATION)).toBe("duplicate");
 
     const library = fakeLibrary();
     expect(await store.planNextReply(library, ACTIVATION)).toBe(true);
@@ -255,9 +568,77 @@ describe("durable bot store", () => {
     const reply = await store.leaseNext(ACTIVATION);
     expect(reply?.kind).toBe("reply");
     expect(reply?.replyToMessageId).toBe("om_1");
-    const text = JSON.parse(reply!.content).text as string;
-    expect(text).toContain("PID 整定经验");
-    expect(text).toContain(`${APP_ORIGIN}/articles/`);
+    const card = cardOf(reply);
+    expect(card.header.title.content).toBe("搜索：PID 整定");
+    expect(cardText(card)).toContain("PID 整定经验");
+    expect(cardText(card)).toContain(`${APP_ORIGIN}/articles/`);
+  });
+
+  it("turns a paging click into an in-place card update and collapses repeat clicks", async () => {
+    await store.activateAndBaseline(ACTIVATION);
+    const library = fakeLibrary();
+    const value: SearchAction = {
+      v: 1,
+      cmd: "search",
+      q: "PID",
+      scope: "title",
+      trail: ["c1"],
+      chatType: "group",
+      nonce: "n1",
+    };
+    const click: Inbound = {
+      kind: "action",
+      action: { messageId: "om_card", chatId: "oc_chat", operatorOpenId: "ou_1", value },
+    };
+    expect(await store.accept(click, ACTIVATION)).toBe("accepted");
+    expect(await store.accept(click, ACTIVATION)).toBe("duplicate");
+    expect(
+      await store.accept({ ...click, action: { ...click.action, value: "garbage" } }, ACTIVATION),
+    ).toBe("ignored");
+
+    expect(await store.planNextReply(library, ACTIVATION)).toBe(true);
+    const update = await store.leaseNext(ACTIVATION);
+    expect(update?.kind).toBe("update");
+    expect(update?.replyToMessageId).toBe("om_card");
+    expect(update?.chatId).toBe("oc_chat");
+    const card = cardOf(update);
+    expect(card.header.subtitle?.content).toBe("仅标题 · 第 2 页");
+    const previous = buttons(card).find((button) => button.text === "上一页");
+    expect(previous?.value).toMatchObject({
+      q: "PID",
+      scope: "title",
+      trail: [],
+      chatType: "group",
+    });
+    expect((previous!.value as SearchAction).nonce).not.toBe("n1");
+
+    // A cursor the Library no longer accepts falls back to the first page instead of failing.
+    const stale: Inbound = {
+      kind: "action",
+      action: { ...click.action, value: { ...value, trail: ["bad"], nonce: "n2" } },
+    };
+    expect(await store.accept(stale, ACTIVATION)).toBe("accepted");
+    expect(await store.planNextReply(library, ACTIVATION)).toBe(true);
+    const fallback = await store.leaseNext(ACTIVATION);
+    expect(cardOf(fallback).header.subtitle?.content).toBe("仅标题 · 第 1 页");
+  });
+
+  it("answers a bot-menu click in the operator's direct chat", async () => {
+    await store.activateAndBaseline(ACTIVATION);
+    const library = fakeLibrary();
+    const click: Inbound = {
+      kind: "menu",
+      menu: { operatorOpenId: "ou_1", eventKey: "latest", timestamp: 1700 },
+    };
+    expect(await store.accept(click, ACTIVATION)).toBe("accepted");
+    expect(await store.accept(click, ACTIVATION)).toBe("duplicate");
+    expect(await store.planNextReply(library, ACTIVATION)).toBe(true);
+    expect(library.calls).toEqual(["articles"]);
+    const reply = await store.leaseNext(ACTIVATION);
+    expect(reply?.kind).toBe("reply");
+    expect(reply?.chatId).toBe("ou_1");
+    expect(reply?.replyToMessageId).toBeNull();
+    expect(cardOf(reply).header.title.content).toBe("最新文章");
   });
 });
 

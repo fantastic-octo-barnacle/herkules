@@ -8,9 +8,33 @@ export interface IncomingMessage {
   readonly createTime: number;
 }
 
+/** A button press on a card the bot sent (`card.action.trigger`). */
+export interface IncomingCardAction {
+  /** The card's own message id; the reply is an in-place update of this card. */
+  readonly messageId: string;
+  readonly chatId: string;
+  readonly operatorOpenId: string;
+  /** The button's `value`, exactly as the card carried it. Validated by `parseAction`. */
+  readonly value: unknown;
+}
+
+/** A click on the bot menu next to the input box (`application.bot.menu_v6`). */
+export interface IncomingMenuClick {
+  readonly operatorOpenId: string;
+  readonly eventKey: string;
+  readonly timestamp: number;
+}
+
+export type Inbound =
+  | { readonly kind: "message"; readonly message: IncomingMessage }
+  | { readonly kind: "action"; readonly action: IncomingCardAction }
+  | { readonly kind: "menu"; readonly menu: IncomingMenuClick };
+
 export interface OutboundEnvelope {
   readonly id: string;
-  readonly kind: "article" | "digest" | "reply";
+  /** `update` patches the card at `replyToMessageId` instead of sending a new message. */
+  readonly kind: "article" | "digest" | "reply" | "update";
+  /** A chat id (`oc_…`) or, for menu-triggered replies, a user open id (`ou_…`). */
   readonly chatId: string;
   readonly replyToMessageId: string | null;
   readonly msgType: string;
@@ -30,7 +54,7 @@ export type SendOutcome =
   | { readonly kind: "permanent"; readonly code: string; readonly fatal: boolean };
 
 export interface BotTransport {
-  connect(onMessage: (message: IncomingMessage) => Promise<void>): Promise<void>;
+  connect(onInbound: (inbound: Inbound) => Promise<void>): Promise<void>;
   send(envelope: OutboundEnvelope, signal: AbortSignal): Promise<SendOutcome>;
   disconnect(): Promise<void>;
 }
