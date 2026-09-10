@@ -1,6 +1,6 @@
 import type { Library } from "../library/index.ts";
 import type { Cursor } from "../library/types.ts";
-import type { BotCommand, SearchAction } from "./command.ts";
+import type { BotCommand, SearchRequest } from "./command.ts";
 import {
   SEARCH_PAGE_SIZE,
   presentHelp,
@@ -24,15 +24,7 @@ export async function respond(command: BotCommand, deps: RespondDeps): Promise<F
   switch (command.kind) {
     case "search":
       return respondSearch(
-        {
-          v: 1,
-          cmd: "search",
-          q: command.query,
-          scope: command.scope,
-          trail: [],
-          chatType: deps.chatType,
-          nonce: "",
-        },
+        { q: command.query, scope: command.scope, trail: [], chatType: deps.chatType },
         deps,
       );
     case "latest":
@@ -54,29 +46,33 @@ export async function respond(command: BotCommand, deps: RespondDeps): Promise<F
 
 /** Renders the page a card button asked for; a stale cursor falls back to the first page. */
 export async function respondSearch(
-  action: SearchAction,
+  request: SearchRequest,
   deps: RespondDeps,
 ): Promise<FrozenPayload> {
-  const cursor = action.trail.at(-1);
-  let trail = action.trail;
+  const cursor = request.trail.at(-1);
+  let trail = request.trail;
   let page;
   try {
     page = await deps.library.search({
-      q: action.q,
-      scope: action.scope,
+      q: request.q,
+      scope: request.scope,
       cursor: cursor ? (cursor as Cursor) : undefined,
       limit: SEARCH_PAGE_SIZE,
     });
   } catch (error) {
     if (!cursor || !isInvalidCursor(error)) throw error;
     trail = [];
-    page = await deps.library.search({ q: action.q, scope: action.scope, limit: SEARCH_PAGE_SIZE });
+    page = await deps.library.search({
+      q: request.q,
+      scope: request.scope,
+      limit: SEARCH_PAGE_SIZE,
+    });
   }
   return presentSearch({
-    query: action.q,
-    scope: action.scope,
+    query: request.q,
+    scope: request.scope,
     trail,
-    chatType: action.chatType,
+    chatType: request.chatType,
     page,
     appOrigin: deps.appOrigin,
     nonce: deps.nonce(),

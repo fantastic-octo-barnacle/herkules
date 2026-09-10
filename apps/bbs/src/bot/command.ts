@@ -155,6 +155,9 @@ const searchActionSchema = z.object({
 
 export type SearchAction = z.infer<typeof searchActionSchema>;
 
+/** What a search page needs to render; a validated button payload is one of these plus its nonce. */
+export type SearchRequest = Pick<SearchAction, "q" | "scope" | "trail" | "chatType">;
+
 /** Validates a button `value`; null for anything the bot did not put on a card itself. */
 export function parseAction(value: unknown): SearchAction | null {
   const parsed = searchActionSchema.safeParse(value);
