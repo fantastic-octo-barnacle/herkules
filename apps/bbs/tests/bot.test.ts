@@ -229,9 +229,11 @@ describe("bot commands and time", () => {
     expect(card.header.title.content).toBe("搜索：PID 整定");
     expect(card.header.subtitle?.content).toBe("全文 · 第 2 页");
     const text = cardText(card);
+    // Page 2 numbers from 6, continuing the first page's 1–5.
     expect(text).toContain(
-      `[带 ［1］ 标记 ＊和＊ ＜b＞标签＜/b＞ 的标题](${APP_ORIGIN}/articles/${hit.id})`,
+      `**6. [带 ［1］ 标记 ＊和＊ ＜b＞标签＜/b＞ 的标题](${APP_ORIGIN}/articles/${hit.id})**`,
     );
+    expect(text).not.toContain("**1. [");
     expect(text).toContain("**PID**");
     expect(text).toContain("**整定**");
     const [previous, next, site] = buttons(card);
