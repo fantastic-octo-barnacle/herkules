@@ -90,10 +90,13 @@ function resolve(spec: CommandSpec, rest: string): BotCommand {
   return { kind: "search", query, scope: spec.scope ?? "all" };
 }
 
+/** The only words that act as commands without a leading slash: the forms groups already use. */
+const BARE_ALIASES: ReadonlySet<string> = new Set(["搜索", "search", "help", "帮助"]);
+
 /**
- * `/name args` anywhere; the bare aliases (`搜索 x`, `search x`, `help`) stay accepted so
- * existing group habits keep working. Latin bare aliases need whitespace after them so a
- * DM such as "searching motors" is still a search for that phrase.
+ * `/name args` anywhere. Without a slash only the legacy bare aliases count, and a latin one
+ * needs whitespace after it, so DMs such as "searching motors", "latest news" or "status update"
+ * stay full-text searches for those phrases.
  */
 function splitCommand(
   text: string,
@@ -104,14 +107,12 @@ function splitCommand(
     return { spec: findCommand(name) ?? null, name, rest: slash[2] ?? "" };
   }
   const bare = /^(\S+)(?:\s+([\s\S]*))?$/u.exec(text);
-  if (bare?.[1]) {
-    const spec = findCommand(bare[1]);
-    if (spec) return { spec, name: bare[1], rest: bare[2] ?? "" };
+  if (bare?.[1] && BARE_ALIASES.has(bare[1].toLowerCase())) {
+    return { spec: findCommand(bare[1]) ?? null, name: bare[1], rest: bare[2] ?? "" };
   }
-  const cjk = /^(搜索|标题|知识库)\s*([\s\S]*)$/u.exec(text);
+  const cjk = /^(搜索)\s*([\s\S]*)$/u.exec(text);
   if (cjk?.[1]) {
-    const spec = findCommand(cjk[1]);
-    if (spec) return { spec, name: cjk[1], rest: cjk[2] ?? "" };
+    return { spec: findCommand(cjk[1]) ?? null, name: cjk[1], rest: cjk[2] ?? "" };
   }
   return null;
 }

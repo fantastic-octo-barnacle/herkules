@@ -120,11 +120,20 @@ describe("bot commands and time", () => {
       query: "HPM5361",
       scope: "kb",
     });
-    expect(parseCommand(message({ content: "标题步兵" }))).toEqual({
+    expect(parseCommand(message({ content: "搜索步兵" }))).toEqual({
       kind: "search",
       query: "步兵",
-      scope: "title",
+      scope: "all",
     });
+    // Only the legacy bare aliases act as commands without a slash.
+    for (const content of ["标题 步兵", "latest news", "status update", "t motors", "h"]) {
+      expect(parseCommand(message({ content }))).toEqual({
+        kind: "search",
+        query: content,
+        scope: "all",
+      });
+    }
+    expect(parseCommand(message({ content: "帮助" }))).toEqual({ kind: "help" });
     expect(parseCommand(message({ content: "/latest" }))).toEqual({ kind: "latest" });
     expect(parseCommand(message({ content: "/Status" }))).toEqual({ kind: "status" });
     expect(parseCommand(message({ content: "/search" }))).toEqual({
@@ -172,6 +181,18 @@ describe("bot commands and time", () => {
       timestamp: 1700,
     });
     expect(parseFeishuMenuEvent({ event_key: "latest" })).toBeNull();
+    expect(
+      parseFeishuMenuEvent({
+        operator: { operator_id: { open_id: "oc_chat" } },
+        event_key: "latest",
+      }),
+    ).toBeNull();
+    expect(
+      parseFeishuMenuEvent({
+        operator: { operator_id: { open_id: "ou_1" } },
+        event_key: "x".repeat(65),
+      }),
+    ).toBeNull();
   });
 
   it("renders search results as a card with bold hits and paging buttons", async () => {

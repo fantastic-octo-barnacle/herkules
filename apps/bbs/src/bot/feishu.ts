@@ -109,7 +109,14 @@ function incomingMenu(raw: unknown): IncomingMenuClick | null {
   };
   const openId = value?.operator?.operator_id?.open_id;
   const eventKey = value?.event_key;
-  if (typeof openId !== "string" || !openId || typeof eventKey !== "string" || !eventKey) {
+  // The operator id becomes a receipt key and a `receive_id_type=open_id` target, so only a
+  // well-formed open id and a bounded menu key are accepted.
+  if (
+    typeof openId !== "string" ||
+    !OPEN_ID.test(openId) ||
+    typeof eventKey !== "string" ||
+    !MENU_KEY.test(eventKey)
+  ) {
     return null;
   }
   const timestamp = Number(value.timestamp);
@@ -121,6 +128,8 @@ function incomingMenu(raw: unknown): IncomingMenuClick | null {
 }
 
 const BOT_MENU_EVENT = "application.bot.menu_v6";
+const OPEN_ID = /^ou_[A-Za-z0-9]{1,64}$/u;
+const MENU_KEY = /^[\w.-]{1,64}$/u;
 
 interface RawDispatcher {
   register(handles: Record<string, (data: unknown) => Promise<void>>): unknown;

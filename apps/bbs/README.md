@@ -38,14 +38,14 @@ Rerun the same directory to resume an interrupted export. The command refreshes 
 no public callback route. Replies are interactive cards (card schema 2.0); the command table in
 `src/bot/command.ts` is what `/help` renders and what the bot menu resolves against:
 
-| Command           | Aliases                | Result                                                    |
-| ----------------- | ---------------------- | --------------------------------------------------------- |
-| `/search <terms>` | `/s`, `搜索`, `search` | Ranked full-text search, five hits per page with snippets |
-| `/title <terms>`  | `/t`, `标题`           | Same, titles only                                         |
-| `/kb <terms>`     | `知识库`               | Same, knowledge-base entries                              |
-| `/latest`         | `/new`, `最新`         | The five most recent articles                             |
-| `/status`         | `状态`                 | Corpus and AI counts                                      |
-| `/help`           | `/h`, `帮助`           | The command list                                          |
+| Command           | Aliases                      | Result                                                    |
+| ----------------- | ---------------------------- | --------------------------------------------------------- |
+| `/search <terms>` | `/s`, bare `搜索` / `search` | Ranked full-text search, five hits per page with snippets |
+| `/title <terms>`  | `/t`, `/标题`                | Same, titles only                                         |
+| `/kb <terms>`     | `/知识库`                    | Same, knowledge-base entries                              |
+| `/latest`         | `/new`, `/最新`              | The five most recent articles                             |
+| `/status`         | `/状态`                      | Corpus and AI counts                                      |
+| `/help`           | `/h`, bare `help` / `帮助`   | The command list                                          |
 
 In groups, mention the bot and send a command. In a direct message, ordinary text is a full-text
 search. Unknown `/commands` get an error card that points at `/help`. Search cards carry
