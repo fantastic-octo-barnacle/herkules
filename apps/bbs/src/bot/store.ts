@@ -4,16 +4,12 @@ import { sql } from "drizzle-orm";
 import type { BbsDb } from "../db/index.ts";
 import { rowsOf } from "../db/index.ts";
 import type { Library } from "../library/index.ts";
-import { parseCommand } from "./command.ts";
-import type { IncomingMessage, OutboundEnvelope, SendOutcome } from "./contract.ts";
-import {
-  presentArticle,
-  presentDigest,
-  presentHelp,
-  presentInvalid,
-  presentSearch,
-} from "./present.ts";
+import { actionReceiptId, parseAction, parseCommand, parseMenuCommand } from "./command.ts";
+import type { SearchAction } from "./command.ts";
+import type { Inbound, IncomingMessage, OutboundEnvelope, SendOutcome } from "./contract.ts";
+import { presentArticle, presentDigest } from "./present.ts";
 import type { FrozenPayload } from "./present.ts";
+import { respond, respondSearch } from "./respond.ts";
 import { digestDueAt, hongKongDay } from "./time.ts";
 
 const LEASE_MS = 2 * 60 * 1_000;
@@ -63,7 +59,7 @@ function articleExcerpt(introduction: unknown, bodyText: unknown): string | null
 }
 
 function deliveryValues(
-  kind: "article" | "digest" | "reply",
+  kind: OutboundEnvelope["kind"],
   logicalKey: string,
   chatId: string,
   replyToMessageId: string | null,
@@ -84,6 +80,60 @@ function deliveryValues(
     scheduledAt,
     at,
   };
+}
+
+const RECEIPT_CARD_ACTION = "card_action";
+const RECEIPT_BOT_MENU = "bot_menu";
+
+interface Receipt {
+  readonly messageId: string;
+  readonly chatId: string;
+  readonly chatType: "p2p" | "group";
+  readonly rawContentType: string;
+  readonly content: string;
+  readonly createTime: number;
+}
+
+/**
+ * Every inbound kind becomes one row keyed for deduplication: Feishu message ids for messages,
+ * card + render nonce + page for button clicks, operator + key + timestamp for menu clicks.
+ */
+function inboundReceipt(inbound: Inbound, at: Date): Receipt | null {
+  switch (inbound.kind) {
+    case "message": {
+      const message = inbound.message;
+      if (parseCommand(message).kind === "ignore") return null;
+      return {
+        messageId: message.messageId,
+        chatId: message.chatId,
+        chatType: message.chatType,
+        rawContentType: message.rawContentType,
+        content: message.content.slice(0, 1_000),
+        createTime: message.createTime,
+      };
+    }
+    case "action": {
+      const action: SearchAction | null = parseAction(inbound.action.value);
+      if (!action) return null;
+      return {
+        messageId: actionReceiptId(inbound.action.messageId, action),
+        chatId: inbound.action.chatId,
+        chatType: action.chatType,
+        rawContentType: RECEIPT_CARD_ACTION,
+        content: JSON.stringify({ cardMessageId: inbound.action.messageId, value: action }),
+        createTime: at.getTime(),
+      };
+    }
+    case "menu":
+      return {
+        messageId: `menu:${inbound.menu.operatorOpenId}:${inbound.menu.eventKey}:${inbound.menu.timestamp}`,
+        chatId: inbound.menu.operatorOpenId,
+        chatType: "p2p",
+        rawContentType: RECEIPT_BOT_MENU,
+        content: inbound.menu.eventKey.slice(0, 200),
+        createTime: inbound.menu.timestamp,
+      };
+  }
 }
 
 export class BotStore {
@@ -255,17 +305,17 @@ export class BotStore {
     });
   }
 
-  async accept(message: IncomingMessage, at: Date): Promise<"accepted" | "duplicate" | "ignored"> {
-    const command = parseCommand(message);
-    if (command.kind === "ignore") return "ignored";
+  async accept(inbound: Inbound, at: Date): Promise<"accepted" | "duplicate" | "ignored"> {
+    const receipt = inboundReceipt(inbound, at);
+    if (!receipt) return "ignored";
     const inserted = rowsOf(
       await this.#db.execute(sql`
         INSERT INTO bot_inbound_receipts
           (message_id, chat_id, chat_type, raw_content_type, content,
            created_at_feishu, admitted_at, state)
-        VALUES (${message.messageId}, ${message.chatId}, ${message.chatType},
-                ${message.rawContentType}, ${message.content.slice(0, 1_000)},
-                ${instant(new Date(message.createTime))}, ${instant(at)}, 'pending')
+        VALUES (${receipt.messageId}, ${receipt.chatId}, ${receipt.chatType},
+                ${receipt.rawContentType}, ${receipt.content},
+                ${instant(new Date(receipt.createTime))}, ${instant(at)}, 'pending')
         ON CONFLICT (message_id) DO NOTHING
         RETURNING message_id
       `),
@@ -312,24 +362,33 @@ export class BotStore {
     };
 
     try {
-      const command = parseCommand(message);
-      const payload =
-        command.kind === "help"
-          ? presentHelp()
-          : command.kind === "invalid"
-            ? presentInvalid(command.reason)
-            : command.kind === "search"
-              ? presentSearch(
-                  command.query,
-                  (await library.search({ q: command.query, limit: 5 })).items,
-                  this.#appOrigin,
-                )
-              : presentHelp();
+      const deps = {
+        library,
+        appOrigin: this.#appOrigin,
+        chatType: message.chatType,
+        nonce: () => randomUUID().slice(0, 8),
+      };
+      let payload: FrozenPayload;
+      let kind: OutboundEnvelope["kind"] = "reply";
+      let replyToMessageId: string | null = message.messageId;
+      if (message.rawContentType === RECEIPT_CARD_ACTION) {
+        const stored = JSON.parse(message.content) as { cardMessageId: string; value: unknown };
+        const action = parseAction(stored.value);
+        if (!action) throw new Error("stored card action is not valid");
+        payload = await respondSearch(action, deps);
+        kind = "update";
+        replyToMessageId = stored.cardMessageId;
+      } else if (message.rawContentType === RECEIPT_BOT_MENU) {
+        payload = await respond(parseMenuCommand(message.content), deps);
+        replyToMessageId = null;
+      } else {
+        payload = await respond(parseCommand(message), deps);
+      }
       const delivery = deliveryValues(
-        "reply",
+        kind,
         `reply:${message.messageId}`,
         message.chatId,
-        message.messageId,
+        replyToMessageId,
         payload,
         at,
         at,
@@ -365,7 +424,7 @@ export class BotStore {
           SELECT * FROM bot_deliveries
           WHERE state = 'pending' AND scheduled_at <= ${atIso} AND next_attempt_at <= ${atIso}
           ORDER BY scheduled_at,
-                   CASE kind WHEN 'digest' THEN 0 WHEN 'reply' THEN 1 ELSE 2 END,
+                   CASE kind WHEN 'digest' THEN 0 WHEN 'reply' THEN 1 WHEN 'update' THEN 1 ELSE 2 END,
                    created_at
           LIMIT 1
           FOR UPDATE SKIP LOCKED
