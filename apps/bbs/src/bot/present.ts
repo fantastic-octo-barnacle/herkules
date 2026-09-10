@@ -106,9 +106,9 @@ function metaLine(article: ArticleSummary): string {
   return parts.length ? `<font color='grey'>${parts.join(" · ")}</font>` : "";
 }
 
-function hitElement(hit: SearchHit, index: number, appOrigin: string): CardElement {
+function hitElement(hit: SearchHit, number: number, appOrigin: string): CardElement {
   const lines = [
-    `**${index + 1}. ${link(hit.title, articleLink(appOrigin, hit.id))}**`,
+    `**${number}. ${link(hit.title, articleLink(appOrigin, hit.id))}**`,
     metaLine(hit),
     hit.snippet?.length
       ? snippetMarkdown(hit.snippet)
@@ -176,9 +176,11 @@ export function presentSearch(view: SearchView): FrozenPayload {
     );
   }
   const elements: CardElement[] = [];
+  // Numbering continues across pages, so page 2 starts at 6, not 1.
+  const first = (pageNo - 1) * SEARCH_PAGE_SIZE + 1;
   view.page.items.forEach((hit, index) => {
     if (index > 0) elements.push(hr());
-    elements.push(hitElement(hit, index, view.appOrigin));
+    elements.push(hitElement(hit, first + index, view.appOrigin));
   });
   elements.push(hr());
   if (buttons) elements.push(buttons);
