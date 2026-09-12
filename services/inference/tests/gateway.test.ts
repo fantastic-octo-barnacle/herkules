@@ -8,7 +8,7 @@ import type { Config } from "../src/config.ts";
 // Node fetch ignores an overridden Host header; use HTTP directly to exercise routing.
 function fetch(
   url: string,
-  init: { method?: string; headers?: Record<string, string> } = {},
+  init: { method?: string; headers?: Record<string, string>; body?: string } = {},
 ): Promise<{ status: number }> {
   return new Promise((resolve, reject) => {
     const req = request(url, init, (res) => {
@@ -16,7 +16,7 @@ function fetch(
       resolve({ status: res.statusCode! });
     });
     req.on("error", reject);
-    req.end();
+    req.end(init.body);
   });
 }
 const instances: ReturnType<typeof createGateway>[] = [];
@@ -37,6 +37,7 @@ async function fixture(ready = true, member = true) {
     workers: [{ id: "gpu", model: "qwen", url: "http://worker", key: "worker-secret" }],
   } as Config;
   let hits = 0;
+  const forwarded: Record<string, unknown>[] = [];
   const identifyKey = vi.fn(async (hash: string) =>
     hash === createHash("sha256").update("test").digest("hex") ? 2 : undefined,
   );
@@ -44,8 +45,9 @@ async function fixture(ready = true, member = true) {
     config,
     membership: { ready, check: async () => member },
     identifyKey,
-    fetch: async (input) => {
+    fetch: async (input, init) => {
       hits++;
+      if (typeof init?.body === "string") forwarded.push(JSON.parse(init.body));
       return (typeof input === "string"
         ? input
         : input instanceof URL
@@ -63,7 +65,7 @@ async function fixture(ready = true, member = true) {
   }
   const url = (internal = false) =>
     `http://127.0.0.1:${((internal ? g.internal : g.public).address() as AddressInfo).port}`;
-  return { g, url, identifyKey, hits: () => hits };
+  return { g, url, identifyKey, forwarded, hits: () => hits };
 }
 test("API hostname has no dashboard or alternate generation paths", async () => {
   const f = await fixture();
@@ -151,4 +153,53 @@ test("encoded paths cannot change routes after admission", async () => {
     ).toBe(400);
   }
   expect(f.hits()).toBe(0);
+});
+
+test("clients may request 64K output but cannot exceed the cap", async () => {
+  const f = await fixture();
+  for (const [max_tokens, status] of [
+    [65_536, 200],
+    [65_537, 400],
+  ]) {
+    expect(
+      (
+        await fetch(f.url() + "/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            host: "api.test",
+            authorization: "Bearer sk-test",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "qwen",
+            messages: [{ role: "user", content: "hello" }],
+            stream: true,
+            max_tokens,
+          }),
+        })
+      ).status,
+    ).toBe(status);
+  }
+});
+
+test("omitting an output limit reserves 32K for coding responses", async () => {
+  const f = await fixture();
+  expect(
+    (
+      await fetch(f.url() + "/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          host: "api.test",
+          authorization: "Bearer sk-test",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "qwen",
+          messages: [{ role: "user", content: "hello" }],
+          stream: true,
+        }),
+      })
+    ).status,
+  ).toBe(200);
+  expect(f.forwarded).toEqual([expect.objectContaining({ max_tokens: 32_768 })]);
 });

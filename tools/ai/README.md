@@ -166,7 +166,10 @@ managed `herkules-dispatch` channel; bootstrap reconciles those settings.
 
 ## Limits and administration
 
-Default output is 4096 tokens, maximum 8192. Only text messages, streamed chat completions and model
+Default output is 32768 tokens; clients may request up to 65536 output tokens.
+The templated prompt plus requested output must fit the worker's 131072-token context.
+Requesting 65536 output tokens leaves at most 65536 for the templated prompt.
+Only text messages, streamed chat completions and model
 listing are public initially. One request can run per user; two may wait per user,
 16 globally, for at most 90 seconds. This is one gateway process; do not scale the
 gateway horizontally without replacing its in-memory scheduler and ticket store.
