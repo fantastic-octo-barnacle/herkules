@@ -71,6 +71,10 @@ export function createWorker(options: WorkerOptions) {
       ) {
         throw new AdmissionError("invalid_output_limit", 400);
       }
+      // llama.cpp accepts these aliases with precedence over max_tokens. Pin
+      // all three to the budget used for the context check below.
+      input.n_predict = input.max_tokens;
+      input.max_completion_tokens = input.max_tokens;
       if (busy) throw new AdmissionError("worker_busy", 409);
       busy = true;
       try {

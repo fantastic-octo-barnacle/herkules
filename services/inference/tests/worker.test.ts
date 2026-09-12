@@ -79,3 +79,29 @@ test("prefill emits heartbeats, rejects overlap and cancels on disconnect", asyn
   c.abort();
   await expect.poll(() => upstream?.aborted).toBe(true);
 });
+
+test("the worker pins every output-limit alias to the admitted budget", async () => {
+  let generated: Record<string, unknown> | undefined;
+  const url = await start(async (input, init) => {
+    const path = new URL(
+      typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+    ).pathname;
+    if (path === "/slots") return Response.json([{ is_processing: false }]);
+    if (path === "/apply-template") return Response.json({ prompt: "template" });
+    if (path === "/tokenize") return Response.json({ tokens: [1] });
+    if (typeof init?.body !== "string") throw new Error("Expected JSON request body");
+    generated = JSON.parse(init.body);
+    return new Response("data: [DONE]\n\n");
+  });
+  const response = await fetch(url + "/v1/chat/completions", {
+    ...request,
+    body: JSON.stringify({
+      ...JSON.parse(request.body),
+      n_predict: -1,
+      max_completion_tokens: 999999,
+    }),
+  });
+  expect(response.status).toBe(200);
+  await response.text();
+  expect(generated).toMatchObject({ max_tokens: 32, n_predict: 32, max_completion_tokens: 32 });
+});

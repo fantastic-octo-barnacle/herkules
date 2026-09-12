@@ -1,4 +1,5 @@
-import { afterEach, expect, test } from "vite-plus/test";
+import { afterEach, expect, test, vi } from "vite-plus/test";
+import { createHash } from "node:crypto";
 import { request } from "node:http";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
@@ -36,10 +37,13 @@ async function fixture(ready = true, member = true) {
     workers: [{ id: "gpu", model: "qwen", url: "http://worker", key: "worker-secret" }],
   } as Config;
   let hits = 0;
+  const identifyKey = vi.fn(async (hash: string) =>
+    hash === createHash("sha256").update("test").digest("hex") ? 2 : undefined,
+  );
   const g = createGateway({
     config,
     membership: { ready, check: async () => member },
-    identifyKey: async () => 2,
+    identifyKey,
     fetch: async (input) => {
       hits++;
       return (typeof input === "string"
@@ -59,7 +63,7 @@ async function fixture(ready = true, member = true) {
   }
   const url = (internal = false) =>
     `http://127.0.0.1:${((internal ? g.internal : g.public).address() as AddressInfo).port}`;
-  return { g, url, hits: () => hits };
+  return { g, url, identifyKey, hits: () => hits };
 }
 test("API hostname has no dashboard or alternate generation paths", async () => {
   const f = await fixture();
@@ -107,4 +111,44 @@ test("stale membership and disabled identities fail closed before inference", as
       })
     ).status,
   ).toBe(403);
+});
+
+test("standard sk-prefixed keys match the stored unprefixed key hash", async () => {
+  const f = await fixture();
+  expect(
+    (
+      await fetch(f.url() + "/v1/models", {
+        headers: { host: "api.test", authorization: "Bearer sk-test" },
+      })
+    ).status,
+  ).toBe(200);
+  expect(f.identifyKey).toHaveBeenCalledWith(createHash("sha256").update("test").digest("hex"));
+  expect(
+    (
+      await fetch(f.url() + "/v1/models", {
+        headers: { host: "api.test", authorization: "Bearer sk-unknown" },
+      })
+    ).status,
+  ).toBe(401);
+});
+
+test("encoded paths cannot change routes after admission", async () => {
+  const f = await fixture();
+  for (const path of [
+    "/api/user/login%3fignored",
+    "/api/user/login%23ignored",
+    "/api/x%2f..%2fsetup",
+    "/api%2f%2fsetup",
+    "/api/setup%0a",
+  ]) {
+    expect(
+      (
+        await fetch(f.url() + path, {
+          method: "POST",
+          headers: { host: "portal.test" },
+        })
+      ).status,
+    ).toBe(400);
+  }
+  expect(f.hits()).toBe(0);
 });

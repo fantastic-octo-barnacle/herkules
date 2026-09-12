@@ -75,7 +75,15 @@ export function createGateway(deps: GatewayDeps) {
       } catch {
         throw new AdmissionError("invalid_path", 400);
       }
-      if (path.includes("%") || path.includes("\\")) throw new AdmissionError("invalid_path", 400);
+      // Reject decoded delimiters and noncanonical segments before forwarding: fetch
+      // would otherwise reinterpret them as a query, fragment or a different route.
+      if (
+        // eslint-disable-next-line no-control-regex -- URL parsers discard ASCII controls.
+        /[%\\?#\u0000-\u0020\u007f]/.test(path) ||
+        path.includes("//") ||
+        path.split("/").some((part) => part === "." || part === "..")
+      )
+        throw new AdmissionError("invalid_path", 400);
       if (path === "/healthz") {
         json(res, membership.ready ? 200 : 503, { ready: membership.ready, ...queue.status });
         return;
