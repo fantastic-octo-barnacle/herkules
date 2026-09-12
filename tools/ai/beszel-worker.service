@@ -1,0 +1,24 @@
+[Unit]
+Description=Beszel GPU worker monitoring
+After=network-online.target
+Wants=network-online.target
+[Service]
+User=beszel
+EnvironmentFile=/etc/beszel-agent/agent.env
+ExecStart=/usr/local/bin/beszel-agent
+Restart=on-failure
+RestartSec=5
+StateDirectory=beszel-agent
+KeyringMode=private
+LockPersonality=yes
+ProtectClock=yes
+ProtectHome=read-only
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectSystem=strict
+RemoveIPC=yes
+RestrictSUIDSGID=true
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia0 rw
+[Install]
+WantedBy=multi-user.target

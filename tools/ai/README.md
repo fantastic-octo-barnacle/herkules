@@ -84,6 +84,21 @@ prompt, rejects prompt-plus-output above 131072, and emits heartbeat comments du
 prefill. A gateway restart cannot admit overlapping work to a busy model server.
 Do not route the published application back to port 8080 after this cutover.
 
+## GPU monitoring
+
+The GPU host is registered as `gpu-4090` at `https://ops.herkules.dev`.
+`beszel-agent.service` runs the native agent at `/usr/local/bin/beszel-agent`,
+version 0.18.8 to match the hub. Its unit is recorded in `beszel-worker.service`.
+The host-owned `/etc/beszel-agent/agent.env` contains the hub public key and
+registration token, `HUB_URL=https://ops.herkules.dev`, `SYSTEM_NAME=gpu-4090`,
+`GPU_COLLECTOR=nvidia-smi`, and `DISABLE_SSH=true`. Keep that file root-owned,
+mode 600. Monitoring uses an outbound WebSocket; no inbound monitoring port is needed.
+
+The agent reports GPU utilization, VRAM, temperature and power, plus CPU, RAM,
+disks, network and the `llama-server`, `herkules-ai-worker`, `cloudflared` and
+`beszel-agent` service states. Its persistent identity lives in
+`/var/lib/beszel-agent`. Check it with `systemctl status beszel-agent`.
+
 ## Real Herkules authentication
 
 Production uses `https://herkules.dev/auth` for browser sign-in and
