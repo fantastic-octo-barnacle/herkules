@@ -237,9 +237,11 @@ export function createGateway(deps: GatewayDeps) {
         headers["CF-Access-Client-Id"] = worker.accessId;
         headers["CF-Access-Client-Secret"] = worker.accessSecret;
       }
+      const forwarded = JSON.parse((await body(req)).toString()) as Record<string, unknown>;
+      if (forwarded.model !== worker.model) throw new AdmissionError("model_ticket_mismatch", 400);
       const response = await transport(worker.url + "/v1/chat/completions", {
         method: "POST",
-        body: new Uint8Array(await body(req)),
+        body: JSON.stringify(forwarded),
         headers,
         redirect: "error",
         signal: AbortSignal.any([ticket.signal, cancel.signal]),

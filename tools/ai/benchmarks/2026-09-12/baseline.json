@@ -1,0 +1,288 @@
+[
+  {
+    "model": "ling-3.0-tiny",
+    "context": 131072,
+    "slots": 2,
+    "vram_mib": 7906,
+    "single": {
+      "cache_n": 0,
+      "prompt_n": 11,
+      "prompt_ms": 26.013,
+      "prompt_per_token_ms": 2.364818181818182,
+      "prompt_per_second": 422.86549033175714,
+      "predicted_n": 128,
+      "predicted_ms": 447.167,
+      "predicted_per_token_ms": 3.521,
+      "predicted_per_second": 284.0102243680772
+    },
+    "concurrent": [
+      {
+        "cache_n": 0,
+        "prompt_n": 11,
+        "prompt_ms": 28.289,
+        "prompt_per_token_ms": 2.571727272727273,
+        "prompt_per_second": 388.84372017391917,
+        "predicted_n": 128,
+        "predicted_ms": 542.343,
+        "predicted_per_token_ms": 4.270417322834645,
+        "predicted_per_second": 234.16915125667705
+      },
+      {
+        "cache_n": 0,
+        "prompt_n": 11,
+        "prompt_ms": 41.394,
+        "prompt_per_token_ms": 3.763090909090909,
+        "prompt_per_second": 265.738995989757,
+        "predicted_n": 128,
+        "predicted_ms": 528.981,
+        "predicted_per_token_ms": 4.165204724409449,
+        "predicted_per_second": 240.08423743007782
+      }
+    ],
+    "aggregate_tps": 437.67141097372155,
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "arguments": "{\"city\":\"Hong Kong\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls",
+    "passed": true
+  },
+  {
+    "model": "gemma-4-12b",
+    "context": 131072,
+    "slots": 2,
+    "vram_mib": 10464,
+    "single": {
+      "cache_n": 0,
+      "prompt_n": 12,
+      "prompt_ms": 37.104,
+      "prompt_per_token_ms": 3.092,
+      "prompt_per_second": 323.41526520051747,
+      "predicted_n": 128,
+      "predicted_ms": 1312.732,
+      "predicted_per_token_ms": 10.336472440944881,
+      "predicted_per_second": 96.7448039660799
+    },
+    "concurrent": [
+      {
+        "cache_n": 0,
+        "prompt_n": 12,
+        "prompt_ms": 34.218,
+        "prompt_per_token_ms": 2.8515,
+        "prompt_per_second": 350.69261792039276,
+        "predicted_n": 128,
+        "predicted_ms": 1395.148,
+        "predicted_per_token_ms": 10.985417322834644,
+        "predicted_per_second": 91.02976888473482
+      },
+      {
+        "cache_n": 0,
+        "prompt_n": 12,
+        "prompt_ms": 34.998,
+        "prompt_per_token_ms": 2.9164999999999996,
+        "prompt_per_second": 342.8767358134751,
+        "predicted_n": 128,
+        "predicted_ms": 1394.537,
+        "predicted_per_token_ms": 10.9806062992126,
+        "predicted_per_second": 91.06965250832354
+      }
+    ],
+    "aggregate_tps": 178.89743020370994,
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "arguments": "{\"city\":\"Hong Kong\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls",
+    "passed": true
+  },
+  {
+    "model": "granite-4.2-8b",
+    "context": 131072,
+    "slots": 1,
+    "vram_mib": 18562,
+    "single": {
+      "cache_n": 0,
+      "prompt_n": 11,
+      "prompt_ms": 29.625,
+      "prompt_per_token_ms": 2.6931818181818183,
+      "prompt_per_second": 371.3080168776371,
+      "predicted_n": 128,
+      "predicted_ms": 1152.536,
+      "predicted_per_token_ms": 9.075086614173228,
+      "predicted_per_second": 110.19178576634482
+    },
+    "concurrent": [
+      {
+        "cache_n": 0,
+        "prompt_n": 11,
+        "prompt_ms": 14.561,
+        "prompt_per_token_ms": 1.3237272727272726,
+        "prompt_per_second": 755.4426206991278,
+        "predicted_n": 128,
+        "predicted_ms": 1144.972,
+        "predicted_per_token_ms": 9.015527559055117,
+        "predicted_per_second": 110.91974301554973
+      }
+    ],
+    "aggregate_tps": 110.29439490362462,
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "arguments": "{\"city\":\"Hong Kong\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls",
+    "passed": true
+  },
+  {
+    "model": "mellum2-12b",
+    "context": 131072,
+    "slots": 2,
+    "vram_mib": 15180,
+    "single": {
+      "cache_n": 0,
+      "prompt_n": 12,
+      "prompt_ms": 32.154,
+      "prompt_per_token_ms": 2.6795000000000004,
+      "prompt_per_second": 373.20395596193316,
+      "predicted_n": 128,
+      "predicted_ms": 497.407,
+      "predicted_per_token_ms": 3.9165905511811023,
+      "predicted_per_second": 255.3241108388101
+    },
+    "concurrent": [
+      {
+        "cache_n": 0,
+        "prompt_n": 12,
+        "prompt_ms": 32.364,
+        "prompt_per_token_ms": 2.6969999999999996,
+        "prompt_per_second": 370.7823507601039,
+        "predicted_n": 128,
+        "predicted_ms": 529.223,
+        "predicted_per_token_ms": 4.167110236220472,
+        "predicted_per_second": 239.97445311333786
+      },
+      {
+        "cache_n": 0,
+        "prompt_n": 12,
+        "prompt_ms": 32.636,
+        "prompt_per_token_ms": 2.719666666666667,
+        "prompt_per_second": 367.6921191322466,
+        "predicted_n": 128,
+        "predicted_ms": 529.049,
+        "predicted_per_token_ms": 4.165740157480315,
+        "predicted_per_second": 240.0533787985612
+      }
+    ],
+    "aggregate_tps": 454.38883320219526,
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "arguments": "{\"city\": \"Hong Kong\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls",
+    "passed": true
+  },
+  {
+    "model": "nanbeige4.2-3b",
+    "context": 65536,
+    "slots": 1,
+    "vram_mib": 10502,
+    "single": {
+      "cache_n": 0,
+      "prompt_n": 12,
+      "prompt_ms": 20.946,
+      "prompt_per_token_ms": 1.7455,
+      "prompt_per_second": 572.9017473503294,
+      "predicted_n": 128,
+      "predicted_ms": 1193.615,
+      "predicted_per_token_ms": 9.398543307086614,
+      "predicted_per_second": 106.39946716487309
+    },
+    "concurrent": [
+      {
+        "cache_n": 0,
+        "prompt_n": 12,
+        "prompt_ms": 14.264,
+        "prompt_per_token_ms": 1.1886666666666665,
+        "prompt_per_second": 841.2787436904094,
+        "predicted_n": 128,
+        "predicted_ms": 1189.434,
+        "predicted_per_token_ms": 9.365622047244095,
+        "predicted_per_second": 106.7734737698771
+      }
+    ],
+    "aggregate_tps": 106.24901242375827,
+    "error": "HTTP Error 400: Bad Request"
+  },
+  {
+    "model": "qwen3.6-35b-a3b",
+    "context": 131072,
+    "slots": 2,
+    "vram_mib": 20378,
+    "single": {
+      "cache_n": 0,
+      "prompt_n": 11,
+      "prompt_ms": 89.541,
+      "prompt_per_token_ms": 8.140090909090908,
+      "prompt_per_second": 122.8487508515652,
+      "predicted_n": 128,
+      "predicted_ms": 704.606,
+      "predicted_per_token_ms": 5.5480787401574805,
+      "predicted_per_second": 180.2425752832079
+    },
+    "concurrent": [
+      {
+        "cache_n": 0,
+        "prompt_n": 11,
+        "prompt_ms": 93.542,
+        "prompt_per_token_ms": 8.503818181818183,
+        "prompt_per_second": 117.5942357443715,
+        "predicted_n": 128,
+        "predicted_ms": 802.258,
+        "predicted_per_token_ms": 6.316992125984252,
+        "predicted_per_second": 158.30318924834654
+      },
+      {
+        "cache_n": 0,
+        "prompt_n": 11,
+        "prompt_ms": 92.752,
+        "prompt_per_token_ms": 8.432,
+        "prompt_per_second": 118.59582542694497,
+        "predicted_n": 128,
+        "predicted_ms": 802.929,
+        "predicted_per_token_ms": 6.322275590551181,
+        "predicted_per_second": 158.17089680407608
+      }
+    ],
+    "aggregate_tps": 284.22650335159705,
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "arguments": "{\"city\":\"Hong Kong\"}"
+        }
+      }
+    ],
+    "finish_reason": "tool_calls",
+    "passed": true
+  }
+]

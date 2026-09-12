@@ -170,7 +170,7 @@ Default output is 32768 tokens; clients may request up to 65536 output tokens.
 The templated prompt plus requested output must fit the worker's 131072-token context.
 Requesting 65536 output tokens leaves at most 65536 for the templated prompt.
 Only text messages, streamed chat completions and model
-listing are public initially. One request can run per user; two may wait per user,
+listing are public initially. Active concurrency is configured per worker and user; two requests may wait per user,
 16 globally, for at most 90 seconds. This is one gateway process; do not scale the
 gateway horizontally without replacing its in-memory scheduler and ticket store.
 Multiple GPU workers are supported by adding entries to the mounted `workers.json`
@@ -219,3 +219,44 @@ frontend; the auth release image includes it. Build input is pinned by commit an
 archive checksum, and patches must match exactly. Both original attribution and a
 link to the complete modified source archive remain in the portal footer. The
 private break-glass interface on port 4014 still uses the upstream UI.
+
+## Multiple models on one GPU
+
+Use llama.cpp's built-in router with `llama-router.service`, installed as
+`llama-server.service`. It reads `/etc/herkules-ai/models.ini` and loads at most
+one model at a time. The existing API-key credential remains required. No
+llama-swap process is needed. Each preset owns its KV quantization, total context,
+parallel slots, and speculation flags. `ctx-size` is the **total across slots**.
+All public profiles in `model-profiles.json` allow 131072 tokens per request.
+
+Install `worker-profiles.conf` as a drop-in for `herkules-ai-worker.service` and
+copy `model-profiles.json` to `/etc/herkules-ai/model-profiles.json`, mode 600.
+Systemd passes the file through credentials. Build and copy all worker `.mjs`
+files as described above. With no profile file, the adapter retains its original
+single-model configuration. The adapter has no external npm dependencies.
+
+In the gateway's server-owned `workers.json`, create one entry per published
+model. Reuse the same worker URL and credential **paths**, give each a distinct
+`id`, and set `resourceGroup: "gpu-4090"`. Set `capacity` to that model's slot
+count and `perUser` to the desired per-user concurrency, at most its capacity.
+The gateway's existing New API bootstrap updates the managed channel's model
+list and initializes pricing for new models while retaining operator overrides.
+Restart the gateway after changing the catalog.
+
+The adapter reserves explicit llama slot IDs, checks the template/tokenizer for
+the requested model, and pins the output budget. After a restart it checks other
+loaded models' slots without autoloading them before permitting a swap. The
+internal dispatch also checks that the forwarded model matches the reserved
+request ticket. Keep port 8080 private; Access continues to target port 8081.
+
+Swapping models discards their resident KV caches. Requests for the same loaded
+model can batch; requests for different models wait and then trigger a load.
+Model load and cold prefill affect latency separately from decode throughput.
+
+For rollout, first drain generation, back up the current unit/config/bundles,
+install the router and adapter, and test locally with the existing credentials.
+Publish a model only after load, generation, tool calls and tool-result
+continuation checks pass. Run long prompts in every configured slot before
+claiming the full context allocation works. Restore the old unit and bundles if
+any shared runtime check fails. GPU files are host-owned and are not changed by
+ordinary application CD.

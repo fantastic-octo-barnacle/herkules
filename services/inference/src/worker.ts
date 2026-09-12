@@ -6,30 +6,126 @@ import { setTimeout as delay } from "node:timers/promises";
 import { body, cancellation, failure, json, matches } from "./http.ts";
 import { AdmissionError } from "./queue.ts";
 
+interface ModelProfile {
+  model: string;
+  context: number;
+  slots: number;
+}
+function parseProfiles(value: unknown): ModelProfile[] {
+  if (
+    !Array.isArray(value) ||
+    !value.length ||
+    value.some(
+      (p) =>
+        !p ||
+        typeof p.model !== "string" ||
+        !p.model.length ||
+        !Number.isInteger(p.context) ||
+        p.context < 1024 ||
+        !Number.isInteger(p.slots) ||
+        p.slots < 1 ||
+        p.slots > 16,
+    )
+  )
+    throw new Error("Invalid worker model profiles");
+  return value;
+}
 export interface WorkerOptions {
   llamaUrl: string;
   llamaKey: string;
   key: string;
   model: string;
   context: number;
+  profiles?: ModelProfile[];
   fetch?: typeof fetch;
   heartbeatMs?: number;
 }
+function waitForInspection<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new AdmissionError("cancelled", 499));
+    if (signal.aborted) {
+      abort();
+    } else {
+      signal.addEventListener("abort", abort, { once: true });
+    }
+    pending.then(
+      (value) => {
+        signal.removeEventListener("abort", abort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", abort);
+        reject(error);
+      },
+    );
+  });
+}
 export function createWorker(options: WorkerOptions) {
   const transport = options.fetch ?? fetch;
-  let busy = false;
+  const profiles = options.profiles ?? [
+    { model: options.model, context: options.context, slots: 1 },
+  ];
+  if (new Set(profiles.map((p) => p.model)).size !== profiles.length)
+    throw new Error("Duplicate model profiles");
+  let activeModel: string | undefined;
+  let active = 0;
+  const reserved = new Set<number>();
   const llama = (path: string, init: RequestInit = {}) =>
     transport(options.llamaUrl + path, {
       ...init,
       headers: { "content-type": "application/json", authorization: `Bearer ${options.llamaKey}` },
     });
-  async function idle() {
-    const response = await llama("/slots", { signal: AbortSignal.timeout(5000) });
-    if (!response.ok) return false;
-    const slots: unknown = await response.json();
-    return (
-      Array.isArray(slots) && slots.length === 1 && slots.every((s) => s?.is_processing === false)
+  async function slots(model: string, signal?: AbortSignal) {
+    const response = await llama(
+      "/slots" + (options.profiles ? `?model=${encodeURIComponent(model)}` : ""),
+      {
+        signal: AbortSignal.any([
+          AbortSignal.timeout(options.profiles ? 90_000 : 5000),
+          ...(signal ? [signal] : []),
+        ]),
+      },
     );
+    if (!response.ok) throw new AdmissionError("slots_unavailable", 503);
+    const slots: unknown = await response.json();
+    if (!Array.isArray(slots)) throw new AdmissionError("slots_unavailable", 503);
+    return slots as { id?: number; is_processing?: boolean }[];
+  }
+  let inspection: ReturnType<typeof slots> | undefined;
+  let inspectionModel: string | undefined;
+  function inspectSlots(model: string): ReturnType<typeof slots> {
+    if (inspection && inspectionModel !== model) {
+      return inspection.catch(() => undefined).then(() => inspectSlots(model));
+    }
+    inspectionModel = model;
+    // The router returns 503 to concurrent autoload attempts. Share the load
+    // and slot snapshot; reservations below still assign distinct slot IDs.
+    inspection ??= (async () => {
+      if (options.profiles) {
+        const catalog = await llama("/models", { signal: AbortSignal.timeout(5000) });
+        if (!catalog.ok) throw new AdmissionError("models_unavailable", 503);
+        const data = (await catalog.json()) as {
+          data?: { id: string; status?: { value?: string } }[];
+        };
+        if (!Array.isArray(data.data)) throw new AdmissionError("models_unavailable", 503);
+        for (const other of data.data) {
+          if (other.id === model || other.status?.value === "unloaded") continue;
+          if (other.status?.value !== "loaded") throw new AdmissionError("worker_not_idle", 409);
+          const response = await llama(
+            `/slots?model=${encodeURIComponent(other.id)}&autoload=false`,
+            { signal: AbortSignal.timeout(5000) },
+          );
+          if (!response.ok) throw new AdmissionError("slots_unavailable", 503);
+          const existing: unknown = await response.json();
+          if (!Array.isArray(existing) || existing.some((s) => s?.is_processing !== false))
+            throw new AdmissionError("worker_not_idle", 409);
+        }
+      }
+      return await slots(model);
+    })().finally(() => {
+      inspection = undefined;
+      inspectionModel = undefined;
+    });
+    return inspection;
   }
   return createServer(async (req, res) => {
     const cancel = cancellation(req, res);
@@ -39,7 +135,14 @@ export function createWorker(options: WorkerOptions) {
         return;
       }
       if (req.method === "GET" && req.url === "/healthz") {
-        const ready = !busy && (await idle().catch(() => false));
+        const ready = options.profiles
+          ? await llama("/health", { signal: AbortSignal.timeout(5000) })
+              .then((r) => r.ok)
+              .catch(() => false)
+          : active === 0 &&
+            (await slots(options.model)
+              .then((s) => s.length === 1 && s[0]?.is_processing === false)
+              .catch(() => false));
         json(res, ready ? 200 : 503, { ready });
         return;
       }
@@ -63,8 +166,8 @@ export function createWorker(options: WorkerOptions) {
         )
       )
         throw new AdmissionError("text_messages_required", 400);
-      if (input.model !== options.model || input.stream !== true)
-        throw new AdmissionError("unsupported_request", 400);
+      const profile = profiles.find((p) => p.model === input.model);
+      if (!profile || input.stream !== true) throw new AdmissionError("unsupported_request", 400);
       if (
         !Number.isInteger(input.max_tokens) ||
         Number(input.max_tokens) < 1 ||
@@ -76,10 +179,22 @@ export function createWorker(options: WorkerOptions) {
       // all three to the budget used for the context check below.
       input.n_predict = input.max_tokens;
       input.max_completion_tokens = input.max_tokens;
-      if (busy) throw new AdmissionError("worker_busy", 409);
-      busy = true;
+      if ((activeModel && activeModel !== profile.model) || active >= profile.slots)
+        throw new AdmissionError("worker_busy", 409);
+      activeModel = profile.model;
+      active++;
+      let slotId: number | undefined;
       try {
-        if (!(await idle())) throw new AdmissionError("worker_not_idle", 409);
+        const actual = await waitForInspection(inspectSlots(profile.model), cancel.signal);
+        if (actual.length !== profile.slots)
+          throw new AdmissionError("slot_configuration_mismatch", 503);
+        const index = actual.findIndex(
+          (s, i) => s.is_processing === false && !reserved.has(s.id ?? i),
+        );
+        if (index < 0) throw new AdmissionError("worker_not_idle", 409);
+        slotId = actual[index]!.id ?? index;
+        reserved.add(slotId);
+        input.id_slot = slotId;
         const template = await llama("/apply-template", {
           method: "POST",
           body: JSON.stringify({ ...input, add_generation_prompt: true }),
@@ -92,6 +207,7 @@ export function createWorker(options: WorkerOptions) {
         const tokens = await llama("/tokenize", {
           method: "POST",
           body: JSON.stringify({
+            model: profile.model,
             content: templated.prompt,
             add_special: true,
             parse_special: true,
@@ -101,7 +217,7 @@ export function createWorker(options: WorkerOptions) {
         if (!tokens.ok) throw new AdmissionError("tokenizer_unavailable", 503);
         const counted = (await tokens.json()) as { tokens?: unknown[] };
         if (!Array.isArray(counted.tokens)) throw new AdmissionError("tokenizer_unavailable", 503);
-        if (counted.tokens.length + Number(input.max_tokens) > options.context)
+        if (counted.tokens.length + Number(input.max_tokens) > profile.context)
           throw new AdmissionError("context_length_exceeded", 400);
         res.writeHead(200, {
           "Content-Type": "text/event-stream",
@@ -138,7 +254,9 @@ export function createWorker(options: WorkerOptions) {
           clearInterval(heartbeat);
         }
       } finally {
-        busy = false;
+        if (slotId !== undefined) reserved.delete(slotId);
+        active--;
+        if (!active) activeModel = undefined;
       }
     } catch (error) {
       failure(res, error);
@@ -159,6 +277,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     key: await secret("WORKER_KEY_FILE"),
     model: process.env.WORKER_MODEL ?? "qwen3.8-27b",
     context: Number(process.env.WORKER_CONTEXT ?? 131072),
+    profiles: process.env.WORKER_PROFILES_FILE
+      ? parseProfiles(JSON.parse(await readFile(process.env.WORKER_PROFILES_FILE, "utf8")))
+      : undefined,
   });
   server.listen(Number(process.env.PORT ?? 8081), "127.0.0.1", () =>
     console.log("AI worker adapter listening on loopback"),
