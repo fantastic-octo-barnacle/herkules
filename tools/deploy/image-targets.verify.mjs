@@ -90,3 +90,10 @@ test("treats the shared Dockerfile and manual builds conservatively", () => {
     deploy: true,
   });
 });
+
+test("rebuilds Caddy when its TLS validation changes", () => {
+  assert.deepEqual(selectImageTargets(["tools/deploy/caddy/entrypoint.sh"]), {
+    targets: ["caddy"],
+    deploy: true,
+  });
+});

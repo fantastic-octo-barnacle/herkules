@@ -38,6 +38,7 @@ export function selectImageTargets(paths, { all = false } = {}) {
     if (isBuildInput(path, "packages/auth-middleware", ["src"])) add("auth", "bbs");
     if (isBuildInput(path, "packages/oauth-client", ["src"])) add("bbs");
     if (isBuildInput(path, "packages/ui", ["src"])) add("bbs", "caddy");
+    if (path === "tools/deploy/caddy/entrypoint.sh") add("caddy");
     if (backupImageFiles.has(path)) add("backup");
     if (deploymentFiles.has(path) || path.startsWith("tools/deploy/caddy/services/")) deploy = true;
   }

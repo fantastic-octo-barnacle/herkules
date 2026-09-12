@@ -14,6 +14,7 @@ services:
   caddy:
     image: ${CADDY_IMAGE_REF:?set CADDY_IMAGE_REF through the active release}
     environment:
+      CADDY_TLS_MODE: origin_tls
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env, e.g. herkules.dev}
       BBS_SITE_ADDRESS: ${BBS_SITE_ADDRESS:?set BBS_SITE_ADDRESS in .env, e.g. bbs.herkules.dev}
       # Monitoring hosts (gatus / beszel below). Defaults keep the Caddyfile valid in dev.
@@ -22,6 +23,18 @@ services:
     volumes:
       - ${DEPLOY_CONFIG_DIR:-.}/Caddyfile:/etc/caddy/Caddyfile:ro
       - ${DEPLOY_CONFIG_DIR:-.}/caddy/services:/etc/caddy/services:ro
+      - type: bind
+        source: ${ORIGIN_CERT_FILE:-/etc/herkules-tls/origin.pem}
+        target: /run/origin-tls/origin.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${ORIGIN_KEY_FILE:-/etc/herkules-tls/origin.key}
+        target: /run/origin-tls/origin.key
+        read_only: true
+        bind:
+          create_host_path: false
       - caddy_data:/data
       - caddy_config:/config
     ports:

@@ -12,6 +12,7 @@ cat > "$fakebin/docker" <<'EOF'
 #!/bin/sh
 printf '%s\n' "$*" >> "$DOCKER_LOG"
 case "$*" in
+  *"caddy validate"*) if [ "${FAIL_TLS:-false}" = true ]; then exit 1; fi ;;
   *" ps") if [ "${FAIL_PS:-false}" = true ]; then exit 1; fi ;;
 esac
 exit 0
@@ -98,6 +99,20 @@ if DOCKER_LOG="$docker_log" PATH="$fakebin:$PATH" \
   exit 1
 fi
 test ! -d "$root/releases/sha256-$fourth_digest"
+no_leftovers
+
+# A rejected TLS preflight must leave both running services and active files untouched.
+make_bundle second second
+: > "$docker_log"
+if DOCKER_LOG="$docker_log" FAIL_TLS=true PATH="$fakebin:$PATH" \
+  sh "$root/apply-release.sh" second.tar.gz "$second_ref" "$first_ref" "caddy"; then
+  echo "invalid TLS unexpectedly deployed" >&2
+  exit 1
+fi
+test "$(cat "$root/current-release")" = "$first_ref"
+test "$(cat "$root/active-config/Caddyfile")" = first
+test "$(cat "$root/images.env")" = "AUTH_IMAGE_REF=first"
+! grep -q -- ' up ' "$docker_log"
 no_leftovers
 
 make_bundle second second

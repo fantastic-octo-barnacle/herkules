@@ -1,11 +1,17 @@
-# Edge Caddy for the platform origin plus the bbs subdomain. TLS is automatic
-# for a real hostname (DNS-only records pointing at the box); `http://localhost:3000`
-# and `http://localhost:3003` in dev.
+# Cloudflare terminates public TLS; production Caddy requires the host-owned Origin CA pair.
+# The laptop overlay selects local_http and supplies explicit HTTP addresses.
 # This file is bind-mounted from the active release, not baked into the image, so routing
 # changes ship with a push and no image rebuild; the applicator recreates caddy when the
 # Caddy configuration digest changes. Only the SPA in /srv comes from the image (Dockerfile,
 # `caddy` stage: services/web's build output).
 # Each MCP server adds one file under caddy/services/ (see bbs.caddy).
+(origin_tls) {
+	tls /run/origin-tls/origin.pem /run/origin-tls/origin.key
+}
+
+(local_http) {
+}
+
 (common_headers) {
 	header {
 		X-Content-Type-Options nosniff
@@ -17,6 +23,7 @@
 
 {$SITE_ADDRESS} {
 	encode zstd gzip
+	import {$CADDY_TLS_MODE:origin_tls}
 	import common_headers
 	# Caddy orders `handle` blocks by path specificity, so the catch-all below always loses to these.
 	handle /auth/* {
@@ -48,6 +55,7 @@
 # glob above is imported inside {$SITE_ADDRESS}.
 {$BBS_SITE_ADDRESS} {
 	encode zstd gzip
+	import {$CADDY_TLS_MODE:origin_tls}
 	import common_headers
 	reverse_proxy bbs:3003
 }
@@ -57,6 +65,7 @@
 # Public status page: no auth (gatus.yaml only checks public URLs).
 {$STATUS_HOST:status.localhost} {
 	encode zstd gzip
+	import {$CADDY_TLS_MODE:origin_tls}
 	import common_headers
 	reverse_proxy gatus:8080
 }
@@ -66,6 +75,7 @@
 # PocketBase's superuser UI (/_/) is break-glass: blocked at the edge, reach it with
 # `ssh -L 8090:127.0.0.1:8090` + `docker compose port beszel 8090` (README).
 {$OPS_HOST:ops.localhost} {
+	import {$CADDY_TLS_MODE:origin_tls}
 	import common_headers
 	@superuser path /_/*
 	respond @superuser 403
