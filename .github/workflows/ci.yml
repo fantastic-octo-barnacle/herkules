@@ -18,3 +18,4 @@ jobs:
           run-install: true
       # check + every package's tests (PGlite, fake GitHub: no services) + every build.
       - run: vp run ready
+      - run: vp run test:caddy

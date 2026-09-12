@@ -52,7 +52,13 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 ENTRYPOINT ["node", "dist/main.mjs"]
 
 # ── caddy (the edge: TLS, routing, and services/web's SPA served from /srv) ─
-FROM caddy:2.10-alpine AS caddy
+FROM caddy:2.10-alpine AS caddy-tls
+RUN apk add --no-cache openssl
+COPY tools/deploy/caddy/entrypoint.sh /usr/local/bin/herkules-caddy
+RUN chmod +x /usr/local/bin/herkules-caddy
+ENTRYPOINT ["/usr/local/bin/herkules-caddy"]
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+FROM caddy-tls AS caddy
 # No Caddyfile in the image on purpose: the box bind-mounts ~/herkules/Caddyfile and
 # ~/herkules/caddy/services/, so a routing change stays `scp` + `up -d` with no rebuild.
 # (Ports 80/443 and 443/udp are already EXPOSEd by the base image.)

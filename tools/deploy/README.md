@@ -36,10 +36,9 @@ release applicator recreates Caddy when that configuration digest changes.
    (prod) / `http://localhost:3000/auth/callback/github` (dev). The auth
    service asks for `read:org` itself.
 2. **DNS** — A records for `herkules.dev`, `bbs.herkules.dev`,
-   `status.herkules.dev` and `ops.herkules.dev` to the box, DNS-only (Caddy
-   issues the certificates; a proxy in front would break TLS-ALPN/HTTP
-   challenges and the IDE flows' `Origin` checks). The box has no IPv6: A
-   records only, no AAAA.
+   `status.herkules.dev` and `ops.herkules.dev` to the box, **Cloudflare proxied**.
+   Set SSL/TLS encryption to **Full (strict)** and stage the Origin CA certificate
+   below before deploying. The box has no IPv6: origin A records only.
 3. **R2** — a bucket and an API token with object read/write; the endpoint is
    `https://<account-id>.r2.cloudflarestorage.com`.
 4. **The box** — Docker Engine with Compose v2.24+ (`!override` in the dev
@@ -62,6 +61,42 @@ release applicator recreates Caddy when that configuration digest changes.
    logs the box into ghcr.io with its run token before pulling. For a manual
    `sh compose.sh pull` on the box, `docker login ghcr.io` with a
    `read:packages` token first.
+
+## Origin TLS (required for production)
+
+Create a Cloudflare Origin CA certificate covering `herkules.dev` and `*.herkules.dev`.
+Keep the certificate and unencrypted PEM private key on the VPS, outside the checkout:
+
+```sh
+sudo install -d -m 700 /etc/herkules-tls
+sudo install -m 600 /secure/staging/origin.pem /etc/herkules-tls/origin.pem
+sudo install -m 600 /secure/staging/origin.key /etc/herkules-tls/origin.key
+```
+
+These paths are already staged on `tencent_hk`. Production mounts each file read-only,
+with automatic host-path creation disabled. `.env` can override `ORIGIN_CERT_FILE` and
+`ORIGIN_KEY_FILE`; certificate contents never enter Git, CI secrets or release bundles.
+The laptop overlay removes these mounts and selects explicit HTTP mode.
+
+Before activating a release, the applicator pulls the candidate Caddy image and runs its
+TLS checks and `caddy validate` without publishing ports or starting dependencies.
+Missing files, malformed or mismatched keys, invalid dates, uncovered hostnames, or an
+invalid Caddyfile fail before the active release changes. The same TLS checks run when
+Caddy starts. The operator-provided certificate is trusted for the local date/hostname
+check; Cloudflare Full (strict) verifies the issuer on actual origin connections.
+
+Caddy does not renew this certificate. To rotate it, install the replacement pair at the
+same host paths, run `sh compose.sh run --rm --no-deps caddy caddy validate --config
+/etc/caddy/Caddyfile --adapter caddyfile`, then run
+`sh compose.sh up -d --no-deps --force-recreate caddy`. Recreating is required after
+replacing files because bind mounts retain the old inode. Public certificate monitors
+see Cloudflare's edge certificate, so track Origin CA expiry separately.
+
+This replaces the temporary live configuration that read `/data/origin-tls` in Caddy's
+volume. Keep `/etc/herkules-tls` as the source of truth. Rolling Caddy back to an image
+predating the TLS entrypoint loses startup validation; rolling back the entire release
+also restores its old TLS configuration. Use a release containing this change to retain
+the production requirement.
 
 ## Deploy
 
@@ -126,6 +161,10 @@ gh api --method POST repos/<owner>/herkules/deployments/<id>/statuses \
 ```
 
 ## Verify
+
+Run `vp run ready` for repository checks and `vp run test:caddy` for the Docker TLS
+integration tests. CI runs both. The latter builds only the Caddy TLS runtime stage,
+uses temporary test certificates, and never reads production secrets.
 
 ```sh
 curl -fsS https://herkules.dev/auth/healthz                      # {"ok":true}

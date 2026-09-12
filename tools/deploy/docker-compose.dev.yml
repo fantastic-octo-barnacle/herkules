@@ -4,6 +4,15 @@
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 services:
   caddy:
+    environment:
+      CADDY_TLS_MODE: local_http
+      STATUS_HOST: http://status.localhost
+      OPS_HOST: http://ops.localhost
+    volumes: !override
+      - ${DEPLOY_CONFIG_DIR:-.}/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DEPLOY_CONFIG_DIR:-.}/caddy/services:/etc/caddy/services:ro
+      - caddy_data:/data
+      - caddy_config:/config
     build:
       context: ../..
       target: caddy

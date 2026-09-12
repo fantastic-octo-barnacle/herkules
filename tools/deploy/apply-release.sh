@@ -98,6 +98,19 @@ if [ ! -d "$release_dir" ]; then
   incoming=""
 fi
 
+# Validate the candidate with its own image and mounts before changing the active release.
+# run does not publish ports or start dependencies; the existing edge keeps serving.
+candidate_compose() {
+  DEPLOY_CONFIG_DIR="$release_dir" docker compose \
+    --project-directory "$root" \
+    --env-file "$root/.env" \
+    --env-file "$release_dir/images.env" \
+    -f "$release_dir/docker-compose.yml" "$@"
+}
+candidate_compose config --quiet
+candidate_compose pull --quiet caddy
+candidate_compose run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
 backup="$root/releases/.previous-$$"
 rm -rf "$backup"
 mkdir "$backup"
