@@ -11,13 +11,13 @@ afterEach(() => {
   }
   servers.length = 0;
 });
-async function start(transport: typeof fetch) {
+async function start(transport: typeof fetch, context = 128) {
   const s = createWorker({
     llamaUrl: "http://llama",
     llamaKey: "private",
     key: "worker",
     model: "qwen",
-    context: 128,
+    context,
     heartbeatMs: 10,
     fetch: transport,
   });
@@ -104,4 +104,31 @@ test("the worker pins every output-limit alias to the admitted budget", async ()
   expect(response.status).toBe(200);
   await response.text();
   expect(generated).toMatchObject({ max_tokens: 32, n_predict: 32, max_completion_tokens: 32 });
+});
+
+test("64K output is accepted only when prompt plus output fits 128K", async () => {
+  let promptTokens = 65_536;
+  let generations = 0;
+  const url = await start(async (input) => {
+    const path = new URL(
+      typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+    ).pathname;
+    if (path === "/slots") return Response.json([{ is_processing: false }]);
+    if (path === "/apply-template") return Response.json({ prompt: "template" });
+    if (path === "/tokenize") return Response.json({ tokens: Array(promptTokens).fill(1) });
+    generations++;
+    return new Response("data: [DONE]\n\n");
+  }, 131_072);
+  const run = (max_tokens: number) =>
+    fetch(url + "/v1/chat/completions", {
+      ...request,
+      body: JSON.stringify({ ...JSON.parse(request.body), max_tokens }),
+    });
+  const accepted = await run(65_536);
+  expect(accepted.status).toBe(200);
+  await accepted.text();
+  expect((await run(65_537)).status).toBe(400);
+  promptTokens++;
+  expect((await run(65_536)).status).toBe(400);
+  expect(generations).toBe(1);
 });

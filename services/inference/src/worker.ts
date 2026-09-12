@@ -1,3 +1,4 @@
+import { MAX_OUTPUT_TOKENS } from "./limits.ts";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
@@ -67,7 +68,7 @@ export function createWorker(options: WorkerOptions) {
       if (
         !Number.isInteger(input.max_tokens) ||
         Number(input.max_tokens) < 1 ||
-        Number(input.max_tokens) > 8192
+        Number(input.max_tokens) > MAX_OUTPUT_TOKENS
       ) {
         throw new AdmissionError("invalid_output_limit", 400);
       }

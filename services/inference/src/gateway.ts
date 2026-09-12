@@ -1,3 +1,4 @@
+import { DEFAULT_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS } from "./limits.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
 import { servePortal } from "./portal.ts";
@@ -185,8 +186,8 @@ export function createGateway(deps: GatewayDeps) {
       }
       if (!input || typeof input !== "object" || input.stream !== true)
         throw new AdmissionError("streaming_required", 400);
-      const max = input.max_tokens ?? input.max_completion_tokens ?? 4096;
-      if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > 8192)
+      const max = input.max_tokens ?? input.max_completion_tokens ?? DEFAULT_OUTPUT_TOKENS;
+      if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > MAX_OUTPUT_TOKENS)
         throw new AdmissionError("invalid_output_limit", 400);
       if (!Array.isArray(input.messages) || typeof input.model !== "string")
         throw new AdmissionError("invalid_chat_request", 400);
