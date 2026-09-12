@@ -2,7 +2,6 @@ import type { Config } from "./config.ts";
 import { NewAPI } from "./new-api.ts";
 export class Membership {
   private checkedAt = 0;
-  private readonly subjects = new Map<number, string>();
   private readonly config: Config;
   private readonly admin: NewAPI;
   constructor(config: Config, admin: NewAPI) {
@@ -14,14 +13,10 @@ export class Membership {
   }
   async check(userId: number) {
     if (!this.ready) return false;
-    let sub = this.subjects.get(userId);
-    if (!sub) {
-      sub = (await this.admin.bindings(userId)).find(
-        (b) => b.provider_slug === "herkules",
-      )?.provider_user_id;
-      if (!sub) return false;
-      this.subjects.set(userId, sub);
-    }
+    const sub = (await this.admin.bindings(userId)).find(
+      (b) => b.provider_slug === "herkules",
+    )?.provider_user_id;
+    if (!sub) return false;
     return (await this.status([sub])).get(sub) === true;
   }
   private async status(ids: string[]) {
@@ -47,7 +42,6 @@ export class Membership {
       const sub = (await this.admin.bindings(user.id)).find(
         (b) => b.provider_slug === "herkules",
       )?.provider_user_id;
-      if (sub) this.subjects.set(user.id, sub);
       if (!sub || !(await this.status([sub])).get(sub))
         await this.admin.call("/api/user/manage", "POST", { id: user.id, action: "disable" });
     }

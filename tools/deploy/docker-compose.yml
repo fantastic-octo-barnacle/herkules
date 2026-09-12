@@ -199,6 +199,7 @@ services:
       - path: .env.ai-gateway
         required: false
     environment:
+      PORT: "4010" # override PORT=3001 inherited from the auth image
       AI_PORTAL_DIR: /ai/portal
       AI_PORTAL_ORIGIN: https://ai-portal.herkules.dev
       AI_API_ORIGIN: https://ai.herkules.dev
