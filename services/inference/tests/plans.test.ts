@@ -1,4 +1,4 @@
-import { expect, test } from "vite-plus/test";
+import { expect, test, vi } from "vite-plus/test";
 import { Plans } from "../src/plans.ts";
 import type { NewAPI } from "../src/new-api.ts";
 function fixture() {
@@ -43,7 +43,7 @@ function fixture() {
       });
     },
   } as unknown as NewAPI;
-  return { plans: new Plans(admin), catalog, subs, grants: () => grants };
+  return { plans: new Plans(admin), admin, catalog, subs, grants: () => grants };
 }
 test("concurrent first requests grant one Lite pair; repeat assignments preserve usage", async () => {
   const f = fixture();
@@ -68,3 +68,58 @@ test("cancelled plans are not automatically refilled; upgrades replace both pool
   expect(f.grants()).toBe(4);
   await expect(f.plans.assign(2, "constructor" as "lite")).rejects.toThrow();
 });
+
+test("an active pair repairs a cancelled counterpart without resetting its other pool", async () => {
+  const f = fixture();
+  await f.plans.bootstrap();
+  await f.plans.ensure(2);
+  f.subs[0].amount_used = 123;
+  f.subs[1].status = "cancelled";
+  await f.plans.ensure(2);
+  await f.plans.ensure(2);
+  expect(f.grants()).toBe(3);
+  expect(f.subs[0].amount_used).toBe(123);
+  expect((await f.plans.summary(2)).pools).toHaveLength(2);
+});
+for (const failure of [
+  "first grant",
+  "second grant",
+  "first cancellation",
+  "second cancellation",
+]) {
+  test(`tier assignment recovers from ${failure} without losing allowances or repeating grants`, async () => {
+    const f = fixture();
+    await f.plans.bootstrap();
+    await f.plans.ensure(2);
+    const original = f.admin.call.bind(f.admin);
+    let grants = 0;
+    let cancels = 0;
+    const spy = vi.spyOn(f.admin, "call").mockImplementation(async (path, method, value) => {
+      if (method === "POST" && path.endsWith("/subscriptions")) {
+        grants++;
+        if (failure === (grants === 1 ? "first grant" : "second grant"))
+          throw new Error("injected failure");
+      }
+      if (path.endsWith("/invalidate")) {
+        cancels++;
+        if (failure === (cancels === 1 ? "first cancellation" : "second cancellation"))
+          throw new Error("injected failure");
+      }
+      return original(path, method, value);
+    });
+    await expect(f.plans.assign(2, "pro")).rejects.toThrow("injected failure");
+    expect((await f.plans.summary(2)).pools.length).toBeGreaterThanOrEqual(2);
+    spy.mockRestore();
+    const count = f.grants();
+    await f.plans.ensure(2);
+    expect(f.grants()).toBe(count);
+    for (const s of f.subs) s.amount_used = 123;
+    await f.plans.assign(2, "pro");
+    await f.plans.assign(2, "pro");
+    expect(f.grants()).toBe(4);
+    const active = f.subs.filter((s) => s.status === "active");
+    expect(active).toHaveLength(2);
+    expect(active.every((s) => [3, 4].includes(s.plan_id))).toBe(true);
+    expect(active.some((s) => s.amount_used === 123)).toBe(failure !== "first grant");
+  });
+}

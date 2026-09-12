@@ -221,8 +221,8 @@ export class NewAPI {
       for (const [key, values] of Object.entries(rates)) {
         const current = await this.call<{ key: string; value: string }[]>("/api/option/");
         const value = JSON.stringify({
-          ...JSON.parse(current.find((o) => o.key === key)?.value || "{}"),
           ...values,
+          ...JSON.parse(current.find((o) => o.key === key)?.value || "{}"),
         });
         await this.call("/api/option/", "PUT", { key, value });
       }

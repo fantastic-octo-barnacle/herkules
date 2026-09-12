@@ -90,13 +90,17 @@ export class Plans {
     return this.locked(user, async () => {
       const subs = await this.subscriptions(user);
       const active = subs.filter((s) => s.status === "active" && s.end_time > Date.now() / 1000);
-      const tier = (Object.keys(tiers) as Tier[]).find((t) =>
+      const activeTiers = (Object.keys(tiers) as Tier[]).filter((t) =>
         this.pair(t).some((p) => active.some((s) => s.plan_id === p.id)),
       );
+      // A partially completed admin assignment must be retried by the admin;
+      // auto-repair must not recreate the retiring tier.
+      if (activeTiers.length > 1) return;
+      const tier = activeTiers[0];
       // Historical cancellation is not an invitation to re-grant Lite. Repair only a partial active pair.
       if (subs.length && !tier) return;
       for (const plan of this.pair(tier ?? "lite")) {
-        if (subs.some((s) => s.plan_id === plan.id)) continue;
+        if (active.some((s) => s.plan_id === plan.id)) continue;
         await this.admin.call(`/api/subscription/admin/users/${user}/subscriptions`, "POST", {
           plan_id: plan.id,
         });
@@ -109,6 +113,14 @@ export class Plans {
       const subs = await this.subscriptions(user);
       const desired = this.pair(tier);
       const active = subs.filter((s) => s.status === "active" && s.end_time > Date.now() / 1000);
+      // Grant both replacements before retiring old allowances. A failed request can
+      // be retried without resetting an existing grant or removing the old pair.
+      for (const plan of desired) {
+        if (active.some((s) => s.plan_id === plan.id)) continue;
+        await this.admin.call(`/api/subscription/admin/users/${user}/subscriptions`, "POST", {
+          plan_id: plan.id,
+        });
+      }
       // Repeated requests do not refresh an existing allowance.
       for (const sub of active) {
         if (desired.some((p) => p.id === sub.plan_id)) continue;
@@ -118,12 +130,6 @@ export class Plans {
           `/api/subscription/admin/user_subscriptions/${sub.id}/invalidate`,
           "POST",
         );
-      }
-      for (const plan of desired) {
-        if (active.some((s) => s.plan_id === plan.id)) continue;
-        await this.admin.call(`/api/subscription/admin/users/${user}/subscriptions`, "POST", {
-          plan_id: plan.id,
-        });
       }
     });
   }

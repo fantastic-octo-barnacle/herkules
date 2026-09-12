@@ -95,8 +95,11 @@ not paid subscriptions or automatic card charges.
 The dashboard shows both pools. `GET /api/herkules/plan` returns the signed-in
 member's allowance. An authenticated Herkules administrator can
 `PUT /api/herkules/admin/users/{id}/plan` with `{"tier":"lite|pro|max"}`. Repeating
-the same assignment preserves usage; changing tiers cancels the old pair and grants
-a fresh pair. Assignment is privileged because it grants a fresh allowance. No user
+the same assignment preserves usage; changing tiers grants the new pair before
+cancelling the old pair. If a backend call fails, retry the same assignment. Existing
+grants retain their usage, and the old allowances remain until both replacements
+exist. A partial change can temporarily leave both tiers active; automatic repair
+does not refill the retiring tier. Assignment is privileged because it grants a fresh allowance. No user
 self-upgrade or purchase route is exposed. The gateway remains a single process.
 
 `AI_DEEPSEEK_KEY_FILE` enables `deepseek-flash` and `deepseek-v4-pro`. The credential

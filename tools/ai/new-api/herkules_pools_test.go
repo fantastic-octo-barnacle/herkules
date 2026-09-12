@@ -62,3 +62,32 @@ func TestHerkulesReservationsCannotCrossPools(t *testing.T) {
 		t.Fatal("unused reservation was not returned", err)
 	}
 }
+
+func TestHerkulesFreeGrantPlan(t *testing.T) {
+	t.Setenv("HERKULES_PLANS_ENABLED", "true")
+	no, yes := false, true
+	valid := SubscriptionPlan{HerkulesPool: "local", AllowBalancePay: &no}
+	if !HerkulesFreeGrantPlan(&valid) {
+		t.Fatal("free pool rejected")
+	}
+	for _, mutate := range []func(*SubscriptionPlan){
+		func(p *SubscriptionPlan) { p.HerkulesPool = "" },
+		func(p *SubscriptionPlan) { p.HerkulesPool = "invalid" },
+		func(p *SubscriptionPlan) { p.PriceAmount = 1 },
+		func(p *SubscriptionPlan) { p.AllowBalancePay = nil },
+		func(p *SubscriptionPlan) { p.AllowBalancePay = &yes },
+		func(p *SubscriptionPlan) { p.StripePriceId = "paid" },
+		func(p *SubscriptionPlan) { p.CreemProductId = "paid" },
+		func(p *SubscriptionPlan) { p.WaffoPancakeProductId = "paid" },
+	} {
+		p := valid
+		mutate(&p)
+		if HerkulesFreeGrantPlan(&p) {
+			t.Fatalf("unsafe bypass: %+v", p)
+		}
+	}
+	t.Setenv("HERKULES_PLANS_ENABLED", "false")
+	if HerkulesFreeGrantPlan(&valid) || HerkulesFreeGrantPlan(nil) {
+		t.Fatal("disabled bypass")
+	}
+}
