@@ -8,9 +8,21 @@ const revision = "385d2dfd10d821b25c8a6766bd16eea248cb1652";
 const checksum = "1ec3d28e23d72481e1c86642ed832f6bc0721cd2ed2b487618b0560c014d8aa5";
 const here = dirname(fileURLToPath(import.meta.url));
 const output = resolve(process.argv[2] ?? "services/inference/dist/portal");
+const backend = resolve(here, "../new-api");
 const editsText = await readFile(join(here, "edits.json"), "utf8");
 const fingerprint = createHash("sha256")
-  .update(checksum + editsText + (await readFile(fileURLToPath(import.meta.url))))
+  .update(
+    checksum +
+      editsText +
+      (await readFile(fileURLToPath(import.meta.url))) +
+      (
+        await Promise.all(
+          ["patch.py", "herkules_pools.go", "herkules_pools_test.go"].map((p) =>
+            readFile(join(backend, p), "utf8"),
+          ),
+        )
+      ).join(""),
+  )
   .digest("hex");
 try {
   if ((await readFile(join(output, ".build-id"), "utf8")) === fingerprint) {
@@ -31,17 +43,21 @@ try {
   const source = join(work, "source");
   await mkdir(source);
   execFileSync("tar", ["-xzf", join(work, "source.tar.gz"), "--strip-components=1", "-C", source]);
+  execFileSync("python3", [join(backend, "patch.py"), source]);
   for (const edit of JSON.parse(editsText)) {
     const path = join(source, edit.file);
     const before = await readFile(path, "utf8");
     if (before.split(edit.before).length !== 2)
       throw new Error(`Portal patch no longer matches: ${edit.file}`);
-    await writeFile(path, before.replace(edit.before, edit.after));
+    await writeFile(
+      path,
+      before.replace(edit.before, () => edit.after),
+    );
   }
   // Serve the exact modified source alongside the frontend, preserving upstream notices.
   await writeFile(
     join(source, "HERKULES-PORTAL.md"),
-    `Based on New API ${revision}. UI changes remove notification preferences and wallet shortcuts. Build web/ with Bun 1.4.0: bun install --frozen-lockfile && bun run build. The unmodified backend is New API v1.0.0-rc.37.\n`,
+    `Based on New API ${revision}. UI changes remove notification preferences and wallet shortcuts. Build web/ with Bun 1.4.0: bun install --frozen-lockfile && bun run build. Backend v1.0.0-rc.37 includes Herkules subscription pool isolation. Compile with Go 1.26.1: CGO_ENABLED=0 go build .\n`,
   );
   execFileSync("tar", ["-czf", join(work, "portal-source.tar.gz"), "-C", source, "."]);
   execFileSync("bun", ["install", "--frozen-lockfile"], {

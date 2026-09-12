@@ -1,3 +1,5 @@
+import { freeModels, FreeRateLimit, freeRequest } from "./openrouter.ts";
+import { tiers, type Plans, type Tier } from "./plans.ts";
 import { enrichModels, outputLimits } from "./model-catalog.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
@@ -12,11 +14,13 @@ export interface GatewayDeps {
   membership: Pick<Membership, "ready" | "check">;
   identifyKey(hash: string): Promise<number | undefined>;
   fetch?: typeof fetch;
+  plans?: Pick<Plans, "ensure" | "summary" | "assign">;
 }
 export function createGateway(deps: GatewayDeps) {
   const { config, membership } = deps;
   const transport = deps.fetch ?? fetch;
   const queue = new Scheduler(config.workers);
+  const freeRateLimit = new FreeRateLimit();
   const tickets = new Map<string, { lease: Lease; used: boolean; signal: AbortSignal }>();
   const originHost = new URL(config.AI_PORTAL_ORIGIN).host;
   const apiHost = new URL(config.AI_API_ORIGIN).host;
@@ -144,6 +148,37 @@ export function createGateway(deps: GatewayDeps) {
       if (generation || models || (portal && path.startsWith("/api/") && !publicAPI.has(path))) {
         user = await identity(req, path, cancel.signal);
         if (!(await membership.check(user))) throw new AdmissionError("membership_required", 403);
+        await deps.plans?.ensure(user);
+      }
+      if (portal && path.startsWith("/api/herkules/")) {
+        if (!deps.plans) throw new AdmissionError("plans_unavailable", 503);
+        if (path === "/api/herkules/plan" && req.method === "GET") {
+          json(res, 200, { success: true, data: await deps.plans.summary(user!) });
+          return;
+        }
+        const assignment = /^\/api\/herkules\/admin\/users\/([1-9][0-9]*)\/plan$/.exec(path);
+        if (assignment && req.method === "PUT") {
+          const account = await backend("/api/user/self", req, { signal: cancel.signal });
+          const value = (await account.json()) as { success?: boolean; data?: { role?: number } };
+          if (!account.ok || !value.success || (value.data?.role ?? 0) < 10)
+            throw new AdmissionError("admin_required", 403);
+          let input: { tier?: string };
+          try {
+            input = JSON.parse((await body(req)).toString());
+          } catch {
+            throw new AdmissionError("invalid_json", 400);
+          }
+          if (!input || typeof input !== "object") throw new AdmissionError("invalid_plan", 400);
+          if (typeof input.tier !== "string" || !Object.hasOwn(tiers, input.tier))
+            throw new AdmissionError("invalid_plan", 400);
+          const target = Number(assignment[1]);
+          if (!Number.isSafeInteger(target) || !(await membership.check(target)))
+            throw new AdmissionError("membership_required", 403);
+          await deps.plans.assign(target, input.tier as Tier);
+          json(res, 200, { success: true, data: await deps.plans.summary(target) });
+          return;
+        }
+        throw new AdmissionError("not_found", 404);
       }
       if (portal && config.AI_PORTAL_DIR && !path.startsWith("/api/") && !generation && !models) {
         await servePortal(config.AI_PORTAL_DIR, path, req.method ?? "GET", res);
@@ -159,11 +194,13 @@ export function createGateway(deps: GatewayDeps) {
             : new Uint8Array(await body(req)),
         });
         if (models && response.ok) {
-          const listing = enrichModels(
-            await response.json(),
-            config.modelCatalog ?? {},
-            config.workers,
-          );
+          const listing = enrichModels(await response.json(), config.modelCatalog ?? {}, [
+            ...config.workers,
+            ...(config.openrouterKey ? freeModels.map((model) => ({ model })) : []),
+            ...(config.deepseekKey
+              ? [{ model: "deepseek-flash" }, { model: "deepseek-v4-pro" }]
+              : []),
+          ]);
           if (modelDetail) {
             const id = path.slice("/v1/models/".length);
             const entry =
@@ -220,6 +257,28 @@ export function createGateway(deps: GatewayDeps) {
       input.max_tokens = max;
       delete input.max_completion_tokens;
       input.stream_options = { include_usage: true };
+      if (config.openrouterKey && freeModels.includes(input.model)) {
+        freeRateLimit.acquire(user!);
+        const response = await backend(path, req, {
+          method: "POST",
+          signal: cancel.signal,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(freeRequest(input)),
+        });
+        await relay(response, res, cancel.signal);
+        return;
+      }
+      if (config.deepseekKey && ["deepseek-flash", "deepseek-v4-pro"].includes(input.model)) {
+        if (!deps.plans) throw new AdmissionError("plans_unavailable", 503);
+        const response = await backend(path, req, {
+          method: "POST",
+          signal: cancel.signal,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input),
+        });
+        await relay(response, res, cancel.signal);
+        return;
+      }
       const lease = await queue.acquire(String(user), input.model, cancel.signal);
       const ticket = randomBytes(32).toString("hex");
       tickets.set(ticket, { lease, used: false, signal: cancel.signal });

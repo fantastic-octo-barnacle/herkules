@@ -35,9 +35,18 @@ export async function loadConfig(env = process.env) {
     AI_DISPATCH_KEY_FILE: z.string(),
     AI_METADATA_DATABASE_URL: z.string(),
     AI_WORKERS_FILE: z.string(),
+    AI_DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
+    AI_DEEPSEEK_KEY_FILE: z.string().optional(),
+    AI_OPENROUTER_KEY_FILE: z.string().optional(),
+    AI_PLANS_ENABLED: z.enum(["true", "false"]).default("false"),
     AI_MODEL_CATALOG_FILE: z.string().optional(),
   });
   const values = schema.parse(env);
+  if (
+    values.AI_DEEPSEEK_BASE_URL !== "https://api.deepseek.com" &&
+    env.AI_LOCAL_FIXTURES !== "true"
+  )
+    throw new Error("DeepSeek endpoint override is only allowed in local fixtures");
   const definitions = z
     .array(workerSchema)
     .min(1)
@@ -76,6 +85,12 @@ export async function loadConfig(env = process.env) {
       ? catalogSchema.parse(JSON.parse(await readFile(values.AI_MODEL_CATALOG_FILE, "utf8")))
       : modelCatalog,
     workers,
+    deepseekKey: values.AI_DEEPSEEK_KEY_FILE
+      ? await readSecret(values.AI_DEEPSEEK_KEY_FILE)
+      : undefined,
+    openrouterKey: values.AI_OPENROUTER_KEY_FILE
+      ? await readSecret(values.AI_OPENROUTER_KEY_FILE)
+      : undefined,
     clientSecret: await readSecret(values.AI_CLIENT_SECRET_FILE),
     syncSecret: await readSecret(values.AI_SYNC_SECRET_FILE),
     rootPassword: await readSecret(values.AI_ROOT_PASSWORD_FILE),

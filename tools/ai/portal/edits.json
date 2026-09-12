@@ -83,5 +83,25 @@
     "file": "web/src/features/dashboard/components/overview/overview-dashboard.tsx",
     "before": "  | '/wallet'",
     "after": "  | '/dashboard'"
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/overview-dashboard.tsx",
+    "before": "import { getUserModels } from '@/lib/api'",
+    "after": "import { getUserModels, api } from '@/lib/api'"
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/overview-dashboard.tsx",
+    "before": "export function OverviewDashboard() {",
+    "after": "type HerkulesPlan = { pools: { name: string; pool: string; total: number; remaining: number }[] }\nfunction HerkulesPlanCard() {\n  const role = useAuthStore((s) => s.auth.user?.role) ?? 0\n  const [target, setTarget] = useState('')\n  const [tier, setTier] = useState('lite')\n  const [saving, setSaving] = useState(false)\n  async function assign() {\n    if (!/^[1-9][0-9]*$/.test(target)) { toast.error('Enter a valid user ID'); return }\n    if (!window.confirm('Change plan? A different tier replaces this user\u2019s weekly allowances.')) return\n    setSaving(true)\n    try {\n      const res = await api.put(`/api/herkules/admin/users/${target}/plan`, { tier })\n      if (!res.data.success) throw new Error('Assignment failed')\n      toast.success('Plan assigned'); await query.refetch()\n    } catch { toast.error('Could not assign plan') } finally { setSaving(false) }\n  }\n  const query = useQuery({ queryKey: ['herkules-plan'], queryFn: async () => {\n    const res = await api.get('/api/herkules/plan')\n    if (!res.data.success) throw new Error('Plan unavailable')\n    return res.data.data as HerkulesPlan\n  }, refetchInterval: 30000 })\n  return <section className='mb-6 rounded-xl border p-5' aria-label='AI plan and allowances'>\n    <h2 className='mb-2 text-lg font-semibold'>Your AI plan</h2>\n    <p className='text-muted-foreground mb-4 text-sm'>Weekly allowances reset Monday at 00:00 Hong Kong time. Unused allowance expires. Local credits cannot pay for cloud models. Ask an administrator to change your plan.</p>\n    {query.isPending && <p>Loading allowances\u2026</p>}\n    {query.isError && <p role='alert'>Allowances unavailable. Please retry shortly.</p>}\n    <div className='grid gap-4 sm:grid-cols-2'>{query.data?.pools.map((p) => <div key={p.pool} className='rounded-lg bg-muted p-4'>\n      <h3 className='font-medium'>{p.name.replace('Herkules ', '')}</h3>\n      <p className='mt-2 text-xl'>{p.pool === 'cloud' ? `$${(p.remaining / 1000000).toFixed(2)}` : p.remaining.toLocaleString()} remaining</p>\n      <p className='text-muted-foreground text-sm'>of {p.pool === 'cloud' ? `$${(p.total / 1000000).toFixed(2)} cloud allowance` : `${p.total.toLocaleString()} local credits`}</p>\n    </div>)}</div>\n    {role >= 10 && <div className='mt-5 flex flex-wrap items-end gap-3 border-t pt-4'>\n      <label className='text-sm'>User ID<input className='ml-2 rounded border p-2' value={target} onChange={(e) => setTarget(e.target.value)} inputMode='numeric' /></label>\n      <label className='text-sm'>Plan<select className='ml-2 rounded border p-2' value={tier} onChange={(e) => setTier(e.target.value)}><option value='lite'>Lite</option><option value='pro'>Pro</option><option value='max'>Max</option></select></label>\n      <Button disabled={saving} onClick={() => void assign()}>Assign plan</Button>\n    </div>}\n  </section>\n}\n\nexport function OverviewDashboard() {"
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/overview-dashboard.tsx",
+    "before": "      <SectionPageLayout.Content>",
+    "after": "      <SectionPageLayout.Content>\n        <HerkulesPlanCard />"
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/summary-cards.tsx",
+    "before": "{t('Credit remaining')}",
+    "after": "{t('Extra local credits')}"
   }
 ]

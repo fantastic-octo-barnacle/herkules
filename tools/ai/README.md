@@ -27,14 +27,14 @@ python3 tools/ai/preview-accounts.py
 - Administrator: http://localhost:4012/preview/alice
 - Regular member: http://localhost:4012/preview/bob
 
-Both receive 100,000 test quota. The links select the requested identity even if
+Both receive 100,000 permanent test credits in addition to Lite weekly allowances. The links select the requested identity even if
 another account is signed in. Use separate browser profiles or a private window to
 compare them simultaneously; tabs in one browser share the portal session.
 Alice can manage users, quota, channels and models. Bob can use chat, keys, usage
 and account/security; his requests to administrator APIs are rejected. The root
 account remains private for system-wide configuration.
 The API is http://127.0.0.1:4010/v1. Responses come from a deterministic mock;
-this command never uses the GPU or production credentials. On macOS, Docker must
+this command never uses the GPU or production credentials. The DeepSeek aliases also use the mock worker in this preview. On macOS, Docker must
 support `host.docker.internal` reaching loopback services, as OrbStack does.
 
 In another terminal:
@@ -46,7 +46,7 @@ python3 tools/ai/smoke.py
 This verifies real New API sign-in, token creation, serialized concurrent requests,
 exact quota charges, quota exhaustion, and immediate Herkules revocation. It restores
 Alice afterward and leaves its named test key and usage records in the local database.
-New users start with zero quota. To give an account quota, open the private local
+New users receive Lite weekly allowances; their permanent wallet starts at zero. To give an account quota, open the private local
 admin at http://localhost:4014, sign in as `herkulesroot`, and read its password from
 `~/.config/herkules/ai/dev/root-password` into your password manager. Assign quota in
 User management. The smoke test gives Alice 100,000 units.
@@ -260,3 +260,32 @@ continuation checks pass. Run long prompts in every configured slot before
 claiming the full context allocation works. Restore the old unit and bundles if
 any shared runtime check fails. GPU files are host-owned and are not changed by
 ordinary application CD.
+
+## Plan deployment and DeepSeek
+
+The backend now comes from the same auth release image as the gateway. Both must
+be deployed together; the original upstream backend does not isolate pools. See
+`new-api/README.md` for the patch, source archive, and backend tests. Local Compose
+builds the patched backend automatically. `AI_PLANS_ENABLED=true` enables default
+Lite grants and the plan dashboard.
+
+For production, store the DeepSeek key at
+`/etc/herkules-ai/gateway/deepseek-api-key` owned by UID 1000, mode 0400. Add
+`AI_DEEPSEEK_KEY_FILE=/run/ai/deepseek-api-key` to `.env.ai-gateway`. Do not put the
+key in Compose, Git, or a browser bundle. Restart the gateway after adding the file.
+The cloud channel is created only when the key is configured. Its model IDs are
+`deepseek-flash` and `deepseek-v4-pro`; callers must explicitly select them.
+
+### Optional OpenRouter free endpoints
+
+Save the raw key in `~/.config/herkules/openrouter-api-key` with mode `0600`.
+For the deployed gateway, install it alongside the other gateway secrets as
+`/etc/herkules-ai/gateway/openrouter-api-key`, readable only by the container user,
+and add `AI_OPENROUTER_KEY_FILE=/run/ai/openrouter-api-key` to `.env.ai-gateway`.
+The existing gateway secret-directory mount supplies the file. Restart with the
+new gateway image to bootstrap the allowlisted channels. Never put the key itself
+in an environment file or commit it. Use an OpenRouter key with a $0 spending cap.
+
+Both Gemma free variants have zero New API pricing. Bootstrap also disables
+free-model quota pre-consumption so empty paid balances do not reserve credits
+for these requests. Shared rate limits and upstream daily ceilings still apply.

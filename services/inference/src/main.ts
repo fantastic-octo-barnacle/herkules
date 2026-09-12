@@ -1,3 +1,4 @@
+import { Plans } from "./plans.ts";
 import postgres from "postgres";
 import { loadConfig } from "./config.ts";
 import { NewAPI } from "./new-api.ts";
@@ -6,6 +7,8 @@ import { createGateway } from "./gateway.ts";
 const config = await loadConfig();
 const admin = new NewAPI(config.NEW_API_URL, config.rootPassword);
 await admin.bootstrap(config);
+const plans = config.AI_PLANS_ENABLED === "true" ? new Plans(admin) : undefined;
+await plans?.bootstrap();
 const membership = new Membership(config, admin);
 await membership.reconcile();
 const sql = postgres(config.AI_METADATA_DATABASE_URL, { max: 2, onnotice: () => {} });
@@ -13,6 +16,7 @@ await sql`SELECT user_id FROM herkules_token_identity LIMIT 0`;
 const gateway = createGateway({
   config,
   membership,
+  plans,
   identifyKey: async (hash) => {
     const rows = await sql<
       { user_id: number }[]

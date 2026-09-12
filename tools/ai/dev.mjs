@@ -68,6 +68,9 @@ const env = {
   AI_DEV_DB_PASSWORD: db,
   AI_DEV_SESSION_SECRET: session,
   AI_DEV_DIR: dir,
+  AI_DEEPSEEK_KEY_FILE: join(dir, "mock-key"),
+  AI_DEEPSEEK_BASE_URL: "http://host.docker.internal:4015",
+  AI_PLANS_ENABLED: "true",
   AI_LOCAL_FIXTURES: "true",
   AI_LOCAL_AUTH_DB: `pglite://${join(dir, "auth-db")}`,
   AI_MOCK_KEY: mock,
@@ -182,7 +185,7 @@ await healthy("http://localhost:4012/auth/healthz");
 start("services/inference/src/main.ts", gatewayEnv);
 await healthy("http://localhost:4010/healthz");
 console.log("Local AI portal: http://localhost:4010 — choose Herkules, then Alice or Bob.");
-console.log("Local API: http://127.0.0.1:4010/v1 — new accounts start with zero quota.");
+console.log("Local API: http://127.0.0.1:4010/v1 — new accounts receive Lite weekly allowances.");
 console.log(
   "Private local New API admin: http://localhost:4014 — username herkulesroot; password is in " +
     join(dir, "root-password"),

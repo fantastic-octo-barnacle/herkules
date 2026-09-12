@@ -46,9 +46,9 @@ key_id = next(k['id'] for k in keys if k['name']==name)
 key = api(portal+f'/api/token/{key_id}/key',{},token)['key']
 key = key if key.startswith('sk-') else 'sk-'+key
 
-def generate():
+def generate(model="qwen3.8-27b"):
     req = request.Request('http://127.0.0.1:4010/v1/chat/completions',
-        data=json.dumps({'model':'qwen3.8-27b','messages':[{'role':'user','content':'Hello'}],
+        data=json.dumps({'model':model,'messages':[{'role':'user','content':'Hello'}],
             'stream':True,'max_tokens':32}).encode(),
         headers={'Content-Type':'application/json','Authorization':'Bearer '+key})
     try:
@@ -59,6 +59,7 @@ def generate():
 
 try:
     before = api(portal+'/api/user/self',token=token)['used_quota']
+    pools_before = api(portal+'/api/herkules/plan',token=token)['pools']
     start = time.monotonic()
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda _:generate(),range(2)))
@@ -66,13 +67,27 @@ try:
     assert time.monotonic()-start >= 2.8, 'same-user generations overlapped'
     after = api(portal+'/api/user/self',token=token)['used_quota']
     assert after-before==50, 'unexpected quota charge'
-    quota(0)
-    assert generate()[0] >= 400, 'exhausted quota was accepted'
-    quota(100000)
+    pools_after = api(portal+'/api/herkules/plan',token=token)['pools']
+    by_pool = lambda rows, pool: next(x['remaining'] for x in rows if x['pool']==pool)
+    assert by_pool(pools_before,'local')-by_pool(pools_after,'local')==50, 'local pool charge mismatch'
+    assert by_pool(pools_before,'cloud')==by_pool(pools_after,'cloud'), 'local request charged cloud pool'
+    assert api(portal+'/api/user/self',token=token)['quota']==100000, 'weekly usage spent permanent wallet'
+    api(private+'/api/subscription/self/preference', {'billing_preference':'wallet_only'},token,'PUT')
+    assert generate('deepseek-flash')[0]==200, 'mock cloud stream failed'
+    cloud_after = api(portal+'/api/herkules/plan',token=token)['pools']
+    assert by_pool(cloud_after,'local')==by_pool(pools_after,'local'), 'cloud request charged local pool'
+    assert by_pool(pools_after,'cloud')-by_pool(cloud_after,'cloud')==12, 'cloud price mismatch'
+    api(private+'/api/subscription/self/preference', {'billing_preference':'subscription_first'},token,'PUT')
+    record = next(k for k in keys if k['id']==key_id)
+    api(portal+'/api/token/', {**record,'remain_quota':0},token,'PUT')
+    assert generate()[0] >= 400, 'exhausted token quota was accepted'
+    api(portal+'/api/token/', {**record,'remain_quota':50000,'status':0},token,'PUT')
+    api(portal+'/api/token/?status_only=true', {'id':key_id,'status':1},token,'PUT')
     api('http://localhost:4012/dev/disable/alice',{})
     assert generate()[0]==403, 'disabled identity retained inference access'
     print('PASS: OIDC, API keys, serialized streaming, quota accounting, exhaustion and issuer revocation')
 finally:
+    api(private+'/api/subscription/self/preference', {'billing_preference':'subscription_first'},token,'PUT')
     # Restore the fixture so the portal remains usable after running this test.
     api('http://localhost:4012/dev/enable/alice',{})
     api(private+'/api/user/manage',{'id':user_id,'action':'enable'},root)

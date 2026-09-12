@@ -164,11 +164,16 @@ services:
   # AI is enabled only after provisioning secrets/database and setting COMPOSE_PROFILES=ai.
   new-api:
     profiles: [ai]
-    image: calciumion/new-api:v1.0.0-rc.37@sha256:8b6cf781e479e6dfcaa5f1ddd86f0e20f12352980029d0d0dfb35cf8cbd1792b
+    image: ${AUTH_IMAGE_REF}
+    working_dir: /data
     env_file:
       - path: .env.ai
         required: false
     environment:
+      PORT: "3000"
+      TZ: Asia/Hong_Kong
+      HERKULES_PLANS_ENABLED: "true"
+      HERKULES_CLOUD_MODELS: deepseek-flash,deepseek-v4-pro
       MEMORY_CACHE_ENABLED: "false"
       BATCH_UPDATE_ENABLED: "false"
       STREAMING_TIMEOUT: "900"
@@ -205,6 +210,7 @@ services:
       AI_API_ORIGIN: https://ai.herkules.dev
       AUTH_ISSUER: https://herkules.dev/auth
       AUTH_INTERNAL_URL: http://auth:3001/auth
+      AI_PLANS_ENABLED: "true"
       AI_WORKERS_FILE: /run/ai/workers.json
       AI_CLIENT_SECRET_FILE: /run/ai/client-secret
       AI_SYNC_SECRET_FILE: /run/ai/sync-secret

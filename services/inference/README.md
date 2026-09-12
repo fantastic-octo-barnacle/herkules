@@ -9,7 +9,7 @@ credential setup are documented in `tools/ai/README.md`.
 
 ## Boundaries
 
-- New API is pinned by digest in Compose. Do not edit its tables to configure
+- New API is compiled from checksum-pinned source with a small subscription-pool patch. Do not edit its tables to configure
   quotas or accounts; use its management APIs. A restricted SQL view supplies
   only API-key hashes and account IDs for queue fairness. New API still validates
   every API key and charges every generation itself.
@@ -36,7 +36,7 @@ credential setup are documented in `tools/ai/README.md`.
 
 ## Portal assets
 
-`AI_PORTAL_DIR` selects the checksum-pinned, frontend-only customization of New API.
+`AI_PORTAL_DIR` selects the checksum-pinned, portal customization of New API.
 Production packages it in `/ai/portal`; local startup builds it outside the checkout.
 The backend's own UI is only used on its private administration port. The source
 archive linked in the footer contains the exact modified upstream source and build
@@ -66,7 +66,7 @@ preserves explicit client values, including zero. Unknown models are unchanged.
 The catalog does not claim unverified defaults for Gemma, Granite, or Mellum.
 
 Bootstrap seeds missing New API `/api/models/` entries with descriptions, tags,
-and the chat-completions endpoint. Existing administrator edits are retained,
+and the chat-completions endpoint. Descriptions refresh from the catalog on startup; other administrator edits are retained,
 and official metadata sync is disabled on seeded entries so native model claims
 do not overwrite our serving capabilities. No database writes bypass New API.
 
@@ -79,3 +79,64 @@ changed models; apply only after draining active requests.
 
 These surfaces use their existing formats. We do not emulate Ollama, Anthropic,
 or Gemini discovery endpoints without also implementing their generation APIs.
+
+## Plans and cloud models
+
+Set `AI_PLANS_ENABLED=true` only with the patched backend from the same release.
+New members receive Lite on their first authenticated portal/API request. Plans
+have two independent weekly subscriptions, resetting Monday 00:00 Asia/Hong_Kong
+without rollover: Lite 1M local + $0.50 cloud; Pro 5M + $5; Max 10M + $10.
+One million cloud quota units represents US$1 of peak-rate allowance. Native New
+API handles reservations, settlement, refunds, and resets. Existing wallet balances
+are preserved and may fund only local models. Cancelling all plans does not silently
+re-grant Lite. These are administrator-granted memberships with a 100-year term,
+not paid subscriptions or automatic card charges.
+
+The dashboard shows both pools. `GET /api/herkules/plan` returns the signed-in
+member's allowance. An authenticated Herkules administrator can
+`PUT /api/herkules/admin/users/{id}/plan` with `{"tier":"lite|pro|max"}`. Repeating
+the same assignment preserves usage; changing tiers grants the new pair before
+cancelling the old pair. If a backend call fails, retry the same assignment. Existing
+grants retain their usage, and the old allowances remain until both replacements
+exist. A partial change can temporarily leave both tiers active; automatic repair
+does not refill the retiring tier. Assignment is privileged because it grants a fresh allowance. No user
+self-upgrade or purchase route is exposed. The gateway remains a single process.
+
+`AI_DEEPSEEK_KEY_FILE` enables `deepseek-flash` and `deepseek-v4-pro`. The credential
+must be in a private server file. Bootstrap creates a dedicated New API channel;
+cloud generation bypasses the GPU queue but retains API-key, membership and native
+billing checks. There is no automatic paid fallback. Model listing exposes the
+serving limits and peak-rate prices under `herkules.pricing`, with currency and unit.
+DeepSeek's off-peak discount is not passed through dynamically; this keeps allowance
+accounting conservative and predictable. The separate cloud subscription blocks
+wallet fallback regardless of the user's billing preference.
+
+This release does not add a global monthly spending counter. With no manual
+re-grants, five weekly Max allowances total at most $50 of peak-rate credit in a
+calendar month. Administrator grants and additional users increase aggregate spend;
+use the provider account's spending controls for an independent global ceiling.
+
+## Free OpenRouter models
+
+`AI_OPENROUTER_KEY_FILE` enables the explicit Gemma 4 26B-A4B, Gemma 4 31B, Laguna S 2.1 and Nemotron 3 Super `:free`
+allowlist. Keep the credential outside the repository and set its OpenRouter
+spending limit to $0. New API authenticates requests and applies model restrictions;
+bootstrap sets their token prices to zero. They consume neither paid cloud nor
+local credits. Gateway routing strips caller-supplied fallbacks, plugins and provider
+routing, forces zero provider prices, and bypasses the GPU queue. Both the gateway
+and New API channel force `provider.data_collection: "deny"` under
+[OpenRouter's provider data policy](https://openrouter.ai/docs/guides/routing/provider-selection#requiring-providers-to-comply-with-data-policies).
+If no eligible free provider exists, the request fails without relaxing this policy
+or falling back to a paid model. This may make Laguna unavailable. This routing
+filter is separate from OpenRouter account-level prompt logging and ZDR settings.
+
+The single-process gateway allows six requests per user and eighteen globally
+per rolling minute across all free models. These counters reset when the process
+restarts; OpenRouter enforces its own durable account-wide daily allowance.
+Failed upstream requests count toward the local request limit. Availability and
+provider data policies differ from local inference. This integration does not
+establish permission to redistribute access under OpenRouter's terms.
+
+Inkling has a catalog entry but is not enabled: OpenRouter rejected the direct
+smoke test with its approved-agentic-application restriction. Laguna was listed
+but returned an upstream shared-capacity 429 during verification.
