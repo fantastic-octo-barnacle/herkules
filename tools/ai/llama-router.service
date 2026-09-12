@@ -1,0 +1,19 @@
+[Unit]
+Description=Herkules model router (one resident model per GPU)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=herkules
+Group=herkules
+WorkingDirectory=/home/herkules/llama.cpp-unsloth
+ExecStart=/home/herkules/llama.cpp-unsloth/build/bin/llama-server --host 127.0.0.1 --port 8080 --models-preset /etc/herkules-ai/models.ini --models-max 1
+Environment=LLAMA_ARG_API_KEY_FILE=/etc/herkules-ai/worker.key
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+LimitMEMLOCK=64G
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target

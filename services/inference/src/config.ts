@@ -5,6 +5,9 @@ const workerSchema = z.object({
   model: z.string().min(1),
   url: z.string().url(),
   keyFile: z.string(),
+  capacity: z.number().int().min(1).max(16).optional(),
+  perUser: z.number().int().min(1).max(16).optional(),
+  resourceGroup: z.string().min(1).optional(),
   accessIdFile: z.string().optional(),
   accessSecretFile: z.string().optional(),
 });
@@ -55,6 +58,9 @@ export async function loadConfig(env = process.env) {
       return {
         id: w.id,
         model: w.model,
+        capacity: w.capacity,
+        perUser: w.perUser,
+        resourceGroup: w.resourceGroup,
         url: w.url.replace(/\/$/, ""),
         key: await readSecret(w.keyFile),
         accessId: w.accessIdFile ? await readSecret(w.accessIdFile) : undefined,

@@ -40,3 +40,31 @@ test("queue limits, cancellation and timeout release waiting capacity", async ()
   a.release();
   expect(q.status).toEqual({ active: 0, queued: 0 });
 });
+
+test("shared GPU batches one model and drains for an older model switch", async () => {
+  const q = new Scheduler(
+    ["a", "b"].map((model) => ({
+      id: model,
+      model,
+      url: "http://localhost",
+      key: "test",
+      resourceGroup: "gpu",
+      capacity: 2,
+      perUser: 2,
+    })),
+  );
+  const signal = new AbortController().signal;
+  const first = await q.acquire("alice", "a", signal);
+  const second = await q.acquire("alice", "a", signal);
+  expect(q.status.active).toBe(2);
+  const other = q.acquire("bob", "b", signal);
+  const later = q.acquire("charlie", "a", signal);
+  first.release();
+  expect(q.status).toEqual({ active: 1, queued: 2 });
+  second.release();
+  const switched = await other;
+  expect(q.status).toEqual({ active: 1, queued: 1 });
+  switched.release();
+  (await later).release();
+  expect(q.status).toEqual({ active: 0, queued: 0 });
+});

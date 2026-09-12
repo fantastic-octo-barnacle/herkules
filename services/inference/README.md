@@ -16,8 +16,11 @@ credential setup are documented in `tools/ai/README.md`.
 - Every generation has a short-lived internal ticket assigned by the gateway.
   The New API channel forwards this ticket back to the internal dispatch route.
   A caller cannot choose a worker or inject gateway/worker credentials.
-- One active request per user, two waiting per user, 16 waiting globally. Queue
-  timeout is 90 seconds. Worker slots are reserved until the response ends.
+- Worker `capacity` and `perUser` control active requests, both defaulting to one.
+  Two requests may wait per user, 16 globally, for 90 seconds. Entries sharing a
+  physical GPU must share `resourceGroup`. Different models in that group run
+  exclusively; an older model-switch request drains the active model before
+  loading the next one. Worker slots stay reserved until each response ends.
 - The worker adapter owns a second admission gate. After restarts it verifies
   llama-server's slots before admitting work. It emits SSE heartbeat comments
   during prefill and propagates cancellation. llama-server must enable `/slots`.
