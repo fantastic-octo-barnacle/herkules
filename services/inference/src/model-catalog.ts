@@ -9,6 +9,7 @@ export const modelInfoSchema = z.object({
   quantization: z.string(),
   tags: z.array(z.string()),
   reasoning_efforts: z.array(z.string()).default([]),
+  tools: z.boolean().optional(),
   defaults: z
     .object({
       temperature: z.number().min(0).max(2).optional(),
@@ -22,6 +23,17 @@ export type ModelCatalog = z.infer<typeof catalogSchema>;
 // Serving limits, not the upstream weights' maximum capabilities. Only text
 // and chat completions are enabled by this gateway, even for multimodal weights.
 export const modelCatalog: ModelCatalog = {
+  "lfm2.5-1.2b": {
+    name: "LFM2.5 1.2B",
+    description: "Fast lightweight chat model. One 32K slot; tool calling is not validated.",
+    source: "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct",
+    context_length: 32768,
+    quantization: "Q4_0",
+    tags: ["fast-chat"],
+    reasoning_efforts: [],
+    tools: false,
+    defaults: { temperature: 0.1 },
+  },
   "qwen3.8-27b": {
     name: "Qwen3.8 27B",
     description: "Dense general-purpose coding model with embedded MTP. One 128K slot.",
@@ -122,8 +134,7 @@ export function enrichModels(
           "max_tokens",
           "temperature",
           "top_p",
-          "tools",
-          "tool_choice",
+          ...(info.tools === false ? [] : ["tools", "tool_choice"]),
           "stream",
           ...(info.reasoning_efforts.length ? ["reasoning_effort"] : []),
         ],
