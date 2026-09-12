@@ -199,6 +199,7 @@ services:
       - path: /etc/herkules-ai/gateway.env
         required: false
     environment:
+      AI_PORTAL_DIR: /ai/portal
       AI_PORTAL_ORIGIN: https://ai-portal.herkules.dev
       AI_API_ORIGIN: https://ai.herkules.dev
       AUTH_ISSUER: https://herkules.dev/auth

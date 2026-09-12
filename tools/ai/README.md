@@ -8,7 +8,9 @@ admission and worker selection. Only the gateway carries worker credentials.
 
 ## Test on this computer
 
-Requirements: the repository's Vite+ toolchain, Docker with Compose, and Python 3.
+Requirements: the repository's Vite+ toolchain, Bun 1.4+, Docker with Compose, and Python 3.
+The first start builds the customized portal from checksum-pinned upstream source.
+Subsequent starts reuse it until the patch or build script changes.
 
 ```sh
 vp install
@@ -16,6 +18,21 @@ node tools/ai/dev.mjs
 ```
 
 Open http://localhost:4010, choose **Herkules**, then **Alice** or **Bob**.
+To create both preview accounts and verify their permissions, run:
+
+```sh
+python3 tools/ai/preview-accounts.py
+```
+
+- Administrator: http://localhost:4012/preview/alice
+- Regular member: http://localhost:4012/preview/bob
+
+Both receive 100,000 test quota. The links select the requested identity even if
+another account is signed in. Use separate browser profiles or a private window to
+compare them simultaneously; tabs in one browser share the portal session.
+Alice can manage users, quota, channels and models. Bob can use chat, keys, usage
+and account/security; his requests to administrator APIs are rejected. The root
+account remains private for system-wide configuration.
 The API is http://127.0.0.1:4010/v1. Responses come from a deterministic mock;
 this command never uses the GPU or production credentials. On macOS, Docker must
 support `host.docker.internal` reaching loopback services, as OrbStack does.
@@ -147,3 +164,20 @@ Prompts and responses are not application logs. Keep DEBUG and error body loggin
 The pinned New API schema is part of this integration: review the metadata view and
 session APIs before upgrading. Initial operations are manual; the current branch does
 not change DNS, tunnel routes, GPU flags, or enable the production profile automatically.
+
+## Simplified interface
+
+`SidebarModulesAdmin` hides wallet/referrals, subscription and redemption tools,
+image/video task logs, and the redundant chat link. Model Square and rankings are
+hidden from the header. Empty API-info, FAQ, announcements and uptime panels are
+also hidden. Quota balances, usage logs, profile, language preferences
+and security remain. Administrators retain users, channels and model management.
+Referral rewards and check-in rewards are disabled. SMTP configuration is cleared
+and notification preferences are removed from the profile page.
+
+The few hard-coded controls require a frontend-only patch in `portal/edits.json`.
+The backend stays on the original pinned image. The gateway serves the patched
+frontend; the auth release image includes it. Build input is pinned by commit and
+archive checksum, and patches must match exactly. Both original attribution and a
+link to the complete modified source archive remain in the portal footer. The
+private break-glass interface on port 4014 still uses the upstream UI.

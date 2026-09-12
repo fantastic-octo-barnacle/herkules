@@ -100,6 +100,7 @@
 
 # AI stays unavailable until the opt-in Compose profile has been provisioned.
 {$AI_HOST:ai.herkules.dev}, {$AI_PORTAL_HOST:ai-portal.herkules.dev} {
+	encode zstd gzip
  import {$CADDY_TLS_MODE:origin_tls}
  import common_headers
  reverse_proxy inference:4010 {

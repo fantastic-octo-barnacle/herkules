@@ -17,6 +17,7 @@ export async function loadConfig(env = process.env) {
   const schema = z.object({
     PORT: z.coerce.number().default(4010),
     INTERNAL_PORT: z.coerce.number().default(4013),
+    AI_PORTAL_DIR: z.string().optional(),
     NEW_API_URL: z.string().url().default("http://new-api:3000"),
     AI_OAUTH_BACKCHANNEL: z.string().url().optional(),
     AI_DISPATCH_URL: z.string().url().default("http://inference:4013"),

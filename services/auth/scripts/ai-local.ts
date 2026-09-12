@@ -21,8 +21,33 @@ const escape = (v: string) =>
 app.get("/login", (c) =>
   c.html(`<h1>Local AI test sign-in</h1><p>Test identities only. No GitHub credentials are used.</p>
 <form method="post" action="/dev/login"><input type="hidden" name="oauth_query" value="${escape(new URL(c.req.url).search.slice(1))}">
-<button name="user" value="alice">Sign in as Alice</button> <button name="user" value="bob">Sign in as Bob</button></form>`),
+<button name="user" value="alice">Alice · Administrator</button> <button name="user" value="bob">Bob · Member</button></form>`),
 );
+// Loopback-only shortcuts switch the fixture identity, even if another identity is signed in.
+app.get("/preview/:user", async (c) => {
+  const user = c.req.param("user");
+  if (!["alice", "bob"].includes(user)) return c.notFound();
+  const login = await t.login(user);
+  if (!login.ok) return c.text("Fixture sign-in refused", 403);
+  const response = await fetch("http://localhost:4010/api/oauth/state", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ provider: "herkules", intent: "login" }),
+  });
+  const state = (await response.json()) as { success?: boolean; data?: { flow_token: string } };
+  if (!response.ok || !state.success || !state.data?.flow_token)
+    return c.text("Local portal is not ready", 503);
+  for (const cookie of login.cookie.split("; "))
+    c.header("Set-Cookie", `${cookie}; Path=/; HttpOnly; SameSite=Lax`, { append: true });
+  const query = new URLSearchParams({
+    client_id: "herkules-ai",
+    redirect_uri: "http://localhost:4010/oauth/herkules",
+    response_type: "code",
+    scope: "openid email profile",
+    state: state.data.flow_token,
+  });
+  return c.redirect(`/auth/oauth2/authorize?${query.toString()}`);
+});
 app.post("/dev/login", async (c) => {
   const input = await c.req.parseBody();
   if (typeof input.user !== "string" || !["alice", "bob"].includes(input.user))

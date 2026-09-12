@@ -49,6 +49,7 @@ const env = {
   AI_LOCAL_FIXTURES: "true",
   AI_LOCAL_AUTH_DB: `pglite://${join(dir, "auth-db")}`,
   AI_MOCK_KEY: mock,
+  AI_PORTAL_DIR: join(dir, "portal"),
   AI_PORTAL_ORIGIN: "http://localhost:4010",
   AI_API_ORIGIN: "http://127.0.0.1:4010",
   PORT: "4010",
@@ -77,6 +78,12 @@ if (process.argv[2] === "stop") {
   compose("stop");
   process.exit(0);
 }
+const portalBuild = spawnSync(
+  process.execPath,
+  [join(root, "tools/ai/portal/build.mjs"), join(dir, "portal")],
+  { stdio: "inherit" },
+);
+if (portalBuild.status !== 0) process.exit(portalBuild.status ?? 1);
 compose("up", "-d", "--wait", "--wait-timeout", "120");
 const view = `CREATE OR REPLACE VIEW herkules_token_identity AS SELECT encode(sha256(convert_to(key,'UTF8')),'hex') AS key_hash,user_id FROM tokens WHERE deleted_at IS NULL; GRANT CONNECT ON DATABASE herkules_ai TO ai_metadata; GRANT USAGE ON SCHEMA public TO ai_metadata; GRANT SELECT ON herkules_token_identity TO ai_metadata;`;
 const sql = spawnSync(

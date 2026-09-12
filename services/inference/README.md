@@ -29,3 +29,11 @@ credential setup are documented in `tools/ai/README.md`.
   reconciliation disables revoked New API accounts through its management API;
   failures close the gateway until reconciliation recovers. Re-enabling an
   account is an explicit New API administrator action.
+
+## Portal assets
+
+`AI_PORTAL_DIR` selects the checksum-pinned, frontend-only customization of New API.
+Production packages it in `/ai/portal`; local startup builds it outside the checkout.
+The backend's own UI is only used on its private administration port. The source
+archive linked in the footer contains the exact modified upstream source and build
+instructions. See `tools/ai/portal/edits.json` for the small UI patch.

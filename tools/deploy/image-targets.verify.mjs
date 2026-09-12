@@ -104,3 +104,10 @@ test("inference source rebuilds the shared auth image", () => {
     deploy: true,
   });
 });
+
+test("portal patches rebuild the image that serves their assets", () => {
+  assert.deepEqual(selectImageTargets(["tools/ai/portal/edits.json"]), {
+    targets: ["auth"],
+    deploy: true,
+  });
+});

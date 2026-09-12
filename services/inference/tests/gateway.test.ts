@@ -72,6 +72,9 @@ test("public setup/password login and invalid internal tickets are rejected", as
   const f = await fixture();
   for (const path of [
     "/api/setup",
+    "/api/user/topup",
+    "/api/user/aff",
+    "/api/user/checkin",
     "/api/user/login",
     "/api/oauth/github",
     "/api/user/self/oauth/bindings/1",

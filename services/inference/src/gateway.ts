@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
+import { servePortal } from "./portal.ts";
 import type { Config } from "./config.ts";
 import { AdmissionError, Scheduler, type Lease } from "./queue.ts";
 import { body, cancellation, failure, json, matches, relay } from "./http.ts";
@@ -108,7 +109,9 @@ export function createGateway(deps: GatewayDeps) {
         (/^\/api\/(?:setup|verification|reset_password|redemption|subscription|task|video|payment|stripe|epay)(?:\/|$)/.test(
           path,
         ) ||
-          /^\/api\/user\/(?:login|register|reset|passkey)(?:\/|$)/.test(path) ||
+          /^\/api\/user\/(?:login|register|reset|passkey|aff|aff_transfer|topup|pay|amount|stripe|creem|waffo|waffo-pancake|checkin)(?:\/|$)/.test(
+            path,
+          ) ||
           /^\/api\/oauth\/(?!state$|herkules$)/.test(path) ||
           (req.method === "DELETE" && path.includes("/oauth/bindings")))
       ) {
@@ -131,6 +134,10 @@ export function createGateway(deps: GatewayDeps) {
       if (generation || models || (portal && path.startsWith("/api/") && !publicAPI.has(path))) {
         user = await identity(req, path, cancel.signal);
         if (!(await membership.check(user))) throw new AdmissionError("membership_required", 403);
+      }
+      if (portal && config.AI_PORTAL_DIR && !path.startsWith("/api/") && !generation && !models) {
+        await servePortal(config.AI_PORTAL_DIR, path, req.method ?? "GET", res);
+        return;
       }
       if (!generation) {
         const query = new URL(req.url ?? "/", "http://gateway").search;
