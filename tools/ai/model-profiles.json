@@ -28,5 +28,10 @@
     "model": "qwen3.6-35b-a3b",
     "context": 131072,
     "slots": 2
+  },
+  {
+    "model": "lfm2.5-1.2b",
+    "context": 32768,
+    "slots": 1
   }
 ]

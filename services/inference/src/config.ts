@@ -1,3 +1,4 @@
+import { catalogSchema, modelCatalog } from "./model-catalog.ts";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 const workerSchema = z.object({
@@ -34,6 +35,7 @@ export async function loadConfig(env = process.env) {
     AI_DISPATCH_KEY_FILE: z.string(),
     AI_METADATA_DATABASE_URL: z.string(),
     AI_WORKERS_FILE: z.string(),
+    AI_MODEL_CATALOG_FILE: z.string().optional(),
   });
   const values = schema.parse(env);
   const definitions = z
@@ -70,6 +72,9 @@ export async function loadConfig(env = process.env) {
   );
   return {
     ...values,
+    modelCatalog: values.AI_MODEL_CATALOG_FILE
+      ? catalogSchema.parse(JSON.parse(await readFile(values.AI_MODEL_CATALOG_FILE, "utf8")))
+      : modelCatalog,
     workers,
     clientSecret: await readSecret(values.AI_CLIENT_SECRET_FILE),
     syncSecret: await readSecret(values.AI_SYNC_SECRET_FILE),

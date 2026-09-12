@@ -1,4 +1,4 @@
-import { DEFAULT_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS } from "./limits.ts";
+import { enrichModels, outputLimits } from "./model-catalog.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
 import { servePortal } from "./portal.ts";
@@ -103,7 +103,8 @@ export function createGateway(deps: GatewayDeps) {
       const generation =
         (path === "/v1/chat/completions" || (portal && path === "/pg/chat/completions")) &&
         req.method === "POST";
-      const models = path === "/v1/models" && req.method === "GET";
+      const modelDetail = /^\/v1\/models\/.+$/.test(path);
+      const models = (path === "/v1/models" || modelDetail) && req.method === "GET";
       if (!portal && !generation && !models) {
         json(res, 404, { error: "not_found" });
         return;
@@ -150,14 +151,32 @@ export function createGateway(deps: GatewayDeps) {
       }
       if (!generation) {
         const query = new URL(req.url ?? "/", "http://gateway").search;
-        const response = await backend(path + query, req, {
+        const response = await backend(modelDetail && models ? "/v1/models" : path + query, req, {
           method: req.method,
           signal: cancel.signal,
           body: ["GET", "HEAD"].includes(req.method ?? "GET")
             ? undefined
             : new Uint8Array(await body(req)),
         });
-        if (path === "/api/status") {
+        if (models && response.ok) {
+          const listing = enrichModels(
+            await response.json(),
+            config.modelCatalog ?? {},
+            config.workers,
+          );
+          if (modelDetail) {
+            const id = path.slice("/v1/models/".length);
+            const entry =
+              listing &&
+              typeof listing === "object" &&
+              "data" in listing &&
+              Array.isArray(listing.data)
+                ? listing.data.find((item: { id?: string }) => item.id === id)
+                : undefined;
+            if (!entry) throw new AdmissionError("model_not_found", 404);
+            json(res, 200, entry);
+          } else json(res, response.status, listing);
+        } else if (path === "/api/status") {
           const status = (await response.json()) as { data?: Record<string, unknown> };
           if (status.data) status.data.password_login_enabled = false;
           json(res, response.status, status);
@@ -186,11 +205,18 @@ export function createGateway(deps: GatewayDeps) {
       }
       if (!input || typeof input !== "object" || input.stream !== true)
         throw new AdmissionError("streaming_required", 400);
-      const max = input.max_tokens ?? input.max_completion_tokens ?? DEFAULT_OUTPUT_TOKENS;
-      if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > MAX_OUTPUT_TOKENS)
+      const limits = outputLimits(
+        typeof input.model === "string" ? config.modelCatalog?.[input.model] : undefined,
+      );
+      const max = input.max_tokens ?? input.max_completion_tokens ?? limits.defaultTokens;
+      if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > limits.max)
         throw new AdmissionError("invalid_output_limit", 400);
       if (!Array.isArray(input.messages) || typeof input.model !== "string")
         throw new AdmissionError("invalid_chat_request", 400);
+      const defaults = config.modelCatalog?.[input.model]?.defaults;
+      for (const [key, value] of Object.entries(defaults ?? {})) {
+        if (input[key] === undefined) input[key] = value;
+      }
       input.max_tokens = max;
       delete input.max_completion_tokens;
       input.stream_options = { include_usage: true };

@@ -1,3 +1,4 @@
+import { modelCatalog } from "../src/model-catalog.ts";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { createHash } from "node:crypto";
 import { request } from "node:http";
@@ -9,11 +10,14 @@ import type { Config } from "../src/config.ts";
 function fetch(
   url: string,
   init: { method?: string; headers?: Record<string, string>; body?: string } = {},
-): Promise<{ status: number }> {
+): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const req = request(url, init, (res) => {
-      res.resume();
-      resolve({ status: res.statusCode! });
+      let body = "";
+      res.on("data", (chunk) => {
+        body += chunk;
+      });
+      res.on("end", () => resolve({ status: res.statusCode!, body }));
     });
     req.on("error", reject);
     req.end(init.body);
@@ -28,14 +32,15 @@ afterEach(() => {
     }
   instances.length = 0;
 });
-async function fixture(ready = true, member = true) {
+async function fixture(ready = true, member = true, context = 131072) {
   const config = {
     AI_PORTAL_ORIGIN: "http://portal.test",
     AI_API_ORIGIN: "http://api.test",
     NEW_API_URL: "http://new-api",
     dispatchKey: "dispatch-secret",
+    modelCatalog: { qwen: { ...modelCatalog["qwen3.8-27b"], context_length: context } },
     workers: [{ id: "gpu", model: "qwen", url: "http://worker", key: "worker-secret" }],
-  } as Config;
+  } as unknown as Config;
   let hits = 0;
   const forwarded: Record<string, unknown>[] = [];
   const identifyKey = vi.fn(async (hash: string) =>
@@ -55,7 +60,7 @@ async function fixture(ready = true, member = true) {
           : input.url
       ).endsWith("/api/user/self")
         ? Response.json({ success: true, data: { id: 2 } })
-        : Response.json({ data: [] });
+        : Response.json({ data: [{ id: "qwen", object: "model" }] });
     },
   });
   instances.push(g);
@@ -201,5 +206,63 @@ test("omitting an output limit reserves 32K for coding responses", async () => {
       })
     ).status,
   ).toBe(200);
-  expect(f.forwarded).toEqual([expect.objectContaining({ max_tokens: 32_768 })]);
+  expect(f.forwarded).toEqual([
+    expect.objectContaining({ max_tokens: 32_768, temperature: 1, top_p: 0.95 }),
+  ]);
+});
+
+test("model details use the authorized list", async () => {
+  const f = await fixture();
+  const headers = { host: "api.test", authorization: "Bearer sk-test" };
+  const listing = await fetch(f.url() + "/v1/models", { headers });
+  expect(listing.status).toBe(200);
+  expect(JSON.parse(listing.body).data[0]).toMatchObject({ id: "qwen", context_length: 131072 });
+  const detail = await fetch(f.url() + "/v1/models/qwen", { headers });
+  expect(detail.status).toBe(200);
+  expect(JSON.parse(detail.body)).toMatchObject({ id: "qwen", object: "model" });
+  expect((await fetch(f.url() + "/v1/models/qwen3.8-27b", { headers })).status).toBe(404);
+  expect((await fetch(f.url() + "/v1/models/qwen", { headers: { host: "api.test" } })).status).toBe(
+    401,
+  );
+});
+
+test("explicit sampling choices override the model defaults", async () => {
+  const f = await fixture();
+  await fetch(f.url() + "/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      host: "api.test",
+      authorization: "Bearer sk-test",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ model: "qwen", messages: [], stream: true, temperature: 0, top_p: 0.8 }),
+  });
+  expect(f.forwarded).toEqual([expect.objectContaining({ temperature: 0, top_p: 0.8 })]);
+});
+
+test("small-context discovery and request defaults agree", async () => {
+  const f = await fixture(true, true, 8192);
+  const headers = {
+    host: "api.test",
+    authorization: "Bearer sk-test",
+    "content-type": "application/json",
+  };
+  const listing = JSON.parse((await fetch(f.url() + "/v1/models", { headers })).body);
+  expect(listing.data[0].default_parameters.max_tokens).toBe(4096);
+  expect(listing.data[0].top_provider.max_completion_tokens).toBe(8191);
+  await fetch(f.url() + "/v1/chat/completions", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ model: "qwen", messages: [], stream: true }),
+  });
+  expect(f.forwarded[0].max_tokens).toBe(4096);
+  expect(
+    (
+      await fetch(f.url() + "/v1/chat/completions", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ model: "qwen", messages: [], stream: true, max_tokens: 8192 }),
+      })
+    ).status,
+  ).toBe(400);
 });
