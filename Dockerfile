@@ -3,11 +3,25 @@
 # The build stage installs the whole workspace once; runtime images get only
 # `pnpm deploy --prod` output (auth, bbs) or static files (caddy).
 
-# Small frontend-only customization; the New API backend stays pinned and unmodified.
+# Checksum-pinned New API source, with isolated subscription funding pools.
 FROM oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6 AS ai-portal
 WORKDIR /build
+RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*
+COPY tools/ai/new-api /new-api
 COPY tools/ai/portal/build.mjs tools/ai/portal/edits.json ./
 RUN bun build.mjs /portal
+
+FROM golang:1.26.1-alpine@sha256:2389ebfa5b7f43eeafbd6be0c3700cc46690ef842ad962f6c5bd6be49ed82039 AS ai-backend
+ENV CGO_ENABLED=0 GOWORK=off
+WORKDIR /build
+COPY --from=ai-portal /portal/portal-source.tar.gz /tmp/source.tar.gz
+RUN tar -xzf /tmp/source.tar.gz -C /build
+COPY --from=ai-portal /portal /build/web/dist
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    go test ./model -run TestHerkules -count=1 && go build -ldflags "-s -w -X github.com/QuantumNous/new-api/common.Version=v1.0.0-rc.37-herkules-pools" -o /new-api .
+
+FROM calciumion/new-api:v1.0.0-rc.37@sha256:8b6cf781e479e6dfcaa5f1ddd86f0e20f12352980029d0d0dfb35cf8cbd1792b AS new-api
+COPY --from=ai-backend /new-api /new-api
 
 FROM node:24-alpine AS base
 RUN npm install -g pnpm@11.24.0
@@ -41,10 +55,11 @@ COPY --from=build --chown=node:node /out/auth /app
 # Same release image, separate inference container and process.
 COPY --from=build --chown=node:node /out/inference /ai
 COPY --from=ai-portal --chown=node:node /portal /ai/portal
+COPY --from=ai-backend /new-api /new-api
 # The `avatars` named volume inherits this directory's ownership, so it has to exist and be
 # node-owned in the image; only root can create it, hence the two USER lines.
 USER root
-RUN mkdir -p /data/avatars && chown -R node:node /data
+RUN apk add --no-cache tzdata ca-certificates && mkdir -p /data/avatars && chown -R node:node /data
 USER node
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

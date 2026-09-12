@@ -52,3 +52,38 @@ test("New API seeding preserves operator records and skips unserved models", asy
     expect.objectContaining({ model_name: "ling-3.0-tiny", sync_official: 0, status: 1 }),
   );
 });
+
+test("DeepSeek publishes cloud prices and gateway limits without claiming GPU slots", () => {
+  const result = enrichModels({ data: [{ id: "deepseek-flash" }] }, modelCatalog, [
+    { model: "deepseek-flash" },
+  ]) as { data: Record<string, unknown>[] };
+  expect(result.data[0]).toMatchObject({
+    context_length: 1000000,
+    top_provider: { max_completion_tokens: 65536 },
+    herkules: {
+      pool: "cloud",
+      pricing: {
+        input: 0.3,
+        cached_input: 0.006,
+        output: 1.2,
+        currency: "USD",
+        per_tokens: 1000000,
+      },
+    },
+  });
+  expect(result.data[0].herkules).not.toHaveProperty("slots");
+});
+
+test("cloud provisioning fails closed when backend pool isolation is absent", async () => {
+  const api = new NewAPI("http://new-api", "unused");
+  vi.spyOn(api, "login").mockResolvedValue(undefined);
+  const call = vi
+    .spyOn(api, "call")
+    .mockResolvedValueOnce({ status: true })
+    .mockResolvedValueOnce({});
+  await expect(api.bootstrap({ AI_PLANS_ENABLED: "true" } as Config)).rejects.toThrow(
+    "pool isolation",
+  );
+  expect(call).toHaveBeenCalledTimes(2);
+  expect(call).toHaveBeenLastCalledWith("/api/status");
+});

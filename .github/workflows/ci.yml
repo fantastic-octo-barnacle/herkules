@@ -19,3 +19,18 @@ jobs:
       # check + every package's tests (PGlite, fake GitHub: no services) + every build.
       - run: vp run ready
       - run: vp run test:caddy
+
+  new-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: ai-backend
+          push: false
+          cache-from: type=gha,scope=ai-backend
+          cache-to: type=gha,scope=ai-backend,mode=max

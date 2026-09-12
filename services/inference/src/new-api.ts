@@ -59,6 +59,14 @@ export class NewAPI {
         DemoSiteEnabled: false,
       });
     await this.login();
+    if (config.AI_PLANS_ENABLED === "true") {
+      const status = await this.call<{
+        herkules_pools?: { enabled?: boolean; deepseek_flash?: boolean; deepseek_pro?: boolean };
+      }>("/api/status");
+      const pools = status.herkules_pools;
+      if (!pools?.enabled || !pools.deepseek_flash || !pools.deepseek_pro)
+        throw new Error("Backend subscription pool isolation is not enabled");
+    }
     const options: Record<string, string> = {
       ServerAddress: config.AI_PORTAL_ORIGIN,
       SystemName: "Herkules AI",
@@ -187,6 +195,38 @@ export class NewAPI {
       oldChannel ? "PUT" : "POST",
       oldChannel ? { ...channel, id: oldChannel.id } : { mode: "single", channel },
     );
+    if (config.deepseekKey) {
+      if (config.AI_PLANS_ENABLED !== "true")
+        throw new Error("Cloud provider requires isolated plans");
+      const oldCloud = channels.items.find((c) => c.name === "herkules-deepseek");
+      const cloud = {
+        type: 1,
+        name: "herkules-deepseek",
+        key: config.deepseekKey,
+        base_url: config.AI_DEEPSEEK_BASE_URL,
+        models: "deepseek-flash,deepseek-v4-pro",
+        group: "default",
+        auto_ban: 0,
+      };
+      await this.call(
+        "/api/channel/",
+        oldCloud ? "PUT" : "POST",
+        oldCloud ? { ...cloud, id: oldCloud.id } : { mode: "single", channel: cloud },
+      );
+      const rates = {
+        ModelRatio: { "deepseek-flash": 0.3, "deepseek-v4-pro": 1.32 },
+        CompletionRatio: { "deepseek-flash": 4, "deepseek-v4-pro": 3 },
+        CacheRatio: { "deepseek-flash": 0.02, "deepseek-v4-pro": 1 / 30 },
+      };
+      for (const [key, values] of Object.entries(rates)) {
+        const current = await this.call<{ key: string; value: string }[]>("/api/option/");
+        const value = JSON.stringify({
+          ...JSON.parse(current.find((o) => o.key === key)?.value || "{}"),
+          ...values,
+        });
+        await this.call("/api/option/", "PUT", { key, value });
+      }
+    }
     await this.seedModelMetadata(config);
   }
   async seedModelMetadata(config: Config) {
@@ -199,7 +239,10 @@ export class NewAPI {
       if (page * 100 >= data.total) break;
     }
     // Seed missing entries only. Existing administrator edits and visibility survive boots.
-    for (const model of new Set(config.workers.map((w) => w.model))) {
+    for (const model of new Set([
+      ...config.workers.map((w) => w.model),
+      ...(config.deepseekKey ? ["deepseek-flash", "deepseek-v4-pro"] : []),
+    ])) {
       const info = config.modelCatalog?.[model];
       if (!info || names.has(model)) continue;
       await this.call("/api/models/", "POST", {

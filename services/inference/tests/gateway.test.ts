@@ -1,3 +1,4 @@
+import { tiers } from "../src/plans.ts";
 import { modelCatalog } from "../src/model-catalog.ts";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { createHash } from "node:crypto";
@@ -32,7 +33,7 @@ afterEach(() => {
     }
   instances.length = 0;
 });
-async function fixture(ready = true, member = true, context = 131072) {
+async function fixture(ready = true, member = true, context = 131072, role = 1) {
   const config = {
     AI_PORTAL_ORIGIN: "http://portal.test",
     AI_API_ORIGIN: "http://api.test",
@@ -46,10 +47,21 @@ async function fixture(ready = true, member = true, context = 131072) {
   const identifyKey = vi.fn(async (hash: string) =>
     hash === createHash("sha256").update("test").digest("hex") ? 2 : undefined,
   );
+  const plans = {
+    ensure: vi.fn(async () => {}),
+    summary: vi.fn(async () => ({
+      pools: [],
+      tiers,
+      cloudCreditsPerUSD: 1000000,
+      resetTimezone: "Asia/Hong_Kong",
+    })),
+    assign: vi.fn(async () => {}),
+  };
   const g = createGateway({
     config,
     membership: { ready, check: async () => member },
     identifyKey,
+    plans,
     fetch: async (input, init) => {
       hits++;
       if (typeof init?.body === "string") forwarded.push(JSON.parse(init.body));
@@ -59,7 +71,7 @@ async function fixture(ready = true, member = true, context = 131072) {
           ? input.href
           : input.url
       ).endsWith("/api/user/self")
-        ? Response.json({ success: true, data: { id: 2 } })
+        ? Response.json({ success: true, data: { id: 2, role } })
         : Response.json({ data: [{ id: "qwen", object: "model" }] });
     },
   });
@@ -70,7 +82,7 @@ async function fixture(ready = true, member = true, context = 131072) {
   }
   const url = (internal = false) =>
     `http://127.0.0.1:${((internal ? g.internal : g.public).address() as AddressInfo).port}`;
-  return { g, url, identifyKey, forwarded, hits: () => hits };
+  return { g, url, identifyKey, plans, forwarded, hits: () => hits };
 }
 test("API hostname has no dashboard or alternate generation paths", async () => {
   const f = await fixture();
@@ -265,4 +277,19 @@ test("small-context discovery and request defaults agree", async () => {
       })
     ).status,
   ).toBe(400);
+});
+
+test("plan assignments require administrator membership and never trust a client role", async () => {
+  const member = await fixture();
+  const req = {
+    method: "PUT",
+    headers: { host: "portal.test", "content-type": "application/json" },
+    body: JSON.stringify({ tier: "max", role: 100 }),
+  };
+  expect((await fetch(member.url() + "/api/herkules/admin/users/3/plan", req)).status).toBe(403);
+  expect(member.plans.assign).not.toHaveBeenCalled();
+  const admin = await fixture(true, true, 131072, 10);
+  expect((await fetch(admin.url() + "/api/herkules/admin/users/3/plan", req)).status).toBe(200);
+  expect(admin.plans.assign).toHaveBeenCalledWith(3, "max");
+  expect((await fetch(admin.url() + "/api/subscription/balance/pay", req)).status).toBe(404);
 });

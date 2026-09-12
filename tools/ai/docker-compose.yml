@@ -15,8 +15,14 @@ services:
       timeout: 3s
       retries: 30
   new-api:
-    image: calciumion/new-api:v1.0.0-rc.37@sha256:8b6cf781e479e6dfcaa5f1ddd86f0e20f12352980029d0d0dfb35cf8cbd1792b
+    image: herkules-new-api-dev
+    build:
+      context: ../..
+      target: new-api
     environment:
+      HERKULES_PLANS_ENABLED: "true"
+      HERKULES_CLOUD_MODELS: deepseek-flash,deepseek-v4-pro
+      TZ: Asia/Hong_Kong
       SQL_DSN: postgres://herkules_ai:${AI_DEV_DB_PASSWORD}@postgres:5432/herkules_ai
       SESSION_SECRET: ${AI_DEV_SESSION_SECRET}
       MEMORY_CACHE_ENABLED: "false"

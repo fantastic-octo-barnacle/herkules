@@ -2,6 +2,17 @@ import { z } from "zod";
 import { DEFAULT_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS } from "./limits.ts";
 
 export const modelInfoSchema = z.object({
+  provider: z.enum(["local", "deepseek"]).optional(),
+  pricing: z
+    .object({
+      input: z.number(),
+      cached_input: z.number(),
+      output: z.number(),
+      currency: z.literal("USD"),
+      per_tokens: z.literal(1000000),
+      basis: z.string(),
+    })
+    .optional(),
   name: z.string().min(1),
   description: z.string(),
   source: z.string().url(),
@@ -23,6 +34,48 @@ export type ModelCatalog = z.infer<typeof catalogSchema>;
 // Serving limits, not the upstream weights' maximum capabilities. Only text
 // and chat completions are enabled by this gateway, even for multimodal weights.
 export const modelCatalog: ModelCatalog = {
+  "deepseek-flash": {
+    name: "DeepSeek V4.1 Flash",
+    provider: "deepseek",
+    description:
+      "Hosted DeepSeek model. Uses the separate cloud allowance; text chat through Herkules.",
+    source: "https://api-docs.deepseek.com/quick_start/pricing/",
+    context_length: 1_000_000,
+    quantization: "provider-managed",
+    tags: ["cloud", "thinking", "coding"],
+    reasoning_efforts: [],
+    defaults: {},
+    pricing: {
+      input: 0.3,
+      cached_input: 0.006,
+      output: 1.2,
+      currency: "USD",
+      per_tokens: 1000000,
+      basis:
+        "Peak-rate credit accounting; provider off-peak rates are 50% lower. Verified 2026-09-12.",
+    },
+  },
+  "deepseek-v4-pro": {
+    name: "DeepSeek V4 Pro 0813",
+    provider: "deepseek",
+    description:
+      "Hosted DeepSeek reasoning model. Uses the separate cloud allowance; text chat through Herkules.",
+    source: "https://api-docs.deepseek.com/quick_start/pricing/",
+    context_length: 1_000_000,
+    quantization: "provider-managed",
+    tags: ["cloud", "thinking", "coding"],
+    reasoning_efforts: [],
+    defaults: {},
+    pricing: {
+      input: 1.32,
+      cached_input: 0.044,
+      output: 3.96,
+      currency: "USD",
+      per_tokens: 1000000,
+      basis:
+        "Peak-rate credit accounting; provider off-peak rates are 50% lower. Verified 2026-09-12.",
+    },
+  },
   "lfm2.5-1.2b": {
     name: "LFM2.5 1.2B",
     description: "Fast lightweight chat model. One 32K slot; tool calling is not validated.",
@@ -146,14 +199,21 @@ export function enrichModels(
         // Credits are not USD. Do not put them in OpenRouter's monetary pricing fields.
         herkules: {
           schema_version: 1,
+          pool: info.provider === "deepseek" ? "cloud" : "local",
+          ...(info.pricing ? { pricing: info.pricing } : {}),
           source: info.source,
           quantization: info.quantization,
           tags: info.tags,
           reasoning_efforts: info.reasoning_efforts,
-          slots: serving.reduce((n, w) => n + (w.capacity ?? 1), 0),
+          ...(info.provider === "deepseek"
+            ? {}
+            : { slots: serving.reduce((n, w) => n + (w.capacity ?? 1), 0) }),
           streaming_required: true,
           endpoints: ["/v1/chat/completions"],
-          note: "Slot capacity is configured capacity, not current availability. Model swaps discard cached context.",
+          note:
+            info.provider === "deepseek"
+              ? "Hosted provider; uses cloud allowance. No automatic local-to-cloud fallback."
+              : "Slot capacity is configured capacity, not current availability. Model swaps discard cached context.",
         },
       };
     }),

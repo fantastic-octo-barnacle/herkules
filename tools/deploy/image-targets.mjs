@@ -33,7 +33,11 @@ export function selectImageTargets(paths, { all = false } = {}) {
     if (path === "Dockerfile") add(...allTargets);
     if (nodeBuildInputs.has(path) || path.startsWith("tsconfig")) add("auth", "bbs", "caddy");
     if (isBuildInput(path, "services/auth", ["src", "drizzle"])) add("auth");
-    if (isBuildInput(path, "services/inference", ["src"]) || path.startsWith("tools/ai/portal/"))
+    if (
+      isBuildInput(path, "services/inference", ["src"]) ||
+      path.startsWith("tools/ai/portal/") ||
+      path.startsWith("tools/ai/new-api/")
+    )
       add("auth");
     if (isBuildInput(path, "services/web", ["src", "public"])) add("caddy");
     if (isBuildInput(path, "apps/bbs", ["src", "drizzle", "web/src", "web/public"])) add("bbs");
