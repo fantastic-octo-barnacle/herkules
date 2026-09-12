@@ -80,4 +80,42 @@ run -e CADDY_TLS_MODE=local_http -e SITE_ADDRESS=http://localhost:3000 \
   -e OPS_HOST=http://ops.localhost -e AI_HOST=http://ai.localhost \
   -e AI_PORTAL_HOST=http://ai-portal.localhost || { cat "$work/log"; exit 1; }
 if run -e CADDY_TLS_MODE=local_http; then echo 'local mode accepted production hosts' >&2; exit 1; fi
+# The entrypoint derives the redirect scheme from the selected TLS mode.
+for mode in local_http origin_tls; do
+  if [ "$mode" = local_http ]; then
+    address=http://localhost:3000
+    prefix=http://
+    domain=localhost
+    portal=http://ai-portal.localhost
+    expected=$portal
+    set --
+  else
+    address=herkules.dev
+    prefix=
+    domain=herkules.dev
+    portal=ai-portal.herkules.dev
+    expected=https://$portal
+    set -- -v "$work/good.pem:/run/origin-tls/origin.pem:ro" -v "$work/good.key:/run/origin-tls/origin.key:ro"
+  fi
+  docker run --rm "$@" \
+    -v "$root/tools/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+    -v "$root/tools/deploy/caddy/services:/etc/caddy/services:ro" \
+    -e CADDY_TLS_MODE="$mode" -e SITE_ADDRESS="$address" \
+    -e BBS_SITE_ADDRESS="${prefix}bbs.${domain}" -e STATUS_HOST="${prefix}status.${domain}" -e OPS_HOST="${prefix}ops.${domain}" \
+    -e AI_HOST="${prefix}ai.${domain}" -e AI_PORTAL_HOST="$portal" \
+    "$image" caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile > "$work/adapted.json" 2> "$work/adapt.log" || { cat "$work/adapt.log"; exit 1; }
+  python3 - "$work/adapted.json" "$expected" <<'PYTHON'
+import json, sys
+def locations(value):
+    if isinstance(value, dict):
+        if value.get('handler') == 'static_response' and 'Location' in value.get('headers', {}):
+            yield from value['headers']['Location']
+        for child in value.values():
+            yield from locations(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from locations(child)
+assert sys.argv[2] in list(locations(json.load(open(sys.argv[1]))))
+PYTHON
+done
 echo 'Caddy TLS container tests passed'

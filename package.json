@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "ready": "vp run -r build && vp check && vp run -r test && vp run test:deploy",
-    "test:deploy": "node --test tools/deploy/image-targets.verify.mjs tools/deploy/release.verify.mjs && sh tools/deploy/apply-release.test.sh && sh tools/deploy/backup/backup.test.sh",
+    "test:deploy": "python3 tools/ai/prepare-production.test.py && node --test tools/deploy/image-targets.verify.mjs tools/deploy/release.verify.mjs && sh tools/deploy/apply-release.test.sh && sh tools/deploy/backup/backup.test.sh",
     "test:caddy": "sh tools/deploy/caddy/entrypoint.test.sh",
     "prepare": "vp config"
   },

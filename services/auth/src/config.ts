@@ -105,8 +105,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if ((parsed.OPS_ORIGIN === undefined) !== (parsed.BESZEL_CLIENT_SECRET === undefined)) {
     throw new TypeError("OPS_ORIGIN and BESZEL_CLIENT_SECRET must be set together or not at all");
   }
-  if ((parsed.AI_PORTAL_ORIGIN === undefined) !== (parsed.AI_CLIENT_SECRET === undefined)) {
-    throw new TypeError("AI_PORTAL_ORIGIN and AI_CLIENT_SECRET must be set together or not at all");
+  const aiSettings = [parsed.AI_PORTAL_ORIGIN, parsed.AI_CLIENT_SECRET, parsed.AI_SYNC_SECRET];
+  if (
+    aiSettings.some((value) => value !== undefined) &&
+    aiSettings.some((value) => value === undefined)
+  ) {
+    throw new TypeError(
+      "AI_PORTAL_ORIGIN, AI_CLIENT_SECRET and AI_SYNC_SECRET must be set together or not at all",
+    );
   }
   return Object.freeze({
     ...parsed,

@@ -15,17 +15,25 @@ parser.add_argument('--metadata', action='store_true')
 args = parser.parse_args()
 if os.geteuid() != 0:
     raise SystemExit('Run with sudo; credentials live under /etc/herkules-ai.')
+os.umask(0o077)
 root = args.deployment.resolve()
+auth_env = root/'.env.auth'
+auth_stat = auth_env.stat()
 config = Path('/etc/herkules-ai')
 gateway = config/'gateway'
 config.mkdir(mode=0o700, exist_ok=True)
 gateway.mkdir(mode=0o700, exist_ok=True)
+config.chmod(0o700)
+os.chown(config, 0, 0)
+gateway.chmod(0o700)
 os.chown(gateway, 1000, 1000)
 
 def write(path, text, uid=0):
+    path.touch(mode=0o600, exist_ok=True)
+    path.chmod(0o600)
+    os.chown(path,uid,uid)
     path.write_text(text)
     path.chmod(0o400 if uid else 0o600)
-    os.chown(path,uid,uid)
 
 def secret(name, uid=1000):
     path = gateway/name if uid else config/name
@@ -33,6 +41,8 @@ def secret(name, uid=1000):
         value = path.read_text().strip()
         if len(value)<32 or any(c.isspace() for c in value):
             raise SystemExit('Invalid existing credential file: '+str(path))
+        path.chmod(0o400 if uid else 0o600)
+        os.chown(path, uid, uid)
         return value
     value = secrets.token_hex(32)
     write(path,value+'\n',uid)
@@ -71,11 +81,12 @@ client = secret('client-secret')
 sync = secret('sync-secret')
 secret('root-password')
 secret('dispatch-key')
-write(config/'new-api.env',f'SQL_DSN=postgres://herkules_ai:{db}@postgres:5432/herkules_ai\nSESSION_SECRET={secret("session-secret",0)}\n')
-write(config/'gateway.env',f'AI_METADATA_DATABASE_URL=postgres://ai_metadata:{metadata}@postgres:5432/herkules_ai\n')
-# Keep the auth pair in its existing host-owned env file, preserving unrelated settings.
-auth_env = root/'.env.auth'
-auth_stat = auth_env.stat()
+write(root/'.env.ai',f'SQL_DSN=postgres://herkules_ai:{db}@postgres:5432/herkules_ai\nSESSION_SECRET={secret("session-secret",0)}\n')
+write(root/'.env.ai-gateway',f'AI_METADATA_DATABASE_URL=postgres://ai_metadata:{metadata}@postgres:5432/herkules_ai\n')
+# Compose reads env files as the deployment operator, before contacting Docker.
+for name in ['.env.ai', '.env.ai-gateway']:
+    os.chown(root/name, auth_stat.st_uid, auth_stat.st_gid)
+# Keep auth settings in its existing host-owned env file, preserving unrelated settings.
 lines = auth_env.read_text().splitlines()
 values = {'AI_PORTAL_ORIGIN':'https://ai-portal.herkules.dev','AI_CLIENT_SECRET':client,'AI_SYNC_SECRET':sync}
 lines = [line for line in lines if line.split('=',1)[0] not in values]

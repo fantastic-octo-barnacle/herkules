@@ -166,7 +166,7 @@ services:
     profiles: [ai]
     image: calciumion/new-api:v1.0.0-rc.37@sha256:8b6cf781e479e6dfcaa5f1ddd86f0e20f12352980029d0d0dfb35cf8cbd1792b
     env_file:
-      - path: /etc/herkules-ai/new-api.env
+      - path: .env.ai
         required: false
     environment:
       MEMORY_CACHE_ENABLED: "false"
@@ -196,7 +196,7 @@ services:
     image: ${AUTH_IMAGE_REF}
     command: ["node", "/ai/dist/main.mjs"]
     env_file:
-      - path: /etc/herkules-ai/gateway.env
+      - path: .env.ai-gateway
         required: false
     environment:
       AI_PORTAL_DIR: /ai/portal

@@ -1,4 +1,5 @@
 import { afterAll, expect, test } from "vite-plus/test";
+import { loadConfig } from "../src/config.ts";
 import { createTestService } from "../src/testing.ts";
 
 const secret = "ai-client-secret-".padEnd(48, "x");
@@ -72,3 +73,21 @@ test("membership status requires the dedicated credential and denies missing or 
     ],
   });
 });
+
+for (let mask = 0; mask < 8; mask++) {
+  test(`AI configuration is all-or-nothing (mask ${mask})`, () => {
+    const env = {
+      PUBLIC_ORIGIN: "https://herkules.example.test",
+      AUTH_SECRET: secret,
+      DATABASE_URL: "pglite://memory",
+      GITHUB_CLIENT_ID: "test",
+      GITHUB_CLIENT_SECRET: "test",
+      GITHUB_ORG: "test",
+      AI_PORTAL_ORIGIN: mask & 1 ? portal : "",
+      AI_CLIENT_SECRET: mask & 2 ? secret : "",
+      AI_SYNC_SECRET: mask & 4 ? syncSecret : "",
+    };
+    if (mask === 0 || mask === 7) expect(() => loadConfig(env)).not.toThrow();
+    else expect(() => loadConfig(env)).toThrow("must be set together or not at all");
+  });
+}

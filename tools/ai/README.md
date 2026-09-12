@@ -131,6 +131,10 @@ After deploying this branch's auth image and release configuration on `tencent_h
    database/owner, a separate `ai_metadata` role, persistent random credentials,
    and the auth service's confidential client configuration. It preserves unrelated
    `.env.auth` settings and does not restart anything. Back up that env file first.
+   Compose reads `.env.ai` and `.env.ai-gateway` from the deployment directory;
+   provisioning gives them the same owner/group as `.env.auth`, mode 600.
+   `/etc/herkules-ai` remains root-only; the mounted gateway directory is mode 700
+   and belongs to UID/GID 1000. Reruns repair credential permissions without rotating keys.
 2. Stage the adapter key, Cloudflare client ID and client secret as
    `/etc/herkules-ai/gateway/{adapter-key,cf-access-client-id,cf-access-client-secret}`.
    Files and their mounted directory must be owned by UID/GID 1000, directory 700,

@@ -8,8 +8,10 @@ case "${CADDY_TLS_MODE:-origin_tls}" in
     for address in "${SITE_ADDRESS:-}" "${BBS_SITE_ADDRESS:-}" "${STATUS_HOST:-}" "${OPS_HOST:-}" "${AI_HOST:-http://ai.localhost}" "${AI_PORTAL_HOST:-http://ai-portal.localhost}"; do
       case "$address" in http://*) ;; *) fail "local mode requires explicit HTTP addresses" ;; esac
     done
+    export AI_PORTAL_ORIGIN="${AI_PORTAL_HOST:-http://ai-portal.localhost}"
     ;;
   origin_tls)
+    export AI_PORTAL_ORIGIN="https://${AI_PORTAL_HOST:-ai-portal.herkules.dev}"
     cert=/run/origin-tls/origin.pem
     key=/run/origin-tls/origin.key
     [ -s "$cert" ] && [ -r "$cert" ] || fail "required certificate is missing or unreadable: $cert"
