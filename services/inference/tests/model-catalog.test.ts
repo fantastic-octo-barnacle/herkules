@@ -130,3 +130,50 @@ test("existing portal descriptions refresh without changing visibility or operat
     description: modelCatalog[existing.model_name].description,
   });
 });
+
+test("DeepSeek bootstrap fills missing rates and preserves operator overrides across restarts", async () => {
+  const api = new NewAPI("http://new-api", "unused");
+  vi.spyOn(api, "login").mockResolvedValue(undefined);
+  vi.spyOn(api, "seedModelMetadata").mockResolvedValue(undefined);
+  const options = new Map([
+    ["ModelRatio", JSON.stringify({ "deepseek-flash": 0.7, custom: 9 })],
+    ["CompletionRatio", JSON.stringify({ "deepseek-flash": 5 })],
+    ["CacheRatio", JSON.stringify({ "deepseek-flash": 0 })],
+  ]);
+  vi.spyOn(api, "call").mockImplementation(async (path, method, body) => {
+    if (path === "/api/setup") return { status: true };
+    if (path === "/api/status")
+      return { herkules_pools: { enabled: true, deepseek_flash: true, deepseek_pro: true } };
+    if (path === "/api/option/") {
+      if (method === "PUT") {
+        const { key, value } = body as { key: string; value: string };
+        options.set(key, value);
+        return;
+      }
+      return [...options].map(([key, value]) => ({ key, value }));
+    }
+    if (path === "/api/custom-oauth-provider/") return [];
+    if (path.startsWith("/api/channel/?")) return { items: [] };
+    return;
+  });
+  const config = {
+    workers: [],
+    AI_PLANS_ENABLED: "true",
+    deepseekKey: "fixture",
+  } as unknown as Config;
+  await api.bootstrap(config);
+  await api.bootstrap(config);
+  expect(JSON.parse(options.get("ModelRatio")!)).toMatchObject({
+    "deepseek-flash": 0.7,
+    "deepseek-v4-pro": 1.32,
+    custom: 9,
+  });
+  expect(JSON.parse(options.get("CompletionRatio")!)).toMatchObject({
+    "deepseek-flash": 5,
+    "deepseek-v4-pro": 3,
+  });
+  expect(JSON.parse(options.get("CacheRatio")!)).toMatchObject({
+    "deepseek-flash": 0,
+    "deepseek-v4-pro": 1 / 30,
+  });
+});

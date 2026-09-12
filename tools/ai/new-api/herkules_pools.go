@@ -51,3 +51,11 @@ func HerkulesWalletOverflow(userID int, name string) (bool, error) {
 	}
 	return true, nil
 }
+
+// Only explicit free pool plans may bypass payment setup for administrator grants.
+func HerkulesFreeGrantPlan(plan *SubscriptionPlan) bool {
+	return HerkulesPlansEnabled() && plan != nil &&
+		(plan.HerkulesPool == "local" || plan.HerkulesPool == "cloud") &&
+		plan.PriceAmount == 0 && plan.AllowBalancePay != nil && !*plan.AllowBalancePay &&
+		plan.StripePriceId == "" && plan.CreemProductId == "" && plan.WaffoPancakeProductId == ""
+}
