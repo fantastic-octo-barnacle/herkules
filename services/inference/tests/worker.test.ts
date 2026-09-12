@@ -239,3 +239,81 @@ test("adapter restart cannot swap out another model with active slots", async ()
   expect(response.status).toBe(409);
   expect(loaded).toBe(false);
 });
+
+test("cancelled cold load releases admission without reusing another model's slot snapshot", async () => {
+  let releaseLoad!: () => void;
+  let enteredLoad!: () => void;
+  let closed!: () => void;
+  const loading = new Promise<void>((resolve) => {
+    releaseLoad = resolve;
+  });
+  const entered = new Promise<void>((resolve) => {
+    enteredLoad = resolve;
+  });
+  const disconnected = new Promise<void>((resolve) => {
+    closed = resolve;
+  });
+  const inspected: string[] = [];
+  const s = createWorker({
+    llamaUrl: "http://llama",
+    llamaKey: "private",
+    key: "worker",
+    model: "qwen",
+    context: 128,
+    profiles: [
+      { model: "qwen", context: 128, slots: 1 },
+      { model: "other", context: 128, slots: 2 },
+    ],
+    fetch: async (input, init) => {
+      const url = new URL(
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+      );
+      if (url.pathname === "/models") return Response.json({ data: [] });
+      if (url.pathname === "/slots") {
+        const model = url.searchParams.get("model")!;
+        inspected.push(model);
+        if (model === "qwen") {
+          enteredLoad();
+          await loading;
+        }
+        return Response.json(
+          Array.from({ length: model === "qwen" ? 1 : 2 }, (_, id) => ({
+            id,
+            is_processing: false,
+          })),
+        );
+      }
+      if (url.pathname === "/apply-template") {
+        expect(JSON.parse(typeof init?.body === "string" ? init.body : "{}").model).toBe("other");
+        return Response.json({ prompt: "template" });
+      }
+      if (url.pathname === "/tokenize") return Response.json({ tokens: [1] });
+      return new Response("data: [DONE]\n\n");
+    },
+  });
+  servers.push(s);
+  s.once("request", (_req, res) => res.once("close", closed));
+  s.listen(0, "127.0.0.1");
+  await once(s, "listening");
+  const url = `http://127.0.0.1:${(s.address() as AddressInfo).port}/v1/chat/completions`;
+  const c = new AbortController();
+  const first = fetch(url, { ...request, signal: c.signal });
+  const rejected = expect(first).rejects.toMatchObject({ name: "AbortError" });
+  await entered;
+  c.abort();
+  await rejected;
+  await disconnected;
+  const timer = setTimeout(releaseLoad, 50);
+  try {
+    const second = await fetch(url, {
+      ...request,
+      body: JSON.stringify({ ...JSON.parse(request.body), model: "other" }),
+    });
+    expect(second.status).toBe(200);
+    await second.text();
+    expect(inspected).toEqual(["qwen", "other"]);
+  } finally {
+    clearTimeout(timer);
+    releaseLoad();
+  }
+});

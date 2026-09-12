@@ -24,7 +24,8 @@ for name,file,np in models:
      call('/health');break
     except Exception: time.sleep(1)
    else: raise RuntimeError('load timeout')
-   result['vram_mib']=int(subprocess.check_output(['nvidia-smi','--query-gpu=memory.used','--format=csv,noheader,nounits']).decode().strip())
+   result['vram_by_gpu_mib']=[int(value) for value in subprocess.check_output(['nvidia-smi','--query-gpu=memory.used','--format=csv,noheader,nounits']).decode().splitlines()]
+   result['vram_mib']=sum(result['vram_by_gpu_mib'])
    def generate(_=0):
     data=call('/completion',{'prompt':'Write a Python function that merges two sorted lists.\n','n_predict':128,'ignore_eos':True,'temperature':0,'cache_prompt':False})
     return data.get('timings',{})

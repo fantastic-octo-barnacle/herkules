@@ -40,6 +40,26 @@ export interface WorkerOptions {
   fetch?: typeof fetch;
   heartbeatMs?: number;
 }
+function waitForInspection<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new AdmissionError("cancelled", 499));
+    if (signal.aborted) {
+      abort();
+    } else {
+      signal.addEventListener("abort", abort, { once: true });
+    }
+    pending.then(
+      (value) => {
+        signal.removeEventListener("abort", abort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", abort);
+        reject(error);
+      },
+    );
+  });
+}
 export function createWorker(options: WorkerOptions) {
   const transport = options.fetch ?? fetch;
   const profiles = options.profiles ?? [
@@ -71,7 +91,12 @@ export function createWorker(options: WorkerOptions) {
     return slots as { id?: number; is_processing?: boolean }[];
   }
   let inspection: ReturnType<typeof slots> | undefined;
-  function inspectSlots(model: string) {
+  let inspectionModel: string | undefined;
+  function inspectSlots(model: string): ReturnType<typeof slots> {
+    if (inspection && inspectionModel !== model) {
+      return inspection.catch(() => undefined).then(() => inspectSlots(model));
+    }
+    inspectionModel = model;
     // The router returns 503 to concurrent autoload attempts. Share the load
     // and slot snapshot; reservations below still assign distinct slot IDs.
     inspection ??= (async () => {
@@ -98,6 +123,7 @@ export function createWorker(options: WorkerOptions) {
       return await slots(model);
     })().finally(() => {
       inspection = undefined;
+      inspectionModel = undefined;
     });
     return inspection;
   }
@@ -159,7 +185,7 @@ export function createWorker(options: WorkerOptions) {
       active++;
       let slotId: number | undefined;
       try {
-        const actual = await inspectSlots(profile.model);
+        const actual = await waitForInspection(inspectSlots(profile.model), cancel.signal);
         if (actual.length !== profile.slots)
           throw new AdmissionError("slot_configuration_mismatch", 503);
         const index = actual.findIndex(

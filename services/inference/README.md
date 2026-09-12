@@ -17,7 +17,8 @@ credential setup are documented in `tools/ai/README.md`.
   The New API channel forwards this ticket back to the internal dispatch route.
   A caller cannot choose a worker or inject gateway/worker credentials.
 - Worker `capacity` and `perUser` control active requests, both defaulting to one.
-  Two requests may wait per user, 16 globally, for 90 seconds. Entries sharing a
+  `perUser` compares against that user's total active requests across the gateway,
+  preserving account-wide fairness across multiple workers. Two requests may wait per user, 16 globally, for 90 seconds. Entries sharing a
   physical GPU must share `resourceGroup`. Different models in that group run
   exclusively; an older model-switch request drains the active model before
   loading the next one. Worker slots stay reserved until each response ends.
