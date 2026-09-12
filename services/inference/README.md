@@ -55,7 +55,7 @@ currently serve them. Metadata listing never loads a GPU model.
 `herkules` contains versioned serving information: quantization, upstream source,
 tags, reasoning-effort levels, configured slots, and streaming requirements.
 Configured slots are not a live availability guarantee. Native context sizes are
-not advertised as serving limits: the deployed per-slot context is 128K.
+not advertised as serving limits: the deployed per-slot context is 128K for the larger models and 32K for LFM2.5.
 Credit prices remain in New API's pricing APIs; they must not be published as
 OpenRouter USD prices. Existing OpenAI-compatible clients may ignore added fields.
 
