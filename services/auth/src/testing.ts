@@ -100,7 +100,7 @@ export interface TestServiceOptions {
 }
 
 export const TEST_ORG = "herkules-test";
-const ORIGIN = "http://localhost:3000";
+const DEFAULT_ORIGIN = "http://localhost:3000";
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
   "base64",
@@ -257,6 +257,7 @@ function absorb(cookie: string, res: Response): string {
 }
 
 export async function createTestService(options: TestServiceOptions = {}): Promise<TestService> {
+  const ORIGIN = options.env?.PUBLIC_ORIGIN ?? DEFAULT_ORIGIN;
   const github = new FakeGithubImpl();
   let offsetMs = 0;
   const startAt = options.startAt ?? new Date();

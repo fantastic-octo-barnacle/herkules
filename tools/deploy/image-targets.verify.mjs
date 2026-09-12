@@ -97,3 +97,10 @@ test("rebuilds Caddy when its TLS validation changes", () => {
     deploy: true,
   });
 });
+
+test("inference source rebuilds the shared auth image", () => {
+  assert.deepEqual(selectImageTargets(["services/inference/src/gateway.ts"]), {
+    targets: ["auth"],
+    deploy: true,
+  });
+});

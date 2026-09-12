@@ -18,7 +18,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 RUN pnpm -r --sort run build
 # --ignore-scripts again: `pnpm deploy` otherwise runs the root `prepare` (vp config), which wants git.
 RUN pnpm --filter @herkules/auth deploy --prod --legacy --ignore-scripts /out/auth \
- && pnpm --filter @herkules/bbs deploy --prod --legacy --ignore-scripts /out/bbs
+ && pnpm --filter @herkules/bbs deploy --prod --legacy --ignore-scripts /out/bbs \
+ && pnpm --filter @herkules/inference deploy --prod --legacy --ignore-scripts /out/inference
 
 # ── runtime base for the two Node services ─────────────────────────────────
 # auth and bbs differ only in port, env, entrypoint and the /out directory they copy.
@@ -31,6 +32,8 @@ USER node
 FROM runtime AS auth
 ENV PORT=3001 MIGRATIONS_DIR=/app/drizzle AVATAR_DIR=/data/avatars
 COPY --from=build --chown=node:node /out/auth /app
+# Same release image, separate inference container and process.
+COPY --from=build --chown=node:node /out/inference /ai
 # The `avatars` named volume inherits this directory's ownership, so it has to exist and be
 # node-owned in the image; only root can create it, hence the two USER lines.
 USER root

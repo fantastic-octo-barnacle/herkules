@@ -77,6 +77,7 @@ cert_fixture=
 key_fixture=
 run -e CADDY_TLS_MODE=local_http -e SITE_ADDRESS=http://localhost:3000 \
   -e BBS_SITE_ADDRESS=http://localhost:3003 -e STATUS_HOST=http://status.localhost \
-  -e OPS_HOST=http://ops.localhost || { cat "$work/log"; exit 1; }
+  -e OPS_HOST=http://ops.localhost -e AI_HOST=http://ai.localhost \
+  -e AI_PORTAL_HOST=http://ai-portal.localhost || { cat "$work/log"; exit 1; }
 if run -e CADDY_TLS_MODE=local_http; then echo 'local mode accepted production hosts' >&2; exit 1; fi
 echo 'Caddy TLS container tests passed'

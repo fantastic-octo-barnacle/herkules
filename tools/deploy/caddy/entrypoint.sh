@@ -5,7 +5,7 @@ fail() { echo "Caddy origin TLS: $*" >&2; exit 1; }
 case "${CADDY_TLS_MODE:-origin_tls}" in
   local_http)
     # Only the laptop Compose overlay selects this mode. Never silently downgrade production.
-    for address in "${SITE_ADDRESS:-}" "${BBS_SITE_ADDRESS:-}" "${STATUS_HOST:-}" "${OPS_HOST:-}"; do
+    for address in "${SITE_ADDRESS:-}" "${BBS_SITE_ADDRESS:-}" "${STATUS_HOST:-}" "${OPS_HOST:-}" "${AI_HOST:-http://ai.localhost}" "${AI_PORTAL_HOST:-http://ai-portal.localhost}"; do
       case "$address" in http://*) ;; *) fail "local mode requires explicit HTTP addresses" ;; esac
     done
     ;;
@@ -19,7 +19,7 @@ case "${CADDY_TLS_MODE:-origin_tls}" in
     openssl x509 -in "$cert" -pubkey -noout > "$work/cert.pub" || fail "invalid PEM certificate"
     openssl pkey -in "$key" -passin pass: -pubout > "$work/key.pub" 2>/dev/null || fail "invalid or encrypted private key"
     cmp -s "$work/cert.pub" "$work/key.pub" || fail "certificate and private key do not match"
-    for host in "${SITE_ADDRESS:-}" "${BBS_SITE_ADDRESS:-}" "${STATUS_HOST:-}" "${OPS_HOST:-}"; do
+    for host in "${SITE_ADDRESS:-}" "${BBS_SITE_ADDRESS:-}" "${STATUS_HOST:-}" "${OPS_HOST:-}" "${AI_HOST:-ai.herkules.dev}" "${AI_PORTAL_HOST:-ai-portal.herkules.dev}"; do
       case "$host" in ""|*[!a-zA-Z0-9.-]*) fail "production addresses must be bare DNS hostnames" ;; esac
       # Trust the operator-provided leaf for this local check, not the system CA store:
       # Origin CA certificates are not publicly trusted. Check dates and every routed hostname.

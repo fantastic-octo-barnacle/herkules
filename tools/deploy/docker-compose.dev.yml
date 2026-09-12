@@ -8,6 +8,8 @@ services:
       CADDY_TLS_MODE: local_http
       STATUS_HOST: http://status.localhost
       OPS_HOST: http://ops.localhost
+      AI_HOST: http://ai.localhost
+      AI_PORTAL_HOST: http://ai-portal.localhost
     volumes: !override
       - ${DEPLOY_CONFIG_DIR:-.}/Caddyfile:/etc/caddy/Caddyfile:ro
       - ${DEPLOY_CONFIG_DIR:-.}/caddy/services:/etc/caddy/services:ro
