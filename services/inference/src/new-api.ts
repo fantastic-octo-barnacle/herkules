@@ -1,4 +1,4 @@
-import { freeModels } from "./openrouter.ts";
+import { freeModels, freeProviderPolicy } from "./openrouter.ts";
 import type { Config } from "./config.ts";
 
 /** Management calls stay on the private network; never print requests or credentials. */
@@ -238,7 +238,7 @@ export class NewAPI {
         type: 1,
         name: "herkules-openrouter-free",
         param_override: JSON.stringify({
-          provider: { max_price: { prompt: 0, completion: 0 }, allow_fallbacks: false },
+          provider: freeProviderPolicy,
         }),
         key: config.openrouterKey,
         base_url: "https://openrouter.ai/api",

@@ -123,7 +123,12 @@ allowlist. Keep the credential outside the repository and set its OpenRouter
 spending limit to $0. New API authenticates requests and applies model restrictions;
 bootstrap sets their token prices to zero. They consume neither paid cloud nor
 local credits. Gateway routing strips caller-supplied fallbacks, plugins and provider
-routing, forces zero provider prices, and bypasses the GPU queue.
+routing, forces zero provider prices, and bypasses the GPU queue. Both the gateway
+and New API channel force `provider.data_collection: "deny"` under
+[OpenRouter's provider data policy](https://openrouter.ai/docs/guides/routing/provider-selection#requiring-providers-to-comply-with-data-policies).
+If no eligible free provider exists, the request fails without relaxing this policy
+or falling back to a paid model. This may make Laguna unavailable. This routing
+filter is separate from OpenRouter account-level prompt logging and ZDR settings.
 
 The single-process gateway allows six requests per user and eighteen globally
 per rolling minute across all free models. These counters reset when the process

@@ -7,6 +7,12 @@ export const freeModels = [
   "nvidia/nemotron-3-super-120b-a12b:free",
 ];
 
+export const freeProviderPolicy = {
+  max_price: { prompt: 0, completion: 0 },
+  allow_fallbacks: false,
+  data_collection: "deny",
+} as const;
+
 // One gateway process. OpenRouter owns the durable account-wide daily ceiling.
 export class FreeRateLimit {
   private requests: { user: number; time: number }[] = [];
@@ -42,6 +48,6 @@ export function freeRequest(input: Record<string, unknown>) {
   const result = Object.fromEntries(
     allowed.filter((k) => input[k] !== undefined).map((k) => [k, input[k]]),
   );
-  result.provider = { max_price: { prompt: 0, completion: 0 }, allow_fallbacks: false };
+  result.provider = freeProviderPolicy;
   return result;
 }

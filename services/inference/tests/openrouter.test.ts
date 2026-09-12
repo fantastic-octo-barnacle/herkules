@@ -17,7 +17,7 @@ test("caller cannot supply paid fallback models, plugins or routing", () => {
     messages: [],
     models: ["paid/model"],
     plugins: [{ id: "web" }],
-    provider: { max_price: { prompt: 100 } },
+    provider: { max_price: { prompt: 100 }, data_collection: "allow" },
     tools: [{ type: "function" }],
     stream: true,
   });
@@ -26,6 +26,7 @@ test("caller cannot supply paid fallback models, plugins or routing", () => {
   expect(result.provider).toEqual({
     max_price: { prompt: 0, completion: 0 },
     allow_fallbacks: false,
+    data_collection: "deny",
   });
   expect(result.tools).toEqual([{ type: "function" }]);
 });

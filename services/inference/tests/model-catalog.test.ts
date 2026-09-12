@@ -91,6 +91,14 @@ test("cloud provisioning fails closed when backend pool isolation is absent", as
 test("free model descriptions and prices match the enabled allowlist", async () => {
   const { freeModels } = await import("../src/openrouter.ts");
   expect(freeModels).not.toContain("thinkingmachines/inkling:free");
+  expect([...freeModels].sort()).toEqual(
+    [
+      "google/gemma-4-26b-a4b-it:free",
+      "google/gemma-4-31b-it:free",
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+    ].sort(),
+  );
   for (const model of freeModels) {
     const result = enrichModels({ data: [{ id: model }] }, modelCatalog, [{ model }]) as {
       data: { description: string; herkules: Record<string, unknown> }[];
@@ -175,5 +183,29 @@ test("DeepSeek bootstrap fills missing rates and preserves operator overrides ac
   expect(JSON.parse(options.get("CacheRatio")!)).toMatchObject({
     "deepseek-flash": 0,
     "deepseek-v4-pro": 1 / 30,
+  });
+});
+
+test("OpenRouter channel enforces free pricing and privacy after New API request conversion", async () => {
+  const api = new NewAPI("http://new-api", "unused");
+  vi.spyOn(api, "login").mockResolvedValue(undefined);
+  vi.spyOn(api, "seedModelMetadata").mockResolvedValue(undefined);
+  const call = vi.spyOn(api, "call").mockImplementation(async (path) => {
+    if (path === "/api/setup") return { status: true };
+    if (path === "/api/option/" || path === "/api/custom-oauth-provider/") return [];
+    if (path.startsWith("/api/channel/?")) return { items: [] };
+    return;
+  });
+  await api.bootstrap({ workers: [], openrouterKey: "fixture" } as unknown as Config);
+  const bodies = call.mock.calls
+    .filter(([path, method]) => path === "/api/channel/" && method === "POST")
+    .map(([, , body]) => body as { channel: { name: string; param_override: string } });
+  const channel = bodies.find((b) => b.channel.name === "herkules-openrouter-free")!.channel;
+  expect(JSON.parse(channel.param_override)).toEqual({
+    provider: {
+      max_price: { prompt: 0, completion: 0 },
+      allow_fallbacks: false,
+      data_collection: "deny",
+    },
   });
 });
