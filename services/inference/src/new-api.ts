@@ -1,3 +1,4 @@
+import { freeModels } from "./openrouter.ts";
 import type { Config } from "./config.ts";
 
 /** Management calls stay on the private network; never print requests or credentials. */
@@ -227,24 +228,68 @@ export class NewAPI {
         await this.call("/api/option/", "PUT", { key, value });
       }
     }
+    if (config.openrouterKey) {
+      await this.call("/api/option/", "PUT", {
+        key: "quota_setting.enable_free_model_pre_consume",
+        value: "false",
+      });
+      const old = channels.items.find((c) => c.name === "herkules-openrouter-free");
+      const channel = {
+        type: 1,
+        name: "herkules-openrouter-free",
+        param_override: JSON.stringify({
+          provider: { max_price: { prompt: 0, completion: 0 }, allow_fallbacks: false },
+        }),
+        key: config.openrouterKey,
+        base_url: "https://openrouter.ai/api",
+        models: freeModels.join(","),
+        group: "default",
+        auto_ban: 0,
+      };
+      // Configure zero pricing before enabling the channel.
+      for (const key of ["ModelRatio", "CompletionRatio", "CacheRatio"]) {
+        const current = await this.call<{ key: string; value: string }[]>("/api/option/");
+        const value = JSON.stringify({
+          ...JSON.parse(current.find((o) => o.key === key)?.value || "{}"),
+          ...Object.fromEntries(freeModels.map((model) => [model, key === "ModelRatio" ? 0 : 1])),
+        });
+        await this.call("/api/option/", "PUT", { key, value });
+      }
+      await this.call(
+        "/api/channel/",
+        old ? "PUT" : "POST",
+        old ? { ...channel, id: old.id } : { mode: "single", channel },
+      );
+    }
     await this.seedModelMetadata(config);
   }
   async seedModelMetadata(config: Config) {
-    const names = new Set<string>();
+    const records = new Map<
+      string,
+      { id?: number; model_name: string; description?: string; [key: string]: unknown }
+    >();
     for (let page = 1; ; page++) {
-      const data = await this.call<{ items: { model_name: string }[]; total: number }>(
-        `/api/models/?p=${page}&page_size=100`,
-      );
-      for (const entry of data.items) names.add(entry.model_name);
+      const data = await this.call<{
+        items: { id?: number; model_name: string; description?: string; [key: string]: unknown }[];
+        total: number;
+      }>(`/api/models/?p=${page}&page_size=100`);
+      for (const entry of data.items) records.set(entry.model_name, entry);
       if (page * 100 >= data.total) break;
     }
-    // Seed missing entries only. Existing administrator edits and visibility survive boots.
+    // Catalog owns descriptions. Preserve existing visibility, tags and other operator settings.
     for (const model of new Set([
       ...config.workers.map((w) => w.model),
+      ...(config.openrouterKey ? freeModels : []),
       ...(config.deepseekKey ? ["deepseek-flash", "deepseek-v4-pro"] : []),
     ])) {
       const info = config.modelCatalog?.[model];
-      if (!info || names.has(model)) continue;
+      if (!info) continue;
+      const existing = records.get(model);
+      if (existing) {
+        if (existing.id && existing.description !== info.description)
+          await this.call("/api/models/", "PUT", { ...existing, description: info.description });
+        continue;
+      }
       await this.call("/api/models/", "POST", {
         model_name: model,
         description: info.description,

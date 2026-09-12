@@ -82,7 +82,7 @@ async function fixture(ready = true, member = true, context = 131072, role = 1) 
   }
   const url = (internal = false) =>
     `http://127.0.0.1:${((internal ? g.internal : g.public).address() as AddressInfo).port}`;
-  return { g, url, identifyKey, plans, forwarded, hits: () => hits };
+  return { config, g, url, identifyKey, plans, forwarded, hits: () => hits };
 }
 test("API hostname has no dashboard or alternate generation paths", async () => {
   const f = await fixture();
@@ -292,4 +292,28 @@ test("plan assignments require administrator membership and never trust a client
   expect((await fetch(admin.url() + "/api/herkules/admin/users/3/plan", req)).status).toBe(200);
   expect(admin.plans.assign).toHaveBeenCalledWith(3, "max");
   expect((await fetch(admin.url() + "/api/subscription/balance/pay", req)).status).toBe(404);
+});
+
+test("free cloud requests keep authentication and strip paid routing without a GPU worker", async () => {
+  const f = await fixture();
+  f.config.openrouterKey = "test-upstream-key";
+  const input = {
+    model: "google/gemma-4-31b-it:free",
+    messages: [],
+    stream: true,
+    models: ["paid/model"],
+    plugins: [{ id: "web" }],
+  };
+  const send = (authorization: string) =>
+    fetch(f.url() + "/v1/chat/completions", {
+      method: "POST",
+      headers: { host: "api.test", authorization },
+      body: JSON.stringify(input),
+    });
+  expect((await send("Bearer sk-invalid")).status).toBe(401);
+  expect((await send("Bearer sk-test")).status).toBe(200);
+  expect(f.forwarded.at(-1)?.models).toBeUndefined();
+  expect(f.forwarded.at(-1)?.plugins).toBeUndefined();
+  for (let i = 0; i < 5; i++) expect((await send("Bearer sk-test")).status).toBe(200);
+  expect((await send("Bearer sk-test")).status).toBe(429);
 });

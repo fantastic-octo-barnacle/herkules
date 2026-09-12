@@ -275,3 +275,17 @@ For production, store the DeepSeek key at
 key in Compose, Git, or a browser bundle. Restart the gateway after adding the file.
 The cloud channel is created only when the key is configured. Its model IDs are
 `deepseek-flash` and `deepseek-v4-pro`; callers must explicitly select them.
+
+### Optional OpenRouter free endpoints
+
+Save the raw key in `~/.config/herkules/openrouter-api-key` with mode `0600`.
+For the deployed gateway, install it alongside the other gateway secrets as
+`/etc/herkules-ai/gateway/openrouter-api-key`, readable only by the container user,
+and add `AI_OPENROUTER_KEY_FILE=/run/ai/openrouter-api-key` to `.env.ai-gateway`.
+The existing gateway secret-directory mount supplies the file. Restart with the
+new gateway image to bootstrap the allowlisted channels. Never put the key itself
+in an environment file or commit it. Use an OpenRouter key with a $0 spending cap.
+
+Both Gemma free variants have zero New API pricing. Bootstrap also disables
+free-model quota pre-consumption so empty paid balances do not reserve credits
+for these requests. Shared rate limits and upstream daily ceilings still apply.

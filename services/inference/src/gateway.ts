@@ -1,3 +1,4 @@
+import { freeModels, FreeRateLimit, freeRequest } from "./openrouter.ts";
 import { tiers, type Plans, type Tier } from "./plans.ts";
 import { enrichModels, outputLimits } from "./model-catalog.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -19,6 +20,7 @@ export function createGateway(deps: GatewayDeps) {
   const { config, membership } = deps;
   const transport = deps.fetch ?? fetch;
   const queue = new Scheduler(config.workers);
+  const freeRateLimit = new FreeRateLimit();
   const tickets = new Map<string, { lease: Lease; used: boolean; signal: AbortSignal }>();
   const originHost = new URL(config.AI_PORTAL_ORIGIN).host;
   const apiHost = new URL(config.AI_API_ORIGIN).host;
@@ -194,6 +196,7 @@ export function createGateway(deps: GatewayDeps) {
         if (models && response.ok) {
           const listing = enrichModels(await response.json(), config.modelCatalog ?? {}, [
             ...config.workers,
+            ...(config.openrouterKey ? freeModels.map((model) => ({ model })) : []),
             ...(config.deepseekKey
               ? [{ model: "deepseek-flash" }, { model: "deepseek-v4-pro" }]
               : []),
@@ -254,6 +257,17 @@ export function createGateway(deps: GatewayDeps) {
       input.max_tokens = max;
       delete input.max_completion_tokens;
       input.stream_options = { include_usage: true };
+      if (config.openrouterKey && freeModels.includes(input.model)) {
+        freeRateLimit.acquire(user!);
+        const response = await backend(path, req, {
+          method: "POST",
+          signal: cancel.signal,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(freeRequest(input)),
+        });
+        await relay(response, res, cancel.signal);
+        return;
+      }
       if (config.deepseekKey && ["deepseek-flash", "deepseek-v4-pro"].includes(input.model)) {
         if (!deps.plans) throw new AdmissionError("plans_unavailable", 503);
         const response = await backend(path, req, {

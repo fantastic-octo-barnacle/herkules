@@ -66,7 +66,7 @@ preserves explicit client values, including zero. Unknown models are unchanged.
 The catalog does not claim unverified defaults for Gemma, Granite, or Mellum.
 
 Bootstrap seeds missing New API `/api/models/` entries with descriptions, tags,
-and the chat-completions endpoint. Existing administrator edits are retained,
+and the chat-completions endpoint. Descriptions refresh from the catalog on startup; other administrator edits are retained,
 and official metadata sync is disabled on seeded entries so native model claims
 do not overwrite our serving capabilities. No database writes bypass New API.
 
@@ -112,3 +112,23 @@ This release does not add a global monthly spending counter. With no manual
 re-grants, five weekly Max allowances total at most $50 of peak-rate credit in a
 calendar month. Administrator grants and additional users increase aggregate spend;
 use the provider account's spending controls for an independent global ceiling.
+
+## Free OpenRouter models
+
+`AI_OPENROUTER_KEY_FILE` enables the explicit Gemma 4 26B-A4B, Gemma 4 31B, Laguna S 2.1 and Nemotron 3 Super `:free`
+allowlist. Keep the credential outside the repository and set its OpenRouter
+spending limit to $0. New API authenticates requests and applies model restrictions;
+bootstrap sets their token prices to zero. They consume neither paid cloud nor
+local credits. Gateway routing strips caller-supplied fallbacks, plugins and provider
+routing, forces zero provider prices, and bypasses the GPU queue.
+
+The single-process gateway allows six requests per user and eighteen globally
+per rolling minute across all free models. These counters reset when the process
+restarts; OpenRouter enforces its own durable account-wide daily allowance.
+Failed upstream requests count toward the local request limit. Availability and
+provider data policies differ from local inference. This integration does not
+establish permission to redistribute access under OpenRouter's terms.
+
+Inkling has a catalog entry but is not enabled: OpenRouter rejected the direct
+smoke test with its approved-agentic-application restriction. Laguna was listed
+but returned an upstream shared-capacity 429 during verification.
