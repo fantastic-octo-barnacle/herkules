@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, chmod } from "node:fs/promises";
+import { mkdir, readFile, writeFile, chmod, unlink } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { homedir } from "node:os";
 import { dirname, resolve, join } from "node:path";
@@ -19,6 +19,28 @@ const secret = async (name) => {
   await writeFile(path, value + "\n", { mode: 0o600, flag: "wx" });
   return value;
 };
+const runnerFile = join(dir, "runner.json");
+function processIdentity(pid) {
+  const result = spawnSync("ps", ["-p", String(pid), "-o", "lstart=", "-o", "command="], {
+    encoding: "utf8",
+  });
+  return result.status === 0 ? result.stdout.trim() : undefined;
+}
+async function runningPid() {
+  let runner;
+  try {
+    runner = JSON.parse(await readFile(runnerFile, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return;
+    throw error;
+  }
+  if (!Number.isSafeInteger(runner.pid) || runner.pid <= 0) return;
+  // Compare command and start time so a stale file cannot signal a reused PID.
+  if (runner.identity && processIdentity(runner.pid) === runner.identity) return runner.pid;
+}
+const activePid = await runningPid();
+if (process.argv[2] !== "stop" && activePid)
+  throw new Error("The local AI preview is already running. Stop it first.");
 const db = await secret("db-password");
 const session = await secret("session-secret");
 const mock = await secret("mock-key");
@@ -75,6 +97,16 @@ const compose = (...args) => {
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 if (process.argv[2] === "stop") {
+  if (activePid) {
+    process.kill(activePid, "SIGTERM");
+    for (let i = 0; i < 100 && (await runningPid()); i++)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    if (await runningPid())
+      throw new Error("Preview runner did not stop; Docker data is preserved.");
+  }
+  await unlink(runnerFile).catch((error) => {
+    if (error.code !== "ENOENT") throw error;
+  });
   compose("stop");
   process.exit(0);
 }
@@ -120,6 +152,11 @@ const start = (file, e = env) => {
   });
   return child;
 };
+await writeFile(
+  runnerFile,
+  JSON.stringify({ pid: process.pid, identity: processIdentity(process.pid) }),
+  { mode: 0o600 },
+);
 let stopping = false;
 const shutdown = () => {
   stopping = true;
@@ -151,5 +188,5 @@ console.log(
     join(dir, "root-password"),
 );
 console.log(
-  "Ctrl-C stops host processes. Docker data is preserved; use `node tools/ai/dev.mjs stop` to stop containers.",
+  "Ctrl-C stops host processes. Docker data is preserved; use `node tools/ai/dev.mjs stop` to stop the entire preview.",
 );

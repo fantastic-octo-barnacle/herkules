@@ -56,8 +56,8 @@ restricted permissions. The local auth fixture uses fake GitHub users and a sepa
 PGlite database. It binds loopback and is never included in the auth runtime package.
 Do not expose these development ports through a tunnel or reverse proxy.
 
-Ctrl-C stops host processes; `node tools/ai/dev.mjs stop` stops the persistent Docker
-containers. Restarting preserves accounts, usage and credentials. The private admin
+Ctrl-C stops host processes; `node tools/ai/dev.mjs stop` stops the preview runner
+and its Docker containers. Restarting preserves accounts, usage and credentials. The private admin
 and PostgreSQL ports are loopback-only. Gateway dispatch requires a secret and a
 single-use ticket even on the local Docker network.
 
@@ -83,6 +83,22 @@ The adapter checks actual llama slots before each request, counts the templated
 prompt, rejects prompt-plus-output above 131072, and emits heartbeat comments during
 prefill. A gateway restart cannot admit overlapping work to a busy model server.
 Do not route the published application back to port 8080 after this cutover.
+
+## Real Herkules authentication
+
+Production uses `https://herkules.dev/auth` for browser sign-in and
+`http://auth:3001/auth` for private membership checks. The provisioning script sets
+`AI_PORTAL_ORIGIN`, `AI_CLIENT_SECRET` and `AI_SYNC_SECRET` in the auth service's
+environment and writes the matching gateway credentials. On restart, auth registers
+the `herkules-ai` client with the exact portal callback. The gateway configures New
+API's Herkules provider automatically.
+
+The fixture runner is only for isolated previews. Do not point its existing database
+at the production issuer: Alice and Bob belong to the fixture issuer, and their
+identities and quotas must stay separate from real members. Production starts with
+its own database and zero quota for new members. The preview script's administrator
+promotion is local-only; promote the first real administrator through the private
+New API interface after their Herkules sign-in.
 
 ## Production provisioning and activation
 
