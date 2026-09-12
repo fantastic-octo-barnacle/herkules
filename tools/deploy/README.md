@@ -419,3 +419,14 @@ For a server that lives in this repository:
    `/.well-known/oauth-protected-resource/mcp/<name>`, which auth now serves.
 
 A server hosted in another repository skips steps 2 and 3 and points `image:` at its own registry.
+
+## Optional AI hosting
+
+The `ai` Compose profile adds New API and the inference gateway. Provisioning,
+local tests, GPU adapter installation and activation are in
+[tools/ai/README.md](../ai/README.md). AI uses a dedicated Postgres database and
+owner plus a read-only metadata role; set `AI_BACKUP_DATABASE=herkules_ai` when
+activating it. Both AI hostnames use the required Origin CA pair. Caddy accepts
+Cloudflare client IP headers only from its published proxy ranges and overwrites
+the gateway's client-IP header. The gateway uses that address for New API's
+rate and IP restrictions. Update the checked-in ranges when Cloudflare changes them.

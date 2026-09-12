@@ -161,6 +161,76 @@ services:
     shm_size: 128m
     restart: unless-stopped
 
+  # AI is enabled only after provisioning secrets/database and setting COMPOSE_PROFILES=ai.
+  new-api:
+    profiles: [ai]
+    image: calciumion/new-api:v1.0.0-rc.37@sha256:8b6cf781e479e6dfcaa5f1ddd86f0e20f12352980029d0d0dfb35cf8cbd1792b
+    env_file:
+      - path: .env.ai
+        required: false
+    environment:
+      MEMORY_CACHE_ENABLED: "false"
+      BATCH_UPDATE_ENABLED: "false"
+      STREAMING_TIMEOUT: "900"
+      ERROR_LOG_ENABLED: "false"
+      DEBUG: "false"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      [
+        ': "$${SQL_DSN:?SQL_DSN is required}" "$${SESSION_SECRET:?SESSION_SECRET is required}"; exec /new-api',
+      ]
+    ports: ["127.0.0.1:4014:3000"] # break-glass administration through SSH only
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/status >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 384m
+    restart: unless-stopped
+
+  inference:
+    profiles: [ai]
+    image: ${AUTH_IMAGE_REF}
+    command: ["node", "/ai/dist/main.mjs"]
+    env_file:
+      - path: .env.ai-gateway
+        required: false
+    environment:
+      PORT: "4010" # override PORT=3001 inherited from the auth image
+      AI_PORTAL_DIR: /ai/portal
+      AI_PORTAL_ORIGIN: https://ai-portal.herkules.dev
+      AI_API_ORIGIN: https://ai.herkules.dev
+      AUTH_ISSUER: https://herkules.dev/auth
+      AUTH_INTERNAL_URL: http://auth:3001/auth
+      AI_WORKERS_FILE: /run/ai/workers.json
+      AI_CLIENT_SECRET_FILE: /run/ai/client-secret
+      AI_SYNC_SECRET_FILE: /run/ai/sync-secret
+      AI_ROOT_PASSWORD_FILE: /run/ai/root-password
+      AI_DISPATCH_KEY_FILE: /run/ai/dispatch-key
+    volumes:
+      - type: bind
+        source: /etc/herkules-ai/gateway
+        target: /run/ai
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      auth:
+        condition: service_healthy
+      new-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4010/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    mem_limit: 192m
+    restart: unless-stopped
+    stop_grace_period: 30s
+
   # Nightly pg_dump to R2 (tools/deploy/backup). Manual run: sh compose.sh run --rm backup backup
   # env_file is .env.backup: the R2 credentials live there and nowhere else.
   backup:
@@ -170,7 +240,7 @@ services:
       PGHOST: postgres
       PGUSER: herkules
       PGPASSWORD: ${POSTGRES_PASSWORD}
-      DATABASES: herkules bbs
+      DATABASES: herkules bbs ${AI_BACKUP_DATABASE:-}
       # After a successful upload backup.sh pushes to Gatus's "Backups" external endpoint
       # (gatus.yaml); the row stays red until the first push. Same token as GATUS_BACKUP_TOKEN there.
       GATUS_URL: http://gatus:8080

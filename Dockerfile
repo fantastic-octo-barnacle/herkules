@@ -3,6 +3,12 @@
 # The build stage installs the whole workspace once; runtime images get only
 # `pnpm deploy --prod` output (auth, bbs) or static files (caddy).
 
+# Small frontend-only customization; the New API backend stays pinned and unmodified.
+FROM oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6 AS ai-portal
+WORKDIR /build
+COPY tools/ai/portal/build.mjs tools/ai/portal/edits.json ./
+RUN bun build.mjs /portal
+
 FROM node:24-alpine AS base
 RUN npm install -g pnpm@11.24.0
 WORKDIR /app
@@ -18,7 +24,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 RUN pnpm -r --sort run build
 # --ignore-scripts again: `pnpm deploy` otherwise runs the root `prepare` (vp config), which wants git.
 RUN pnpm --filter @herkules/auth deploy --prod --legacy --ignore-scripts /out/auth \
- && pnpm --filter @herkules/bbs deploy --prod --legacy --ignore-scripts /out/bbs
+ && pnpm --filter @herkules/bbs deploy --prod --legacy --ignore-scripts /out/bbs \
+ && pnpm --filter @herkules/inference deploy --prod --legacy --ignore-scripts /out/inference
 
 # ── runtime base for the two Node services ─────────────────────────────────
 # auth and bbs differ only in port, env, entrypoint and the /out directory they copy.
@@ -31,6 +38,9 @@ USER node
 FROM runtime AS auth
 ENV PORT=3001 MIGRATIONS_DIR=/app/drizzle AVATAR_DIR=/data/avatars
 COPY --from=build --chown=node:node /out/auth /app
+# Same release image, separate inference container and process.
+COPY --from=build --chown=node:node /out/inference /ai
+COPY --from=ai-portal --chown=node:node /portal /ai/portal
 # The `avatars` named volume inherits this directory's ownership, so it has to exist and be
 # node-owned in the image; only root can create it, hence the two USER lines.
 USER root

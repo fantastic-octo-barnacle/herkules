@@ -8,6 +8,7 @@ Herkules is the team's self-hosted identity layer and internal application monor
 | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | [`services/auth`](services/auth/README.md)                       | Better Auth authorization server, resource registry, users, roles, gate, and audit |
 | [`services/web`](services/web/README.md)                         | Platform login, consent, settings, admin, and developer-token SPA                  |
+| [`services/inference`](services/inference/README.md)             | AI portal gateway, worker scheduling, membership enforcement and streaming adapter |
 | [`apps/bbs`](apps/bbs/README.md)                                 | RM 文库 API, MCP server, SPA host, corpus, search, and crawler                     |
 | [`packages/auth-middleware`](packages/auth-middleware/README.md) | Resource-server JWT verification and OAuth challenge helpers                       |
 | [`packages/oauth-client`](packages/oauth-client/README.md)       | Stateless first-party browser OAuth sessions for Hono apps                         |

@@ -63,6 +63,7 @@ export interface AuditRowRaw extends AuditInsert {
 
 /** The oauthClient columns first-party seeding reads back and reconciles (clients.ts). */
 export interface ClientRow {
+  readonly requirePKCE: boolean;
   readonly clientId: string;
   readonly name: string | null;
   readonly clientSecret: string | null;
@@ -75,6 +76,7 @@ export interface ClientRow {
 }
 
 export type ClientPatch = {
+  readonly requirePKCE?: boolean;
   readonly name?: string;
   readonly clientSecret?: string | null;
   readonly redirectUris?: readonly string[];
@@ -393,6 +395,7 @@ function queries(d: Drizzle): AuthQueries {
         const r = (
           await d
             .select({
+              requirePKCE: oauthClient.requirePKCE,
               clientId: oauthClient.clientId,
               name: oauthClient.name,
               clientSecret: oauthClient.clientSecret,
@@ -409,6 +412,7 @@ function queries(d: Drizzle): AuthQueries {
         )[0];
         return r
           ? {
+              requirePKCE: r.requirePKCE === true,
               clientId: r.clientId,
               name: r.name,
               clientSecret: r.clientSecret,
@@ -428,6 +432,7 @@ function queries(d: Drizzle): AuthQueries {
         await d
           .update(oauthClient)
           .set({
+            ...(patch.requirePKCE !== undefined ? { requirePKCE: patch.requirePKCE } : {}),
             ...(patch.name !== undefined ? { name: patch.name } : {}),
             ...("clientSecret" in patch ? { clientSecret: patch.clientSecret ?? null } : {}),
             ...(patch.redirectUris ? { redirectUris: [...patch.redirectUris] } : {}),

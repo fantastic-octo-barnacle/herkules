@@ -1,0 +1,87 @@
+[
+  {
+    "file": "web/src/features/profile/index.tsx",
+    "before": "import { ProfileSettingsCard } from './components/profile-settings-card'\n",
+    "after": ""
+  },
+  {
+    "file": "web/src/features/profile/index.tsx",
+    "before": "import { SidebarModulesCard } from './components/sidebar-modules-card'\n",
+    "after": ""
+  },
+  {
+    "file": "web/src/features/profile/index.tsx",
+    "before": "import { useAuthStore } from '@/stores/auth-store'\n",
+    "after": ""
+  },
+  {
+    "file": "web/src/features/profile/index.tsx",
+    "before": "  const permissions = useAuthStore((s) => s.auth.user?.permissions)\n",
+    "after": ""
+  },
+  {
+    "file": "web/src/features/profile/index.tsx",
+    "before": "  const canConfigureSidebar = permissions?.sidebar_settings !== false\n",
+    "after": ""
+  },
+  {
+    "file": "web/src/features/profile/index.tsx",
+    "before": "                <ProfileSettingsCard\n                  profile={profile}\n                  loading={loading}\n                  onProfileUpdate={refreshProfile}\n                />\n",
+    "after": ""
+  },
+  {
+    "file": "web/src/features/profile/index.tsx",
+    "before": "                {canConfigureSidebar && <SidebarModulesCard />}\n",
+    "after": ""
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/summary-cards.tsx",
+    "before": "<Button className='justify-between' render={<Link to='/wallet' />}>\n            <span>{t('Wallet')}</span>",
+    "after": "<Button className='justify-between' render={<Link to='/usage-logs' />}>\n            <span>{t('Usage logs')}</span>"
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/overview-dashboard.tsx",
+    "before": "title: t('Add credits'),\n        description: t('Keep enough balance before production traffic'),\n        to: '/wallet',",
+    "after": "title: t('Check your quota'),\n        description: t('Ask a team administrator if you need more quota'),\n        to: '/dashboard',"
+  },
+  {
+    "file": "web/src/components/layout/components/mobile-drawer.tsx",
+    "before": "        <Link\n          to='/wallet'\n          onClick={onNavigate}\n          className='text-primary/60 hover:text-primary/80 border-border flex items-center gap-2.5 border-b p-2.5 transition-colors'\n        >\n          <Wallet className='size-4' />\n          {t('Wallet')}\n        </Link>",
+    "after": ""
+  },
+  {
+    "file": "web/src/components/layout/components/footer.tsx",
+    "before": ". {t(NEW_API_FOOTER_ATTRIBUTION_KEY)}",
+    "after": ". {t(NEW_API_FOOTER_ATTRIBUTION_KEY)} <a href=\"/portal-source.tar.gz\" className=\"underline\">Portal source</a>"
+  },
+  {
+    "file": "web/src/features/profile/index.tsx",
+    "before": "        </CardStaggerContainer>",
+    "after": "          <a href=\"/portal-source.tar.gz\" className=\"text-muted-foreground text-xs underline\">Portal source code</a>\n        </CardStaggerContainer>"
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/overview-dashboard.tsx",
+    "before": "title: t('Pricing'),\n        description: t('Review model rates before scaling traffic'),\n        to: '/pricing',",
+    "after": "title: t('Playground'),\n        description: t('Chat with the team model'),\n        to: '/playground',"
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/overview-dashboard.tsx",
+    "before": "\"model\":\"${args.model}\",\"messages\":",
+    "after": "\"model\":\"${args.model}\",\"stream\":true,\"messages\":"
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/overview-dashboard.tsx",
+    "before": "manualSetupGuideExpanded ?? (setupStatusReady && !setupComplete)",
+    "after": "manualSetupGuideExpanded ?? false"
+  },
+  {
+    "file": "web/src/components/layout/components/mobile-drawer.tsx",
+    "before": "X, User, Wallet, LogOut, ShieldCheck",
+    "after": "X, User, LogOut, ShieldCheck"
+  },
+  {
+    "file": "web/src/features/dashboard/components/overview/overview-dashboard.tsx",
+    "before": "  | '/wallet'",
+    "after": "  | '/dashboard'"
+  }
+]

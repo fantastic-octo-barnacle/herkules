@@ -149,6 +149,7 @@ interface FirstPartyClientBase {
   readonly applicationType: "web" | "native";
   readonly grantTypes: readonly ("authorization_code" | "refresh_token")[];
   readonly metadata?: Record<string, unknown>;
+  readonly requirePKCE?: boolean;
 }
 
 export type FirstPartyClient =
@@ -206,6 +207,19 @@ export const FIRST_PARTY_CLIENTS = [
     grantTypes: ["authorization_code"],
     secret: (c) => c.BESZEL_CLIENT_SECRET,
   },
+  {
+    clientId: "herkules-ai",
+    name: "Herkules AI",
+    redirectUris: (c) => (c.AI_PORTAL_ORIGIN ? [`${c.AI_PORTAL_ORIGIN}/oauth/herkules`] : []),
+    skipConsent: true,
+    tokenEndpointAuthMethod: "client_secret_basic",
+    applicationType: "web",
+    grantTypes: ["authorization_code"],
+    secret: (c) => c.AI_CLIENT_SECRET,
+    // New API's custom OAuth client authenticates with Basic but has no PKCE support.
+    // This exception is restricted to this confidential client and its exact callback.
+    requirePKCE: false,
+  },
 ] as const satisfies readonly FirstPartyClient[];
 
 /** True for the first-party dev-token client, read from the oauthClient.metadata the token callbacks receive. */
@@ -238,6 +252,7 @@ export function ownedClientIds(): readonly string[] {
 
 /** The row a first-party entry must be, as a projection comparable to `ClientRow`. */
 interface WantedClient {
+  readonly requirePKCE: boolean;
   readonly clientId: string;
   readonly name: string;
   readonly clientSecret: string | null;
@@ -271,6 +286,7 @@ export async function wantedFirstPartyClients(
       clientSecret = await hashClientSecret(secret);
     }
     wanted.push({
+      requirePKCE: c.requirePKCE ?? true,
       clientId: c.clientId,
       name: c.name,
       clientSecret,
@@ -284,6 +300,7 @@ export async function wantedFirstPartyClients(
   }
   for (const c of STATIC_CLIENTS) {
     wanted.push({
+      requirePKCE: true,
       clientId: c.clientId,
       name: c.name,
       clientSecret: null,
@@ -300,6 +317,7 @@ export async function wantedFirstPartyClients(
 
 function sameClient(existing: ClientRow, w: WantedClient): boolean {
   return (
+    existing.requirePKCE === w.requirePKCE &&
     existing.name === w.name &&
     existing.clientSecret === w.clientSecret &&
     existing.redirectUris.join(" ") === w.redirectUris.join(" ") &&
@@ -341,7 +359,7 @@ export async function ensureFirstPartyClients(
         applicationType: w.applicationType,
         grantTypes: [...w.grantTypes],
         responseTypes: ["code"],
-        requirePKCE: true,
+        requirePKCE: w.requirePKCE,
         disabled: false,
         metadata: w.metadata,
         createdAt: at,
@@ -349,6 +367,7 @@ export async function ensureFirstPartyClients(
       });
     } else if (!sameClient(existing, w)) {
       await db.clients.update(w.clientId, {
+        requirePKCE: w.requirePKCE,
         name: w.name,
         clientSecret: w.clientSecret,
         redirectUris: w.redirectUris,

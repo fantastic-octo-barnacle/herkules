@@ -42,3 +42,14 @@ Development accepts `pglite://` database URLs. Production uses Postgres and appl
 - `src/app.ts`: Hono routes, metadata, user-info, avatars, and health
 - `src/config.ts`: environment boundary
 - `tests/`: end-to-end issuer, client, gate, and audit behavior
+
+## AI portal
+
+Optional `AI_PORTAL_ORIGIN`, `AI_CLIENT_SECRET` and `AI_SYNC_SECRET` configure the
+`herkules-ai` confidential client and private membership endpoint. New API uses
+Basic client authentication and does not implement PKCE; only this reconciled
+first-party client has `requirePKCE=false`. Other clients retain their requirement.
+The exact callback is `${AI_PORTAL_ORIGIN}/oauth/herkules`; identities bind by `sub`.
+`POST /auth/internal/ai-membership` requires the dedicated sync secret, accepts at
+most 100 IDs, and reports missing/disabled accounts as unavailable. Caddy blocks
+this internal route. See [AI setup](../../tools/ai/README.md).

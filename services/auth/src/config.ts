@@ -65,6 +65,10 @@ export const configSchema = z.object({
    * Set: the confidential first-party `bbs` client is seeded with `${BBS_ORIGIN}/callback`.
    * Unset (or empty): not seeded. Both BBS_* variables or neither.
    */
+  AI_PORTAL_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  AI_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
+  /** Internal account-status checks; never a browser or inference API credential. */
+  AI_SYNC_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
   BBS_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
   /** The `bbs` client's secret (>= 32 chars), stored hashed; the same value goes in apps/bbs's env. */
   BBS_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
@@ -101,11 +105,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if ((parsed.OPS_ORIGIN === undefined) !== (parsed.BESZEL_CLIENT_SECRET === undefined)) {
     throw new TypeError("OPS_ORIGIN and BESZEL_CLIENT_SECRET must be set together or not at all");
   }
+  const aiSettings = [parsed.AI_PORTAL_ORIGIN, parsed.AI_CLIENT_SECRET, parsed.AI_SYNC_SECRET];
+  if (
+    aiSettings.some((value) => value !== undefined) &&
+    aiSettings.some((value) => value === undefined)
+  ) {
+    throw new TypeError(
+      "AI_PORTAL_ORIGIN, AI_CLIENT_SECRET and AI_SYNC_SECRET must be set together or not at all",
+    );
+  }
   return Object.freeze({
     ...parsed,
     PUBLIC_ORIGIN: origin,
     BBS_ORIGIN: parsed.BBS_ORIGIN === undefined ? undefined : new URL(parsed.BBS_ORIGIN).origin,
     OPS_ORIGIN: parsed.OPS_ORIGIN === undefined ? undefined : new URL(parsed.OPS_ORIGIN).origin,
+    AI_PORTAL_ORIGIN:
+      parsed.AI_PORTAL_ORIGIN === undefined ? undefined : new URL(parsed.AI_PORTAL_ORIGIN).origin,
     issuer: `${origin}/auth`,
     isProduction: parsed.NODE_ENV === "production",
   });
