@@ -187,6 +187,31 @@ export class NewAPI {
       oldChannel ? "PUT" : "POST",
       oldChannel ? { ...channel, id: oldChannel.id } : { mode: "single", channel },
     );
+    await this.seedModelMetadata(config);
+  }
+  async seedModelMetadata(config: Config) {
+    const names = new Set<string>();
+    for (let page = 1; ; page++) {
+      const data = await this.call<{ items: { model_name: string }[]; total: number }>(
+        `/api/models/?p=${page}&page_size=100`,
+      );
+      for (const entry of data.items) names.add(entry.model_name);
+      if (page * 100 >= data.total) break;
+    }
+    // Seed missing entries only. Existing administrator edits and visibility survive boots.
+    for (const model of new Set(config.workers.map((w) => w.model))) {
+      const info = config.modelCatalog?.[model];
+      if (!info || names.has(model)) continue;
+      await this.call("/api/models/", "POST", {
+        model_name: model,
+        description: info.description,
+        tags: info.tags.join(","),
+        endpoints: JSON.stringify({ openai: { path: "/v1/chat/completions", method: "POST" } }),
+        status: 1,
+        sync_official: 0,
+        name_rule: 0,
+      });
+    }
   }
   async users() {
     const users: { id: number; status: number; role: number }[] = [];

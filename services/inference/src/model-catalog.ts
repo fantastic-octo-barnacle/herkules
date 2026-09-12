@@ -1,0 +1,141 @@
+import { z } from "zod";
+import { DEFAULT_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS } from "./limits.ts";
+
+export const modelInfoSchema = z.object({
+  name: z.string().min(1),
+  description: z.string(),
+  source: z.string().url(),
+  context_length: z.number().int().positive(),
+  quantization: z.string(),
+  tags: z.array(z.string()),
+  reasoning_efforts: z.array(z.string()).default([]),
+  defaults: z
+    .object({
+      temperature: z.number().min(0).max(2).optional(),
+      top_p: z.number().min(0).max(1).optional(),
+    })
+    .default({}),
+});
+export const catalogSchema = z.record(z.string(), modelInfoSchema);
+export type ModelCatalog = z.infer<typeof catalogSchema>;
+
+// Serving limits, not the upstream weights' maximum capabilities. Only text
+// and chat completions are enabled by this gateway, even for multimodal weights.
+export const modelCatalog: ModelCatalog = {
+  "qwen3.8-27b": {
+    name: "Qwen3.8 27B",
+    description: "Dense general-purpose coding model with embedded MTP. One 128K slot.",
+    source: "https://huggingface.co/Qwen/Qwen3.8-27B",
+    context_length: 131072,
+    quantization: "UD-Q4_K_M",
+    tags: ["coding", "thinking", "mtp"],
+    reasoning_efforts: ["low", "medium", "xhigh"],
+    defaults: { temperature: 1, top_p: 0.95 },
+  },
+  "qwen3.6-35b-a3b": {
+    name: "Qwen3.6 35B A3B",
+    description: "MoE coding model. Two 128K slots; no speculative decoding.",
+    source: "https://huggingface.co/Qwen/Qwen3.6-35B-A3B",
+    context_length: 131072,
+    quantization: "UD-IQ4_XS",
+    tags: ["coding", "thinking", "moe"],
+    reasoning_efforts: [],
+    defaults: { temperature: 0.6, top_p: 0.95 },
+  },
+  "ling-3.0-tiny": {
+    name: "Ling 3.0 Tiny",
+    description: "Small MoE model for throughput and concurrent agents. Four 128K slots.",
+    source: "https://huggingface.co/inclusionAI/Ling-3.0-tiny",
+    context_length: 131072,
+    quantization: "Q6_K",
+    tags: ["thinking", "moe"],
+    reasoning_efforts: [],
+    defaults: { temperature: 1, top_p: 0.95 },
+  },
+  "gemma-4-12b": {
+    name: "Gemma 4 12B",
+    description: "General-purpose model. Two 128K slots; text-only serving.",
+    source: "https://huggingface.co/google",
+    context_length: 131072,
+    quantization: "QAT-Q4_0",
+    tags: ["general"],
+    reasoning_efforts: [],
+    defaults: {},
+  },
+  "granite-4.2-8b": {
+    name: "Granite 4.2 8B",
+    description: "Compact general-purpose model. One 128K slot.",
+    source: "https://huggingface.co/ibm-granite",
+    context_length: 131072,
+    quantization: "Q6_K",
+    tags: ["general"],
+    reasoning_efforts: [],
+    defaults: {},
+  },
+  "mellum2-12b": {
+    name: "Mellum2 12B",
+    description: "MoE coding model. Two 128K slots.",
+    source: "https://huggingface.co/JetBrains",
+    context_length: 131072,
+    quantization: "Q8_0",
+    tags: ["coding", "moe"],
+    reasoning_efforts: [],
+    defaults: {},
+  },
+};
+
+export function enrichModels(
+  value: unknown,
+  catalog: ModelCatalog,
+  workers: { model: string; capacity?: number }[],
+) {
+  if (!value || typeof value !== "object" || !("data" in value) || !Array.isArray(value.data))
+    return value;
+  return {
+    ...value,
+    data: value.data.map((entry: unknown) => {
+      if (!entry || typeof entry !== "object" || !("id" in entry) || typeof entry.id !== "string")
+        return entry;
+      const info = catalog[entry.id];
+      const serving = workers.filter((w) => w.model === entry.id);
+      if (!info || !serving.length) return entry;
+      return {
+        ...entry,
+        name: info.name,
+        description: info.description,
+        context_length: info.context_length,
+        architecture: {
+          input_modalities: ["text"],
+          output_modalities: ["text"],
+          modality: "text->text",
+        },
+        supported_parameters: [
+          "max_tokens",
+          "temperature",
+          "top_p",
+          "tools",
+          "tool_choice",
+          "stream",
+          ...(info.reasoning_efforts.length ? ["reasoning_effort"] : []),
+        ],
+        default_parameters: { ...info.defaults, max_tokens: DEFAULT_OUTPUT_TOKENS },
+        top_provider: {
+          context_length: info.context_length,
+          max_completion_tokens: Math.min(MAX_OUTPUT_TOKENS, info.context_length - 1),
+        },
+        // Credits are not USD. Do not put them in OpenRouter's monetary pricing fields.
+        herkules: {
+          schema_version: 1,
+          source: info.source,
+          quantization: info.quantization,
+          tags: info.tags,
+          reasoning_efforts: info.reasoning_efforts,
+          slots: serving.reduce((n, w) => n + (w.capacity ?? 1), 0),
+          streaming_required: true,
+          endpoints: ["/v1/chat/completions"],
+          note: "Slot capacity is configured capacity, not current availability. Model swaps discard cached context.",
+        },
+      };
+    }),
+  };
+}

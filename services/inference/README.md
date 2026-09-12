@@ -41,3 +41,41 @@ Production packages it in `/ai/portal`; local startup builds it outside the chec
 The backend's own UI is only used on its private administration port. The source
 archive linked in the footer contains the exact modified upstream source and build
 instructions. See `tools/ai/portal/edits.json` for the small UI patch.
+
+## Model discovery and metadata
+
+Authenticated `GET /v1/models` preserves New API's authorized model list and adds
+OpenRouter-style `name`, `description`, `context_length`, `architecture`,
+`supported_parameters`, `default_parameters`, and `top_provider` fields.
+`GET /v1/models/{id}` retrieves an entry from that same authorized list. These are
+compatible discovery extensions, not a claim of implementing OpenRouter's whole API.
+Responses, embeddings, and vision are not advertised because Herkules does not
+currently serve them. Metadata listing never loads a GPU model.
+
+`herkules` contains versioned serving information: quantization, upstream source,
+tags, reasoning-effort levels, configured slots, and streaming requirements.
+Configured slots are not a live availability guarantee. Native context sizes are
+not advertised as serving limits: the deployed per-slot context is 128K.
+Credit prices remain in New API's pricing APIs; they must not be published as
+OpenRouter USD prices. Existing OpenAI-compatible clients may ignore added fields.
+
+`src/model-catalog.ts` supplies the catalog. `AI_MODEL_CATALOG_FILE` optionally
+replaces it with a validated JSON map, useful when a deployment changes context
+limits. The gateway fills omitted temperature/top-p from catalog defaults and
+preserves explicit client values, including zero. Unknown models are unchanged.
+The catalog does not claim unverified defaults for Gemma, Granite, or Mellum.
+
+Bootstrap seeds missing New API `/api/models/` entries with descriptions, tags,
+and the chat-completions endpoint. Existing administrator edits are retained,
+and official metadata sync is disabled on seeded entries so native model claims
+do not overwrite our serving capabilities. No database writes bypass New API.
+
+The native llama.cpp router supports `tags` in `tools/ai/models.ini`; they are
+informational and do not change routing aliases. It also forwards loaded-model
+metadata in `/v1/models`, and `/props?model=...` exposes runtime defaults. Its
+`/models` response can include filesystem paths and process arguments: do not
+proxy it publicly. Updating preset files requires router reload, which can unload
+changed models; apply only after draining active requests.
+
+These surfaces use their existing formats. We do not emulate Ollama, Anthropic,
+or Gemini discovery endpoints without also implementing their generation APIs.
