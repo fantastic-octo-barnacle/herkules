@@ -1,5 +1,4 @@
-import { enrichModels } from "./model-catalog.ts";
-import { DEFAULT_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS } from "./limits.ts";
+import { enrichModels, outputLimits } from "./model-catalog.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
 import { servePortal } from "./portal.ts";
@@ -206,8 +205,11 @@ export function createGateway(deps: GatewayDeps) {
       }
       if (!input || typeof input !== "object" || input.stream !== true)
         throw new AdmissionError("streaming_required", 400);
-      const max = input.max_tokens ?? input.max_completion_tokens ?? DEFAULT_OUTPUT_TOKENS;
-      if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > MAX_OUTPUT_TOKENS)
+      const limits = outputLimits(
+        typeof input.model === "string" ? config.modelCatalog?.[input.model] : undefined,
+      );
+      const max = input.max_tokens ?? input.max_completion_tokens ?? limits.defaultTokens;
+      if (!Number.isInteger(max) || Number(max) < 1 || Number(max) > limits.max)
         throw new AdmissionError("invalid_output_limit", 400);
       if (!Array.isArray(input.messages) || typeof input.model !== "string")
         throw new AdmissionError("invalid_chat_request", 400);

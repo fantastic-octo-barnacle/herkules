@@ -5,7 +5,7 @@ export const modelInfoSchema = z.object({
   name: z.string().min(1),
   description: z.string(),
   source: z.string().url(),
-  context_length: z.number().int().positive(),
+  context_length: z.number().int().min(2),
   quantization: z.string(),
   tags: z.array(z.string()),
   reasoning_efforts: z.array(z.string()).default([]),
@@ -84,6 +84,15 @@ export const modelCatalog: ModelCatalog = {
   },
 };
 
+export function outputLimits(info?: ModelCatalog[string]) {
+  const max = info ? Math.min(MAX_OUTPUT_TOKENS, info.context_length - 1) : MAX_OUTPUT_TOKENS;
+  // Leave room for a prompt on smaller deployments instead of reserving the whole context.
+  const defaultTokens = info
+    ? Math.min(DEFAULT_OUTPUT_TOKENS, Math.floor(info.context_length / 2), max)
+    : DEFAULT_OUTPUT_TOKENS;
+  return { max, defaultTokens };
+}
+
 export function enrichModels(
   value: unknown,
   catalog: ModelCatalog,
@@ -118,10 +127,10 @@ export function enrichModels(
           "stream",
           ...(info.reasoning_efforts.length ? ["reasoning_effort"] : []),
         ],
-        default_parameters: { ...info.defaults, max_tokens: DEFAULT_OUTPUT_TOKENS },
+        default_parameters: { ...info.defaults, max_tokens: outputLimits(info).defaultTokens },
         top_provider: {
           context_length: info.context_length,
-          max_completion_tokens: Math.min(MAX_OUTPUT_TOKENS, info.context_length - 1),
+          max_completion_tokens: outputLimits(info).max,
         },
         // Credits are not USD. Do not put them in OpenRouter's monetary pricing fields.
         herkules: {
