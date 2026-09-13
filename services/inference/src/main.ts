@@ -45,6 +45,7 @@ async function stop() {
   clearInterval(interval);
   gateway.public.close();
   gateway.internal.close();
+  await admin.logout();
   await sql.end({ timeout: 5 });
 }
 process.on("SIGTERM", () => void stop());
