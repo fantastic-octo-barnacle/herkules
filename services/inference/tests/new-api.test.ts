@@ -10,7 +10,7 @@ afterEach(() => vi.unstubAllGlobals());
  */
 function fixture() {
   const calls: string[] = [];
-  const state = { refreshOk: true, expiresIn: 30 };
+  const state = { refreshOk: true, expiresIn: 30, rateLimited: false };
   let issued = 0;
   const bundle = (init?: ResponseInit) =>
     new Response(
@@ -35,6 +35,7 @@ function fixture() {
       );
       switch (path) {
         case "/api/user/login":
+          if (state.rateLimited) return new Response(null, { status: 429 });
           return bundle({
             headers: [
               ["set-cookie", `new_api_refresh=r${issued + 1}; Path=/api/user/auth; HttpOnly`],
@@ -114,4 +115,10 @@ test("logout releases the session and forgets the cookie", async () => {
   expect(f.calls).toEqual([]);
   await f.api.login();
   expect(f.calls[0]).toBe("POST /api/user/login cookie= auth=");
+});
+
+test("a bodiless rate-limit rejection reports the status instead of a parse error", async () => {
+  const f = fixture();
+  f.state.rateLimited = true;
+  await expect(f.api.login()).rejects.toThrow("POST /api/user/login (429)");
 });

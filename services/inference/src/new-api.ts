@@ -36,7 +36,14 @@ export class NewAPI {
     });
     const cookies = response.headers.getSetCookie();
     if (cookies.length) this.cookie = cookies.map((c) => c.split(";")[0]).join("; ");
-    const result = (await response.json()) as { success?: boolean; data?: T; message?: string };
+    // Rate-limit and proxy rejections carry no body; report the status instead of a parse error.
+    const text = await response.text();
+    let result: { success?: boolean; data?: T } = {};
+    try {
+      if (text) result = JSON.parse(text) as typeof result;
+    } catch {
+      result = {};
+    }
     if (!response.ok || result.success !== true)
       throw new Error(`New API management request failed: ${method} ${path} (${response.status})`);
     return result.data as T;
