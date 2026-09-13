@@ -1,6 +1,12 @@
 import { freeModels, freeProviderPolicy } from "./openrouter.ts";
 import type { Config } from "./config.ts";
 
+interface AuthBundle {
+  user: { id: number };
+  access_token: string;
+  access_expires_at: number;
+}
+
 /** Management calls stay on the private network; never print requests or credentials. */
 export class NewAPI {
   private cookie = "";
@@ -30,24 +36,63 @@ export class NewAPI {
     });
     const cookies = response.headers.getSetCookie();
     if (cookies.length) this.cookie = cookies.map((c) => c.split(";")[0]).join("; ");
-    const result = (await response.json()) as { success?: boolean; data?: T; message?: string };
+    // Rate-limit and proxy rejections carry no body; report the status instead of a parse error.
+    const text = await response.text();
+    let result: { success?: boolean; data?: T } = {};
+    try {
+      if (text) result = JSON.parse(text) as typeof result;
+    } catch {
+      result = {};
+    }
     if (!response.ok || result.success !== true)
       throw new Error(`New API management request failed: ${method} ${path} (${response.status})`);
     return result.data as T;
   }
+  /**
+   * Keeps one management session alive. new-api caps active login sessions per user (50 at
+   * v1.0.0-rc.37, each living 30 days) and answers 409 AUTH_SESSION_LIMIT past the cap, so a
+   * password login at every 15-minute access-token expiry starves the root user within a day.
+   * Refresh the current session first; a password login is only for the first boot or a lost
+   * session, and it then revokes every other root session left behind by earlier processes.
+   */
   async login() {
     if (this.accessExpiresAt > Date.now() + 60_000) return;
-    const data = await this.call<{
-      user: { id: number };
-      access_token: string;
-      access_expires_at: number;
-    }>("/api/user/login", "POST", {
-      username: "herkulesroot",
-      password: this.password,
-    });
+    if (this.cookie.includes("new_api_refresh=")) {
+      try {
+        this.adopt(await this.call<AuthBundle>("/api/user/auth/refresh", "POST", {}));
+        return;
+      } catch {
+        // Revoked or expired session: fall through to a password login.
+      }
+    }
+    this.adopt(
+      await this.call<AuthBundle>("/api/user/login", "POST", {
+        username: "herkulesroot",
+        password: this.password,
+      }),
+    );
+    try {
+      await this.call("/api/user/self/sessions/revoke-others", "POST", {});
+    } catch {
+      console.error("AI backend stale session cleanup failed");
+    }
+  }
+  private adopt(data: AuthBundle) {
     this.userId = data.user.id;
     this.accessToken = data.access_token;
     this.accessExpiresAt = data.access_expires_at * 1000;
+  }
+  /** Releases the session on shutdown so restarts do not consume the per-user session budget. */
+  async logout() {
+    if (!this.accessToken) return;
+    try {
+      await this.call("/api/user/auth/logout", "POST", {});
+    } catch {
+      // Best effort: an unreachable backend must not block shutdown.
+    }
+    this.accessToken = "";
+    this.accessExpiresAt = 0;
+    this.cookie = "";
   }
   async bootstrap(config: Config) {
     const setup = await this.call<{ status: boolean }>("/api/setup");

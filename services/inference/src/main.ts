@@ -24,27 +24,33 @@ const gateway = createGateway({
     return rows[0]?.user_id;
   },
 });
-let syncing = false;
-const interval = setInterval(async () => {
-  if (syncing) return;
-  syncing = true;
-  try {
-    await admin.login();
-    await membership.reconcile();
-  } catch {
-    console.error("AI membership reconciliation failed; gateway closes when freshness expires");
-  } finally {
-    syncing = false;
-  }
+let sync: Promise<void> | undefined;
+let stopping = false;
+const interval = setInterval(() => {
+  if (sync || stopping) return;
+  sync = (async () => {
+    try {
+      await admin.login();
+      await membership.reconcile();
+    } catch {
+      console.error("AI membership reconciliation failed; gateway closes when freshness expires");
+    } finally {
+      sync = undefined;
+    }
+  })();
 }, 30_000);
 gateway.internal.listen(config.INTERNAL_PORT, "0.0.0.0");
 gateway.public.listen(config.PORT, process.env.LISTEN_HOST ?? "0.0.0.0", () =>
   console.log("AI gateway ready"),
 );
 async function stop() {
+  stopping = true;
   clearInterval(interval);
   gateway.public.close();
   gateway.internal.close();
+  // A reconciliation already awaiting login() would otherwise adopt a fresh session after logout.
+  await sync;
+  await admin.logout();
   await sql.end({ timeout: 5 });
 }
 process.on("SIGTERM", () => void stop());
