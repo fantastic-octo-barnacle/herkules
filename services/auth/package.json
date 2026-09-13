@@ -21,12 +21,13 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "1.7.2",
-    "@better-auth/mcp": "1.7.2",
-    "@better-auth/oauth-provider": "1.7.2",
+    "@better-auth/cimd": "1.7.4",
+    "@better-auth/drizzle-adapter": "1.7.4",
+    "@better-auth/mcp": "1.7.4",
+    "@better-auth/oauth-provider": "1.7.4",
     "@herkules/auth-middleware": "workspace:*",
     "@hono/node-server": "catalog:",
-    "better-auth": "1.7.2",
+    "better-auth": "1.7.4",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
@@ -34,7 +35,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@better-auth/core": "1.7.2",
+    "@better-auth/core": "1.7.4",
     "@electric-sql/pglite": "catalog:",
     "@types/node": "catalog:",
     "drizzle-kit": "catalog:",

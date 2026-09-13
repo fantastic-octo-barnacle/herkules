@@ -92,9 +92,9 @@ export const QUIRKS: readonly Quirk[] = [
           };
     },
   },
-  // NOT included: "learn-localhost-port" (old repo). Better Auth honours RFC 8252 port variance for
-  // 127.0.0.1/[::1] but not the name `localhost`. Add a quirk here only when a real client is shown
-  // to register `localhost:<port>` and then listen elsewhere. Open question in candidate.md.
+  // NOT included: "learn-localhost-port" (old repo). Since oauth-provider 1.7.3 Better Auth honours
+  // RFC 8252 port variance for `localhost` as well as 127.0.0.1/[::1] (only the port may vary), so a
+  // client that registers `localhost:<port>` and then listens elsewhere needs no help from us.
 ];
 
 /** Pure: runs QUIRKS in order over a registration body. Returns the (possibly rewritten) body or a Rejection. */

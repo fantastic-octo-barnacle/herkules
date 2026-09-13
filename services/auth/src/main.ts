@@ -4,6 +4,8 @@
  */
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetchClientMetadataResource as nodeFetchClientMetadataResource } from "@better-auth/cimd/node";
+import type { ClientMetadataResourceFetch } from "@better-auth/oauth-provider";
 import { serve } from "@hono/node-server";
 import { sql } from "drizzle-orm";
 
@@ -25,6 +27,8 @@ export interface ServiceDeps {
   readonly env?: NodeJS.ProcessEnv;
   /** GitHub transport seam (github.ts). */
   readonly fetch?: typeof globalThis.fetch;
+  /** CIMD document transport seam. Production uses the resolve-once, address-pinning Node guard. */
+  readonly fetchClientMetadataResource?: ClientMetadataResourceFetch;
   readonly now?: () => Date;
   /** Registry override for tests. Production uses RESOURCE_SPECS. */
   readonly resources?: readonly ResourceSpec[];
@@ -58,6 +62,8 @@ export async function createService(deps: ServiceDeps = {}) {
     github,
     now,
     onLogin: (id) => users.onLogin(id),
+    fetchClientMetadataResource:
+      deps.fetchClientMetadataResource ?? nodeFetchClientMetadataResource,
   });
   const avatars = createAvatars({
     dir: config.AVATAR_DIR,

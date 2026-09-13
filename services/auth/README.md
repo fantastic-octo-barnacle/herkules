@@ -1,6 +1,6 @@
 # Auth service
 
-`@herkules/auth` is the authorization server at `https://herkules.dev/auth`. It wraps Better Auth 1.7.2 in Hono, admits GitHub users through the team gate, issues audience-bound EdDSA access tokens, and owns users, roles, allowlisting, OAuth clients, protected-resource metadata, avatars, and the audit log.
+`@herkules/auth` is the authorization server at `https://herkules.dev/auth`. It wraps Better Auth 1.7.4 in Hono, admits GitHub users through the team gate, issues audience-bound EdDSA access tokens, and owns users, roles, allowlisting, OAuth clients, protected-resource metadata, avatars, and the audit log.
 
 The cross-service model is documented in [`../../docs/auth.md`](../../docs/auth.md). Resource servers must follow [`../../docs/tokens.md`](../../docs/tokens.md).
 
@@ -26,7 +26,7 @@ Development accepts `pglite://` database URLs. Production uses Postgres and appl
 - An admin may not remove their own authority: `setRole` refuses a self-demotion (403 `self_demote`) and `setDisabled` refuses a self-disable (403 `self_disable`). Both are checked after the last-admin guard, not before — an admin demoting another admin always leaves two active admins, so 409 `last_admin` is reachable only through the same self-call, and reversing the order would make it dead code. A system actor still passes both.
 - Every authority-changing write must produce an awaited audit row. Add plugin events to the exhaustive table in `src/audit.ts`; add administrative changes through `src/users.ts`. Do not add an unaudited Better Auth admin route.
 - Browser sessions do not use Better Auth's cookie cache. Disabling a user must take effect on the next request.
-- `src/clients.ts` owns first-party clients and native-client redirect quirks. DCR is enabled for IDE clients. CIMD stays unmounted — the deployed host cannot fetch client metadata documents — and Claude Code's CIMD path is broken regardless: its `localhost` callback registers without the port the authorize request carries, and the matcher grants port variance to `127.0.0.1`/`[::1]` only. [`../../docs/auth.md`](../../docs/auth.md) owns the full record.
+- `src/clients.ts` owns first-party clients and native-client redirect quirks. DCR is enabled for IDE clients. CIMD is mounted only when `CIMD_ENABLED` is set (off in production: the deployed host cannot fetch client metadata documents). Better Auth 1.7.3 fixed the `localhost` port-variance matcher that used to break Claude Code's port-less document; `tests/cimd.test.ts` covers that path. CIMD clients bypass the DCR quirks, so consent per client per resource and the optional `CIMD_ALLOWED_ORIGINS` are the only controls over a stranger's document. [`../../docs/auth.md`](../../docs/auth.md) owns the full record.
 - User-info accepts a session or a JWT for any registered audience. Callers key data by the opaque `sub`; GitHub IDs, names, and avatars are display data.
 - The service owns every RFC 9728 protected-resource metadata document. Resource servers emit its URL in challenges but do not serve competing copies.
 
