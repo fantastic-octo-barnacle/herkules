@@ -14,9 +14,11 @@
  *            -> customAccessTokenClaims (role stamp)
  *            -> hooks.after "/oauth2/token" (token.issued audit)
  */
+import { cimd } from "@better-auth/cimd";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { mcp } from "@better-auth/mcp";
-import { betterAuth, type BetterAuthOptions } from "better-auth";
+import type { ClientMetadataResourceFetch } from "@better-auth/oauth-provider";
+import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { admin } from "better-auth/plugins/admin";
 import { jwt } from "better-auth/plugins/jwt";
@@ -48,6 +50,8 @@ export interface AuthDeps {
   readonly now: () => Date;
   /** Called after a login completes (avatar refresh). Injected to keep users.ts/avatars.ts out of this file's imports. */
   readonly onLogin: (userId: string) => Promise<void>;
+  /** Transport for CIMD documents (main.ts injects the Node guard; tests inject a fake). Only used when CIMD_ENABLED. */
+  readonly fetchClientMetadataResource: ClientMetadataResourceFetch;
 }
 
 /**
@@ -84,6 +88,34 @@ export const DISABLED_PATHS: readonly string[] = [
 export function authOptions(deps: AuthDeps) {
   const { config, registry, gate, audit } = deps;
   const recordAudit = auditAfterHook(audit);
+  /**
+   * Typed as BetterAuthPlugin[] on purpose: spreading cimd()'s own return type
+   * conditionally makes the plugins tuple unnameable for declaration emit
+   * (TS2883 in `vp pack`); a typed rest spread keeps jwt/admin/mcp inference.
+   */
+  const cimdPlugins: BetterAuthPlugin[] = config.CIMD_ENABLED
+    ? [
+        cimd({
+          fetchClientMetadataResource: deps.fetchClientMetadataResource,
+          metadataProfile: "mcp-2026-07-28", // MCP pins draft-00's required client_name + redirect_uris
+          isMetadataDocumentUrlAllowed: (clientIdUrl) =>
+            config.CIMD_ALLOWED_ORIGINS.length === 0 ||
+            config.CIMD_ALLOWED_ORIGINS.includes(new URL(clientIdUrl).origin),
+          /** Discovery never passes /oauth2/register, so the audit after-hook cannot see it. */
+          onClientCreated: async ({ client, clientMetadataDocument }) => {
+            await audit.record({
+              type: "client.registered",
+              clientId: client.clientId,
+              ...(typeof clientMetadataDocument.client_name === "string"
+                ? { name: clientMetadataDocument.client_name }
+                : {}),
+              redirectUris: clientMetadataDocument.redirect_uris ?? [],
+              discovery: "cimd",
+            });
+          },
+        }),
+      ]
+    : [];
   return {
     appName: "herkules",
     baseURL: config.issuer, // path in baseURL wins over basePath -> handler mounts at /auth/*
@@ -283,16 +315,22 @@ export function authOptions(deps: AuthDeps) {
         },
       }),
       /**
-       * CIMD is deliberately NOT mounted (2026-08-28). Claude Code's document
-       * registers `http://localhost/callback` and then requests
-       * `http://localhost:<random>/callback`; Better Auth's matcher grants RFC
-       * 8252 port variance to 127.0.0.1/[::1] only, so every CIMD authorize
-       * fails with invalid_redirect. Without the advertisement Claude Code uses
-       * DCR, which registers the exact port per run. Re-enable when the matcher
-       * accepts `localhost` (import cimd from @better-auth/cimd, fetch guard
-       * from @better-auth/cimd/node in production).
+       * CIMD (client_id is an HTTPS URL; the issuer fetches the document).
+       * Behind CIMD_ENABLED because the deployed host cannot fetch documents
+       * from claude.ai/chatgpt.com (docs/auth.md). Since oauth-provider 1.7.3
+       * the redirect matcher grants RFC 8252 port variance to `localhost` as
+       * well as 127.0.0.1/[::1], so Claude Code's port-less
+       * `http://localhost/callback` document authorizes on its per-run port
+       * (tests/cimd.test.ts). CIMD clients bypass clients.ts's DCR quirks: their
+       * redirect URIs come from the document, and consent per client per
+       * resource is what stands between a stranger's document and a token.
+       * CIMD_ALLOWED_ORIGINS narrows which documents are fetched at all.
        */
+      ...cimdPlugins,
     ],
+
+    // Better Auth 1.7.4 creates OpenTelemetry spans per request by default; nothing here consumes them.
+    experimental: { instrumentation: { enabled: false } },
 
     advanced: {
       cookiePrefix: "herkules",

@@ -13,6 +13,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { ClientMetadataResourceFetch } from "@better-auth/oauth-provider";
 import type { Hono } from "hono";
 
 import type { OrgMembership } from "./github.ts";
@@ -97,6 +98,12 @@ export interface TestServiceOptions {
   readonly resources?: readonly ResourceSpec[];
   readonly adminLogins?: readonly string[];
   readonly startAt?: Date;
+  /**
+   * Client ID Metadata Documents served by the fake transport, keyed by the
+   * exact client_id URL. Setting this also sets CIMD_ENABLED=true unless env
+   * says otherwise. Any other URL is a 404.
+   */
+  readonly cimd?: Readonly<Record<string, unknown>>;
 }
 
 export const TEST_ORG = "herkules-test";
@@ -279,6 +286,14 @@ export async function createTestService(options: TestServiceOptions = {}): Promi
     return originalFetch(input, init);
   };
 
+  const cimdDocuments = options.cimd ?? {};
+  const fetchClientMetadataResource: ClientMetadataResourceFetch = async (input) => {
+    const url = input instanceof Request ? input.url : String(input);
+    const doc = cimdDocuments[url];
+    if (doc === undefined) return new Response("not found", { status: 404 });
+    return Response.json(doc, { headers: { "cache-control": "max-age=60" } });
+  };
+
   const env: NodeJS.ProcessEnv = {
     PUBLIC_ORIGIN: ORIGIN,
     AUTH_SECRET: "t".repeat(32),
@@ -289,11 +304,13 @@ export async function createTestService(options: TestServiceOptions = {}): Promi
     ADMIN_GITHUB_LOGINS: (options.adminLogins ?? []).join(","),
     AVATAR_DIR: await mkdtemp(join(tmpdir(), "herkules-avatars-")),
     NODE_ENV: "test",
+    ...(options.cimd ? { CIMD_ENABLED: "true" } : {}),
     ...options.env,
   };
   const service = await createService({
     env,
     fetch: fakeFetch,
+    fetchClientMetadataResource,
     now: () => clock.now(),
     resources: options.resources ?? [
       ...RESOURCE_SPECS,

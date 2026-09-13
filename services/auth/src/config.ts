@@ -61,6 +61,32 @@ export const configSchema = z.object({
     .default(30 * DAY),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   /**
+   * Mount Client ID Metadata Document discovery (@better-auth/cimd): a client
+   * may present an HTTPS URL as its client_id and the issuer fetches the
+   * document. Off by default because the deployed host cannot reach
+   * claude.ai/chatgpt.com (docs/auth.md); DCR stays on regardless.
+   */
+  CIMD_ENABLED: z
+    .string()
+    .default("false")
+    .transform((s) => s === "true" || s === "1"),
+  /**
+   * Optional comma-separated allowlist of client_id origins for CIMD, e.g.
+   * `https://claude.ai,https://chatgpt.com`. Empty: any public origin (the
+   * spec default; consent is still per client per resource).
+   */
+  CIMD_ALLOWED_ORIGINS: z
+    .string()
+    .default("")
+    .transform((s) =>
+      s
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.string().url()))
+    .transform((urls) => urls.map((u) => new URL(u).origin)),
+  /**
    * apps/bbs's public origin, e.g. https://bbs.herkules.dev (dev: http://localhost:3003).
    * Set: the confidential first-party `bbs` client is seeded with `${BBS_ORIGIN}/callback`.
    * Unset (or empty): not seeded. Both BBS_* variables or neither.
