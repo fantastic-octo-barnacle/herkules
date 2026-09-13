@@ -1,6 +1,6 @@
 # Auth service
 
-`@herkules/auth` is the authorization server at `https://herkules.dev/auth`. It wraps Better Auth 1.7.2 in Hono, admits GitHub users through the team gate, issues audience-bound EdDSA access tokens, and owns users, roles, allowlisting, OAuth clients, protected-resource metadata, avatars, and the audit log.
+`@herkules/auth` is the authorization server at `https://herkules.dev/auth`. It wraps Better Auth 1.7.4 in Hono, admits GitHub users through the team gate, issues audience-bound EdDSA access tokens, and owns users, roles, allowlisting, OAuth clients, protected-resource metadata, avatars, and the audit log.
 
 The cross-service model is documented in [`../../docs/auth.md`](../../docs/auth.md). Resource servers must follow [`../../docs/tokens.md`](../../docs/tokens.md).
 
