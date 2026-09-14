@@ -100,10 +100,11 @@ the production requirement.
 
 ## Deploy
 
-The optional [Cloudflare static assets experiment](cloudflare/README.md) previews
-the platform SPA and BBS JS/CSS on Workers Free. It does not replace `vp run dev`
-or the production release flow. If experiment routes are attached, follow its
-detach/update instructions before a production deploy or rollback.
+The optional [Cloudflare static asset delivery](cloudflare/README.md) serves the
+platform SPA and BBS JS/CSS on Workers Free. CI validates it, and production
+deploys/rollbacks synchronize assets from the selected immutable images when
+`CLOUDFLARE_ASSETS_ENABLED=true`. The runbook covers credentials, route ownership,
+origin fallback and disabling delivery. Local `vp run dev` is unchanged.
 
 Push to `main` and wait for CI. `images.yml` runs only after that commit's `CI`
 workflow succeeds. It diffs the commit against the source of the active

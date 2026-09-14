@@ -3,7 +3,9 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-const output = join(root, "tools/deploy/cloudflare/dist");
+const output = process.env.EDGE_OUTPUT ?? join(root, "tools/deploy/cloudflare/dist");
+const platformSource = process.env.EDGE_PLATFORM_SOURCE ?? join(root, "services/web/dist");
+const bbsSource = process.env.EDGE_BBS_SOURCE ?? join(root, "apps/bbs/dist/client");
 const headers = `/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -12,13 +14,13 @@ const headers = `/*
 `;
 
 // Stage only public frontend output. Never upload the BBS server bundle.
-await stat(join(root, "services/web/dist/index.html"));
-await stat(join(root, "apps/bbs/dist/client/assets"));
+await stat(join(platformSource, "index.html"));
+await stat(join(bbsSource, "assets"));
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
-await cp(join(root, "services/web/dist"), join(output, "platform"), { recursive: true });
+await cp(platformSource, join(output, "platform"), { recursive: true });
 await mkdir(join(output, "bbs-assets"));
-await cp(join(root, "apps/bbs/dist/client/assets"), join(output, "bbs-assets/assets"), {
+await cp(join(bbsSource, "assets"), join(output, "bbs-assets/assets"), {
   recursive: true,
 });
 await writeFile(
