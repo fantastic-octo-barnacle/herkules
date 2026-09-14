@@ -62,6 +62,14 @@ resource "cloudflare_zero_trust_access_policy" "herkules_team" {
   include = [{ login_method = { id = var.oidc_idp_id } }]
 
   connection_rules = local.no_connection_rules
+
+  lifecycle {
+    # Removing this resource would first strip the policy from `Capability Map` and
+    # then delete it account-wide, i.e. leave a live application with no policy at
+    # all. Fail loudly instead; widening or narrowing the rule is an edit, not a
+    # destroy.
+    prevent_destroy = true
+  }
 }
 
 resource "cloudflare_zero_trust_access_policy" "ai_gateway" {
@@ -74,6 +82,12 @@ resource "cloudflare_zero_trust_access_policy" "ai_gateway" {
   include = [{ service_token = { token_id = data.cloudflare_zero_trust_access_service_token.ai_gateway.id } }]
 
   connection_rules = local.no_connection_rules
+
+  lifecycle {
+    # Same reason as the identity policy: destroying this one would detach the only
+    # credential that can reach the inference worker.
+    prevent_destroy = true
+  }
 }
 
 resource "cloudflare_zero_trust_access_application" "capability_map" {
