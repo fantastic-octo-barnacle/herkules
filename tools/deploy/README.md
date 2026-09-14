@@ -100,6 +100,12 @@ the production requirement.
 
 ## Deploy
 
+The optional [Cloudflare static asset delivery](cloudflare/README.md) serves the
+platform SPA and BBS JS/CSS on Workers Free. CI validates it, and production
+deploys/rollbacks synchronize assets from the selected immutable images when
+`CLOUDFLARE_ASSETS_ENABLED=true`. The runbook covers credentials, route ownership,
+origin fallback and disabling delivery. Local `vp run dev` is unchanged.
+
 Push to `main` and wait for CI. `images.yml` runs only after that commit's `CI`
 workflow succeeds. It diffs the commit against the source of the active
 production release and builds the affected `linux/amd64` images, so a failed

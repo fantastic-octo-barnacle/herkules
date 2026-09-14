@@ -21,7 +21,24 @@ export default defineConfig({
       ["/api", "/login", "/callback", "/logout", "/healthz", "/mcp"].map((p) => [p, HONO]),
     ),
   },
-  build: { outDir: "../dist/client", emptyOutDir: true, sourcemap: false },
+  build: {
+    outDir: "../dist/client",
+    emptyOutDir: true,
+    sourcemap: false,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            // Keep the shared React runtime cacheable across application changes.
+            {
+              name: "react-vendor",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
   define: {
     __PUBLIC_ORIGIN__: JSON.stringify(process.env.PUBLIC_ORIGIN ?? "https://herkules.dev"),
   },

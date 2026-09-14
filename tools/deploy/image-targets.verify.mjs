@@ -111,3 +111,14 @@ test("portal patches rebuild the image that serves their assets", () => {
     deploy: true,
   });
 });
+
+test("edge rollout code deploys without rebuilding unchanged application images", () => {
+  assert.deepEqual(selectImageTargets(["tools/deploy/cloudflare/release.mjs"]), {
+    targets: [],
+    deploy: true,
+  });
+  assert.deepEqual(selectImageTargets(["tools/deploy/cloudflare/release.test.mjs"]), {
+    targets: [],
+    deploy: false,
+  });
+});

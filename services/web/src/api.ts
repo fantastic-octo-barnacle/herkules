@@ -123,6 +123,15 @@ async function request<T>(fetchImpl: Fetch, path: string, init: RequestInit = {}
           : `${res.status} ${res.statusText}`,
     );
   }
+  // Asset-only previews and misconfigured proxies may return SPA HTML with 200.
+  // Never let that masquerade as a typed API response.
+  if (text && typeof body === "string") {
+    throw new ApiError(
+      res.status,
+      "invalid_response",
+      "The API is unavailable at this address. Please try again from the main site.",
+    );
+  }
   return body as T;
 }
 
@@ -138,7 +147,33 @@ export function createApi(fetchImpl: Fetch = (...args) => globalThis.fetch(...ar
 
   return {
     /** null when signed out. */
-    session: () => get<Session | null>("/auth/get-session"),
+    session: async (): Promise<Session | null> => {
+      const value = await get<unknown>("/auth/get-session");
+      if (value === null) return null;
+      if (
+        !isRecord(value) ||
+        !isRecord(value.user) ||
+        !stringFields(value.user, [
+          "id",
+          "name",
+          "email",
+          "githubLogin",
+          "githubId",
+          "createdAt",
+        ]) ||
+        !(value.user.image === null || typeof value.user.image === "string") ||
+        !(
+          value.user.role === undefined ||
+          value.user.role === null ||
+          typeof value.user.role === "string"
+        ) ||
+        !isRecord(value.session) ||
+        !stringFields(value.session, ["id", "expiresAt", "createdAt"])
+      ) {
+        throw new ApiError(200, "invalid_response", "The API returned an invalid session.");
+      }
+      return value as unknown as Session;
+    },
     /** Returns the GitHub URL to navigate to. `oauthQuery` continues an IDE's authorization after login. */
     signInWithGithub: (callbackURL: string, oauthQuery?: string) =>
       send<{ url: string }>("POST", "/auth/sign-in/social", {
@@ -232,4 +267,8 @@ function safeJson(text: string): unknown {
 }
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function stringFields(value: Record<string, unknown>, fields: readonly string[]): boolean {
+  return fields.every((field) => typeof value[field] === "string");
 }
