@@ -73,7 +73,16 @@ jobs:
   apply:
     # Spelled out rather than "not a pull_request": the scheduled drift run is
     # also not a pull request, and must never reach an apply.
-    if: vars.TERRAFORM_ENABLED == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    #
+    # A manual dispatch must be on main. `auto_approve` is true for dispatch
+    # because there is no reviewed plan to compare against, so allowing any ref
+    # would let a feature branch apply its own configuration with the production
+    # token, skipping review; the production environment has no protection rules
+    # to catch that. Push-to-main keeps the compare-against-the-PR-comment check.
+    if: >-
+      vars.TERRAFORM_ENABLED == 'true' &&
+      (github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -115,5 +124,6 @@ jobs:
       - name: Fail on drift
         if: steps.plan.outputs.changes == 'true'
         run: |
-          echo "::error::Terraform drift: the live zone no longer matches tools/deploy/cloudflare/terraform. Read the plan above, then either revert the dashboard change or land the change in a reviewed pull request."
+          echo "::error::Terraform drift: the live zone no longer matches tools/deploy/cloudflare/terraform." \
+            "Read the plan above, then either revert the dashboard change or land the change in a reviewed pull request."
           exit 1

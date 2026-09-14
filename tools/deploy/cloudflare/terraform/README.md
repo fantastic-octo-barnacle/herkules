@@ -5,12 +5,11 @@ only** — zone TLS settings and Cloudflare Access are deliberately out of scope
 (see "Scope" below and [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md)
 for the full research and reasoning, including the agreed phase order in §8).
 
-**Status: committed, not yet adopted.** The records have not been imported, there
-is no remote backend, and `TERRAFORM_ENABLED` is unset, so
-`.github/workflows/terraform.yml` is inert. The zone itself is **live**, so read
-"Adopting the live zone" below before running anything, and do not run `apply`
-until a plan comes back empty. Adoption is the next step, not something already
-done.
+**Status: adopted, on remote state, CI not yet enabled.** The twelve records are
+imported, state lives in the R2 backend (`backend.tf`), and `terraform plan`
+reports "No changes". Only the `TERRAFORM_ENABLED` repository variable is
+outstanding, so `.github/workflows/terraform.yml` is still inert. The zone itself
+is **live**: read "Adopting the live zone" before re-running any part of it.
 
 ## Scope
 
@@ -118,9 +117,14 @@ directory, so init first.
 cd tools/deploy/cloudflare/terraform
 terraform init
 
-# 1. The zone ID: the right-hand column of the zone's Overview page in the
-#    dashboard, or ask the config's own lookup:
-ZONE_ID=$(terraform console <<< 'data.cloudflare_zone.this.id' | tr -d '"')
+# 1. The zone ID. The dashboard shows it on the zone's Overview page, or read it
+#    from the API with the same token:
+ZONE_ID=$(curl -fsS -H "Authorization: Bearer $TF_VAR_api_token" \
+  "https://api.cloudflare.com/client/v4/zones?name=herkules.dev" \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["result"][0]["id"])')
+#    `terraform console` cannot do this step: with an empty state it evaluates the
+#    data source as "(known after apply)" instead of reading it, so it returns no
+#    ID at all.
 
 # 2. Generate the import blocks. Read-only against Cloudflare.
 cf-terraforming import \
