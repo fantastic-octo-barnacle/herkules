@@ -110,28 +110,49 @@ delegated:
 
 ## Adopting the live zone
 
+This was done once, on 2026-09-14; the procedure below is how to do it again if
+state is ever lost or a second zone is added.
+
 The import blocks are generated from the live zone by Cloudflare's own tool
 rather than hand-copied, so the IDs in Git are provably the ones Cloudflare
 holds. `cf-terraforming` reads the provider schema from an initialised working
 directory, so init first.
 
+Since `backend.tf` now exists, `terraform init` initializes the R2 backend and
+therefore needs the state credentials — and `cf-terraforming` inherits that
+requirement. The original adoption could run without them because the backend
+block did not exist yet.
+
 ```sh
 cd tools/deploy/cloudflare/terraform
+
+export AWS_ACCESS_KEY_ID="$(cat ~/.config/herkules/terraform/r2-access-key-id)"
+export AWS_SECRET_ACCESS_KEY="$(cat ~/.config/herkules/terraform/r2-secret-access-key)"
+
 terraform init
 
 # 1. The zone ID. The dashboard shows it on the zone's Overview page, or read it
-#    from the API with the same token:
-ZONE_ID=$(curl -fsS -H "Authorization: Bearer $TF_VAR_api_token" \
-  "https://api.cloudflare.com/client/v4/zones?name=herkules.dev" \
+#    from the API with the same token. Hand curl the header through a config file
+#    rather than -H: a token in argv is readable by any process on the machine.
+hdr=$(mktemp); chmod 600 "$hdr"
+cat > "$hdr" <<EOF
+header = "Authorization: Bearer $TF_VAR_api_token"
+EOF
+ZONE_ID=$(curl -fsS -K "$hdr" "https://api.cloudflare.com/client/v4/zones?name=herkules.dev" \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["result"][0]["id"])')
+rm -f "$hdr"
 #    `terraform console` cannot do this step: with an empty state it evaluates the
 #    data source as "(known after apply)" instead of reading it, so it returns no
 #    ID at all.
 
-# 2. Generate the import blocks. Read-only against Cloudflare.
-cf-terraforming import \
+# 2. Generate the import blocks. Read-only against Cloudflare. cf-terraforming
+#    reads the token from the environment, keeping it out of argv. The name is the
+#    Workers release token's, which is exactly the confusion providers.tf warns
+#    about -- it is safe here only because this command is read-only and the
+#    provider itself takes api_token from TF_VAR_api_token.
+CLOUDFLARE_API_TOKEN="$TF_VAR_api_token" cf-terraforming import \
   --resource-type cloudflare_dns_record --zone "$ZONE_ID" \
-  --token "$TF_VAR_api_token" --modern-import-block \
+  --modern-import-block \
   --terraform-binary-path "$(which terraform)" --terraform-install-path . \
   > imports.tf
 ```
@@ -141,9 +162,8 @@ and the import block alone does not say which record an ID belongs to. To see
 that mapping, generate the live HCL to a scratch file and read it side by side:
 
 ```sh
-cf-terraforming generate \
+CLOUDFLARE_API_TOKEN="$TF_VAR_api_token" cf-terraforming generate \
   --resource-type cloudflare_dns_record --zone "$ZONE_ID" \
-  --token "$TF_VAR_api_token" \
   --terraform-binary-path "$(which terraform)" --terraform-install-path . \
   > "$TMPDIR/live.tf"
 ```
