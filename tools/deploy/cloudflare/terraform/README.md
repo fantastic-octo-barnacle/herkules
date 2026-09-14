@@ -1,17 +1,19 @@
-# Cloudflare DNS as code
+# Cloudflare configuration as code
 
-Terraform for the `herkules.dev` zone. **This first pass manages DNS records
-only** — zone TLS settings and Cloudflare Access are deliberately out of scope
+Terraform for the `herkules.dev` zone and the Zero Trust account that fronts it.
+**Managed today: the twelve DNS records, and the Cloudflare Access applications and
+policies.** Zone TLS settings and zone rules are deliberately still out of scope
 (see "Scope" below and [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md)
 for the full research and reasoning, including the agreed phase order in §8).
 
-**Status: adopted, on remote state, CI not yet enabled.** The twelve records are
-imported, state lives in the R2 backend (`backend.tf`), and `terraform plan`
-reports "No changes". Enabling CI needs **both** the `production` environment's
-`TF_VAR_api_token`, `TF_STATE_ACCESS_KEY_ID` and `TF_STATE_SECRET_ACCESS_KEY`
-secrets **and** the `TERRAFORM_ENABLED` repository variable; until both are in
-place, `.github/workflows/terraform.yml` is inert. The zone itself is **live**:
-read "Adopting the live zone" before re-running any part of it.
+**Status: adopted, on remote state, live in CI.** Twelve records and two Access
+applications with their two reusable policies are imported, state lives in the R2
+backend (`backend.tf`), and `terraform plan` reports "No changes". `TERRAFORM_ENABLED`
+is set, so a PR touching this directory gets a plan comment and a merge to `main`
+applies it; the `production` environment holds `TF_VAR_api_token`,
+`TF_STATE_ACCESS_KEY_ID` and `TF_STATE_SECRET_ACCESS_KEY`. The zone and the Access
+configuration are **live**: read "Adopting the live zone" before re-running any part
+of it.
 
 ## Scope
 
@@ -26,19 +28,44 @@ Managed here:
 | `_dmarc`                                         | TXT   | `v=DMARC1; p=reject; sp=reject; ...`       |
 | `*._domainkey`                                   | TXT   | `v=DKIM1; p=` (empty key, intentional)     |
 
+Access objects, adopted 2026-09-14 and described in `access.tf`:
+
+| Object              | Kind            | Where it applies                                            |
+| ------------------- | --------------- | ----------------------------------------------------------- |
+| `Herkules team`     | reusable policy | attached to `Capability Map` at precedence 1                |
+| `AI Gateway only`   | reusable policy | attached to `Herkules GPU 4090` at precedence 1             |
+| `Capability Map`    | self-hosted app | `capability-map.herkules.dev`, OIDC-only, 24h sessions      |
+| `Herkules GPU 4090` | self-hosted app | `gpu-4090.herkules.dev`, service-token only (no login page) |
+
 Deliberately not managed here, and why:
 
 - **SOA / NS records.** Cloudflare owns them; managing them risks the zone's
   delegation for no benefit.
 - **Zone SSL/TLS settings** (`ssl`, `min_tls_version`, HSTS, …). Deferred by
   decision. They stay hand-set in the dashboard for now.
-- **Cloudflare Access, R2, zone rules.** Deferred, with the order agreed in
+- **The Herkules OIDC identity provider and the `herkules-ai-gateway` service
+  token.** Both carry a `client_secret` that is marked Sensitive in the provider
+  schema but still lands in state as **plaintext**, and both must already exist in
+  the auth service's `.env.auth` and on the GPU host. Managing them would copy a
+  secret into the R2 state bucket without removing a manual step. The applications
+  reference the IdP by id (a variable) and the token through a **data source**,
+  which exposes no secret. There is also a provider bug here: the OTP login method
+  produces a recurring diff when managed
+  ([cloudflare/terraform-provider-cloudflare#5693](https://github.com/cloudflare/terraform-provider-cloudflare/issues/5693)).
+- **The Zero Trust organization.** `cloudflare_zero_trust_organization` cannot be
+  imported at all, so `is_ui_read_only` stays a manual dashboard step.
+- **R2 and zone rules.** Deferred, with the order agreed in
   [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md) §8.
 - **Worker uploads and the five Worker routes.** Permanently out of scope —
   `../release.mjs` owns them and derives their content from immutable image
   digests at release time. Two tools must never own the same resource. CI greps
   for `cloudflare_workers_*`, `cloudflare_origin_ca_certificate`, and
   `cloudflare_account_token` here and fails if one appears.
+- **Access for the VPS-hosted hostnames.** There is none to manage: no Access
+  application matches them. `ai-portal.herkules.dev` in particular answers with its
+  own `/dashboard` redirect rather than an Access challenge, so the portal's
+  authentication is New API's, not Zero Trust's. Putting it behind Access is a
+  deliberate future change, not an adoption.
 
 ## What is ours and what is not
 
@@ -59,9 +86,14 @@ delegated:
    dashboard create a token with exactly:
    - `Zone` → `DNS` → **Edit**
    - `Zone` → `Zone` → **Read**
+   - `Account` → `Access: Apps and Policies` → **Edit**
+   - `Account` → `Access: Organizations, Identity Providers, and Groups` → **Read**
+   - `Account` → `Access: Service Tokens` → **Read**
 
-   Narrow it to the `herkules.dev` zone. It needs no Workers, R2, or billing
-   permissions.
+   Narrow the zone permissions to the `herkules.dev` zone. The Access permissions
+   cannot be zone-scoped — Cloudflare's Access API is account-level, even though
+   both managed applications sit on this zone — so they are scoped to this account
+   only. It needs no Workers, R2, or billing permissions.
 
    This is a **separate variable name** from the release job's
    `CLOUDFLARE_API_TOKEN` on purpose: if both used the same name, a Terraform run
@@ -85,20 +117,32 @@ delegated:
    export TF_VAR_api_token="$(cat ~/.config/herkules/terraform/api-token)"
    ```
 
-   **Check the scope after creating or rotating it.** DNS should work and
-   everything else should be denied — each later phase widens the token on
-   purpose, so a 200 where a 403 is expected means the token is too broad:
+   **Check the scope after creating or rotating it.** DNS and Access should work and
+   everything else should be denied — each later phase widens the token on purpose,
+   so a 200 where a 403 is expected means the token is too broad:
 
-   | Endpoint                              | Expected                           |
-   | ------------------------------------- | ---------------------------------- |
-   | `GET /zones/<zone>/dns_records`       | `200`                              |
-   | `GET /zones/<zone>/settings`          | `403` — Phase C adds Zone Settings |
-   | `GET /zones/<zone>/rulesets`          | `403` — Phase D adds rules         |
-   | `GET /zones/<zone>/workers/routes`    | `403` — `release.mjs` owns these   |
-   | `GET /accounts/<account>/access/apps` | `403` — Phase B adds Access        |
-   | `GET /accounts/<account>/r2/buckets`  | `403` — never granted              |
+   | Endpoint                                            | Expected                                |
+   | --------------------------------------------------- | --------------------------------------- |
+   | `GET /zones/<zone>/dns_records`                     | `200`                                   |
+   | `GET /accounts/<account>/access/apps`               | `200` — Phase B                         |
+   | `GET /accounts/<account>/access/identity_providers` | `200` — Phase B                         |
+   | `GET /accounts/<account>/access/service_tokens`     | `200` — Phase B                         |
+   | `GET /accounts/<account>/access/organizations`      | `200` — Phase B                         |
+   | `GET /zones/<zone>/settings`                        | `403` — Phase C adds Zone Settings      |
+   | `GET /zones/<zone>/rulesets`                        | `403` — Phase D adds rules              |
+   | `GET /zones/<zone>/workers/routes`                  | `403` — `release.mjs` owns these        |
+   | `GET /accounts/<account>/workers/scripts`           | `403` — `release.mjs` owns these        |
+   | `GET /accounts/<account>/r2/buckets`                | `403` — never granted                   |
+   | `GET /zones/<other-zone>/dns_records`               | `403` — every other zone in the account |
 
-   Verified on 2026-09-14 against the production token.
+   Two notes from the 2026-09-14 re-verification. `GET /zones` with no filter lists
+   **all five** zones in the account, while `dns_records` and `settings` on the other
+   four are `403`: the zone list is metadata, not reach, and is worth knowing before
+   a config mistake is assumed to be contained by the token. `origin_ca_certificates`
+   answers `400` rather than `403` (an unimplemented route), which is inconclusive
+   either way; Origin CA stays never-granted by policy.
+
+   Verified on 2026-09-14 against the production token, after the Phase B widening.
 
 2. **Terraform >= 1.10** and **cf-terraforming**:
 
@@ -223,6 +267,59 @@ removed after the twelve records were adopted. The IDs remain recoverable from
 state with `terraform output dns_record_ids`, and the file itself can be
 regenerated at any time with `cf-terraforming import` as above.
 
+### The Access pass (done 2026-09-14)
+
+Same procedure, two provider differences. Access is **account-scoped**, and
+`cf-terraforming` treats `--account` and `--zone` as mutually exclusive, so a run
+for Access carries only the account:
+
+```sh
+ACCOUNT_ID=23f9f907180aec40d12869704c713b18
+
+CLOUDFLARE_API_TOKEN="$TF_VAR_api_token" cf-terraforming generate \
+  --resource-type cloudflare_zero_trust_access_application,cloudflare_zero_trust_access_policy \
+  --account "$ACCOUNT_ID" \
+  --terraform-binary-path "$(which terraform)" --terraform-install-path . \
+  > "$TMPDIR/live-access.tf"
+```
+
+Read that file; do not copy it. It emits every attribute the API returns, including
+read-only ones, and emits both `domain` and `destinations` **and** the deprecated
+`self_hosted_domains`, so it looks importable while `access.tf` is the reviewed
+shape. Four fields decide whether the plan is empty:
+
+- `self_hosted_domains` stays **unset**; `destinations` supersedes it.
+- `connection_rules = { rdp = {} }` must be present on each policy. Cloudflare
+  reports it for account-level policies with no connection restrictions, and
+  omitting it makes every plan propose an in-place update.
+- `http_only_cookie_attribute = false` must be stated. The provider defaults it to
+  `true`, so omitting it silently changes the cookie Access hands the origin.
+  `enable_binding_cookie`, `options_preflight_bypass`, and
+  `auto_redirect_to_identity = false` on the service-token application are the same
+  trap.
+- `allowed_idps` is left unset on the service-token application: the API reports an
+  empty list, and an explicit `[]` plans as a change against it.
+
+Then the four import blocks. Note the two id shapes — policies import as
+`<account_id>/<policy_id>`, applications as `accounts/<account_id>/<app_id>`:
+
+```hcl
+import {
+  to = cloudflare_zero_trust_access_policy.herkules_team
+  id = "<account_id>/<policy_id>"
+}
+
+import {
+  to = cloudflare_zero_trust_access_application.capability_map
+  id = "accounts/<account_id>/<app_id>"
+}
+```
+
+`terraform plan` must read **`4 to import, 0 to add, 0 to change, 0 to destroy`**.
+Anything else is a change to a live authentication path: reconcile the config
+instead of applying. After the apply, `terraform output access_application_ids` and
+`access_policy_ids` print the adopted IDs, and the follow-up plan must be empty.
+
 ## Credential-free checks
 
 The `terraform` job in `.github/workflows/ci.yml` runs on every PR, with no
@@ -230,11 +327,19 @@ token and no network access to Cloudflare:
 
 - `terraform fmt -check`
 - `terraform validate`
-- `terraform test` — `tests/records.tftest.hcl` under a mocked provider. It
+- `terraform test` — two files under a mocked provider. `tests/records.tftest.hcl`
   pins the record set, the mail TXT contents, that every A record is the proxied
   VPS, that there are no AAAA records, and the automatic TTL.
+  `tests/access.tftest.hcl` pins the Access set, that every application reaches its
+  destination through `destinations`, that each attached policy is a _reference_
+  with an id rather than an inline copy, that `capability-map` stays OIDC-only, and
+  that `gpu-4090` stays service-token-only.
 - a grep that no `cloudflare_workers_*`, `cloudflare_origin_ca_certificate`, or
-  `cloudflare_account_token` resource has crept in.
+  `cloudflare_account_token` resource has crept in, and that neither
+  `cloudflare_zero_trust_access_identity_provider` nor
+  `cloudflare_zero_trust_access_service_token` is declared as a **resource** — the
+  data source for the service token is expected, a resource would put a
+  `client_secret` in state.
 
 Run the same locally with `terraform fmt -check -recursive && terraform validate && terraform test`.
 
@@ -285,6 +390,27 @@ anyone spoof the domain:
 dig +short TXT herkules.dev
 dig +short TXT _dmarc.herkules.dev
 ```
+
+And the Access contract, which is what an adoption of `access.tf` can actually
+break. Capture these **before** an Access apply as well as after — the point is that
+they are unchanged:
+
+```sh
+# Identity-protected application: an anonymous request is challenged and lands on
+# the team's Cloudflare Access login page.
+curl -sI https://capability-map.herkules.dev/ | grep -iE '^(HTTP|location)'
+
+# Service-token application: an anonymous request is refused, not redirected.
+curl -s -o /dev/null -w '%{http_code}\n' https://gpu-4090.herkules.dev/
+
+# The portal is NOT behind Access: this answers with the portal's own redirect.
+curl -sI https://ai-portal.herkules.dev/ | grep -iE '^(HTTP|location)'
+```
+
+Expected on 2026-09-14: `302` to `hxyulin.cloudflareaccess.com/cdn-cgi/access/login/capability-map.herkules.dev`,
+`403`, and a `302` to `https://ai-portal.herkules.dev/dashboard` respectively. A
+`302` on the second line, or an Access challenge on the third, means the adoption
+changed which hostnames Zero Trust protects.
 
 ## State
 
