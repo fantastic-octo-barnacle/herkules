@@ -1,10 +1,11 @@
 # Terraform for Cloudflare
 
-Research and proposed plan for bringing `herkules.dev`'s Cloudflare
-configuration under Terraform. Status: **DNS records implemented** in
-[`tools/deploy/cloudflare/terraform/`](../tools/deploy/cloudflare/terraform/README.md);
-zone settings and Access are the next passes. §1–§2 and §6 are the research
-this rested on; §3–§5 and §7 are the decisions.
+Research and plan for bringing `herkules.dev`'s Cloudflare configuration under
+Terraform. Status: **DNS records imported 2026-09-14** into local state from
+[`tools/deploy/cloudflare/terraform/`](../tools/deploy/cloudflare/terraform/README.md),
+and the follow-up plan reports "No changes". State is still local: the R2 backend,
+the CI secrets, and `TERRAFORM_ENABLED` are the remaining Phase A items. §1–§2 and
+§6 are the research; §3–§5 and §7 are the decisions; §8 is the agreed phase plan.
 
 Provider facts below were read from the official provider's own documentation at
 tag `v5.25.0`, not from memory.
@@ -119,11 +120,23 @@ which is what makes adoption of our live zone safe. The one oddity: for
   SHA-256 of the token's `value`). Both the token value and the derived secret
   land in state. Our `.env.backup` deliberately never leaves the box, so we keep
   R2 credentials out of Terraform entirely.
-- **The Access application resource owns its app-scoped policies inline**, and
-  `cloudflare_access_policy` is no longer standalone for them. Cloudflare's
-  migration guide carries an explicit warning that a half-migrated config will
-  **detach then garbage-collect live policies**. Another reason Access is a
-  separate, later piece of work rather than a first step.
+- **Access policies: pick one pattern per application, never both.**
+  `cloudflare_zero_trust_access_policy` is still standalone — it takes
+  `application_id` (immutable, and it requires `precedence`) — and the
+  application's `policies` field is the alternative, a list of reusable policy
+  IDs. The provider's warning is specifically about mixing the two: _"Do not use
+  this field while you still have this application ID referenced as
+  `application_id` in any `cloudflare_access_policy` resource, as it can result
+  in an inconsistent state."_ Standalone policies import as
+  `account/<account_id>/<application_id>/<policy_id>`.
+
+  **Corrected 2026-09-14.** An earlier draft of this document claimed the
+  application resource owns its app-scoped policies inline and that
+  `cloudflare_access_policy` is "no longer standalone". Re-read against the
+  provider's own v5 resource docs, that is not what they say, and the difference
+  matters: the standalone resource is what makes the Access pass importable
+  without the detach-then-garbage-collect hazard the old text warned about.
+
 - **`self_hosted_domains` is deprecated** on Access applications in favour of
   `destinations`. New config should use `destinations`.
 - **Two resources cannot be imported at all**: `cloudflare_zero_trust_organization`
@@ -140,7 +153,13 @@ which is what makes adoption of our live zone safe. The one oddity: for
   only in generated schema — never in an example.
 - Terraform state stores values in **plaintext**, including anything not marked
   sensitive. A `Sensitive` marker only redacts CLI output; it does not remove the
-  value from state. That is the main reason to keep secrets and certs out of scope.
+  value from state. That is the main reason to keep secrets and certs out of
+  scope. It also fixes the shape of the Access pass: the OIDC identity provider's
+  `config.client_secret` and a service token's `client_secret` are both marked
+  `Sensitive` and both land in state, while the same two values must already
+  exist in `.env.auth` and on the GPU host. Managing those objects would duplicate
+  a secret without removing a manual step, so §8 keeps them out and references
+  them by ID.
 
 ## 3. Scope decision
 
@@ -161,7 +180,11 @@ Three things only became visible from the export and are worth recording:
 - `www` was created by a Cloudflare **Redirect Rule template**, and its redirect
   is a zone ruleset, not a DNS record. Adopting the record does not touch the
   rule, but deleting the record would break it.
-- `capability-map` was not previously documented anywhere in the repo.
+- `capability-map` was not previously documented anywhere in the repo. It is
+  another service on the same GPU host, published through the same tunnel and
+  placed behind **Cloudflare Access with the Herkules OIDC login method**, so it
+  is a third Access application for §8 Phase B — an identity policy, not the
+  service token that `gpu-4090` uses.
 - The mail TXT records are genuinely load-bearing — `-all` plus `p=reject` is
   what prevents domain spoofing — which is the strongest single argument for
   putting DNS under version control with `prevent_destroy`.
@@ -176,11 +199,14 @@ deliberately asserts nothing about them.
    the "Full (strict)" contract the VPS and the Origin CA cert depend on. Today
    nothing catches a dashboard toggle that silently breaks it. Deferred only to
    keep the first apply small.
-2. **Cloudflare Access** — the OIDC identity provider, the apps, and the
-   policies for `gpu-4090.herkules.dev` and the AI portal. The most valuable
-   long-term item: Access policy is security-relevant, hand-edited, and
-   currently undocumented in the repo as code. Note the v5 inline-policy
-   migration trap documented in §2.
+2. **Cloudflare Access** — the applications and policies for
+   `gpu-4090.herkules.dev`, `ai-portal.herkules.dev`, and the other service on
+   the GPU host. The most valuable long-term item: Access policy is
+   security-relevant, hand-edited, and currently undocumented in the repo as
+   code. **§8 takes this before zone settings**, in the reduced shape described
+   there — the IdP and the service token stay hand-made, because managing them
+   would copy their secrets into state. See §2 for the policy/`application_id`
+   rule.
 
 ### Adopt later, if it earns its place
 
@@ -271,7 +297,10 @@ operations](https://developers.cloudflare.com/r2/api/s3/api/) (`If-Match`,
 `If-None-Match`) ✅. So `use_lockfile = true` works without DynamoDB — which
 matters, because R2 has no DynamoDB.
 
-Sketch (to be validated with a real `init` and `plan` before we rely on it):
+Sketch (to be validated with a real `init` and `plan` before we rely on it).
+Cloudflare's own remote-backend page still labels its snippets v4-only and puts
+the access keys inside the backend block; keep the keys in `AWS_*` environment
+variables and treat the S3 backend's own option names as authoritative:
 
 ```hcl
 terraform {
@@ -282,10 +311,15 @@ terraform {
 
     endpoints = { s3 = "https://<account-id>.r2.cloudflarestorage.com" }
 
-    # Required for R2 — disables S3-specific client-side validation.
+    # Required for R2. All six appear on Cloudflare's own remote-backend page;
+    # an earlier draft of this sketch was missing the middle three, and init can
+    # fail against R2 without them.
     skip_credentials_validation = true
+    skip_metadata_api_check     = true
     skip_region_validation      = true
     skip_requesting_account_id  = true
+    skip_s3_checksum            = true
+    use_path_style              = true
 
     use_lockfile = true
   }
@@ -430,6 +464,103 @@ Still needed before the first apply:
 
 Zone settings are now a _next_ item, so the "which settings are non-default"
 question moves to that pass rather than this one.
+
+## 8. Phase plan
+
+Agreed 2026-09-14, after inventorying every Cloudflare dependency in the
+repository (§1) and re-reading the provider's resource docs. Phases are lettered
+so they cannot be confused with the §3 numbering.
+
+### Phase A — finish the DNS adoption
+
+The module is committed but nothing is live: no imports, no remote state, and
+`TERRAFORM_ENABLED` unset, so `terraform.yml` is still inert. Nothing else can be
+applied until this closes.
+
+1. Import the twelve records per
+   [`terraform/README.md`](../tools/deploy/cloudflare/terraform/README.md). Do not
+   apply until the plan reads `12 to import, 0 to change, 0 to destroy`, then a
+   second plan reads `No changes`.
+2. Create the private `herkules-tfstate` bucket and a bucket-scoped R2 token, add
+   the §4 backend block, and `terraform init -migrate-state`.
+3. Set `TF_VAR_api_token`, `TF_STATE_ACCESS_KEY_ID`, and
+   `TF_STATE_SECRET_ACCESS_KEY` in the `production` environment, then flip
+   `TERRAFORM_ENABLED`.
+4. **Add a scheduled plan** to `.github/workflows/terraform.yml` (weekly is
+   enough) that fails on a non-empty plan. Codifying hand-set configuration only
+   pays off if a dashboard change is noticed; without this, drift surfaces only
+   when someone happens to edit the directory.
+5. Extend the CI ownership grep beyond `cloudflare_workers_*` to also reject
+   `cloudflare_origin_ca_certificate` and `cloudflare_account_token`.
+
+Token: unchanged — DNS Read, DNS Write, Zone Read.
+
+### Phase B — Access applications and policies
+
+- `access.tf` manages **applications and policies only**. Reference the existing
+  OIDC identity provider and service token by ID from variables; do not manage
+  the objects that carry the `Sensitive`-but-plaintext `client_secret` (§2).
+- Use standalone `cloudflare_zero_trust_access_policy` with `application_id` and
+  `precedence`; never also fill the application's `policies` field (§2).
+- Use `destinations`, not the deprecated `self_hosted_domains`.
+- `terraform test` invariants: every managed application has at least one `allow`
+  policy; the worker application's policy includes the service token; no
+  application uses `self_hosted_domains`.
+- The Zero Trust organization resource cannot be imported (§2), so
+  `is_ui_read_only` — the setting that would actually stop dashboard drift —
+  stays a documented manual step.
+
+Coverage: `gpu-4090.herkules.dev` (service-auth policy for the inference worker),
+`ai-portal.herkules.dev`, and `capability-map.herkules.dev` — another service on
+the same GPU machine, confirmed to sit behind Zero Trust with the Herkules OIDC
+login method, so its policy is identity-based rather than a service token.
+
+Token: add Zero Trust (account-scoped).
+
+### Phase C — zone TLS and security settings
+
+- `zone-settings.tf`, one `cloudflare_zone_setting` per setting behind a
+  `for_each` map. Import each `setting_id` first and gate on an empty plan.
+- Candidates: `ssl = "strict"`, `min_tls_version`, `tls_1_3`, `always_use_https`,
+  `automatic_https_rewrites`, `opportunistic_encryption`, `security_header`
+  (HSTS), `brotli`, `http2`/`http3`, `browser_check`.
+- HSTS is sticky in browsers, so its max-age, `include_subdomains`, and `preload`
+  values are a deliberate decision rather than a copied default.
+- `terraform test` asserts `ssl = "strict"`, a minimum TLS floor, and HSTS.
+
+Token: add Zone Settings Read/Write.
+
+### Phase D — zone rules
+
+- Adopt the `www` → apex redirect as an `http_request_dynamic_redirect` ruleset:
+  the record is managed but the redirect it feeds is not.
+- Codify the `ai.herkules.dev` exception that
+  [`tools/ai/README.md`](../tools/ai/README.md) requires by hand — bypass caching
+  and interactive browser challenges on the API hostname — while leaving the
+  worker's Access policy on `gpu-4090` untouched.
+
+Token: add Zone WAF / Cache Rules Write.
+
+### Later, if it earns its place
+
+- `cloudflare_r2_bucket` for the backup bucket's definition, and
+  `cloudflare_r2_bucket_lifecycle` to move the 30-day retention from the box's
+  `rclone --min-age` to server-side expiry. Verify that resource's schema first.
+- Zone cache rules: none needed. Caching is owned by Caddy and the asset Workers.
+
+### Not Terraform
+
+Unchanged from §3, with the tunnel made explicit: Worker uploads and the five
+routes, the Origin CA certificate and key, R2 S3 credentials, and the tunnel's
+remote configuration. The last would fight `dns.tf` for the two tunnel CNAMEs, so
+the DNS records stay the one owner.
+
+### Adjacent, not Terraform
+
+`Caddyfile` pins Cloudflare's published proxy ranges by hand, and the client-IP
+trust chain depends on them. A CI check comparing the checked-in list against
+`https://www.cloudflare.com/ips-v4` and `ips-v6` would catch a stale list; it
+needs network access but no credentials.
 
 ## References
 

@@ -19,12 +19,20 @@ name: Terraform
 # Credential-free checks (fmt, validate, terraform test) run in ci.yml on every
 # PR and are not gated. This workflow never touches Worker routes or uploads;
 # those belong to images.yml/rollback.yml and tools/deploy/cloudflare/release.mjs.
+#
+# A third job, `drift`, runs the same plan on a weekly schedule and fails when the
+# result is non-empty. Codifying hand-set configuration only pays off if a
+# dashboard change is noticed; this is what notices it.
 on:
   pull_request:
     paths: ["tools/deploy/cloudflare/terraform/**", ".github/workflows/terraform.yml"]
   push:
     branches: [main]
     paths: ["tools/deploy/cloudflare/terraform/**", ".github/workflows/terraform.yml"]
+  schedule:
+    # Mondays 06:00 UTC. Scheduled runs ignore the `paths` filters above and have
+    # no pull request, which is why the drift job disables the plan comment.
+    - cron: "0 6 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -63,7 +71,9 @@ jobs:
           label: herkules.dev DNS
 
   apply:
-    if: vars.TERRAFORM_ENABLED == 'true' && github.event_name != 'pull_request'
+    # Spelled out rather than "not a pull_request": the scheduled drift run is
+    # also not a pull request, and must never reach an apply.
+    if: vars.TERRAFORM_ENABLED == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -81,3 +91,29 @@ jobs:
           # the one commented on the merged PR. A manual dispatch has no PR to
           # check against, so it is auto-approved; the environment still gates it.
           auto_approve: ${{ github.event_name == 'workflow_dispatch' }}
+
+  # Detects a hand-made dashboard change that has drifted away from the
+  # configuration. This is why the DNS pass exists at all: without it, drift is
+  # only ever noticed when someone happens to edit this directory.
+  drift:
+    if: vars.TERRAFORM_ENABLED == 'true' && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dflook/terraform-plan@v3
+        id: plan
+        with:
+          path: tools/deploy/cloudflare/terraform
+          label: herkules.dev DNS
+          # A scheduled run has no pull request to comment on. The plan is still
+          # printed to the workflow log by the action.
+          add_github_comment: false
+      - name: Fail on drift
+        if: steps.plan.outputs.changes == 'true'
+        run: |
+          echo "::error::Terraform drift: the live zone no longer matches tools/deploy/cloudflare/terraform. Read the plan above, then either revert the dashboard change or land the change in a reviewed pull request."
+          exit 1

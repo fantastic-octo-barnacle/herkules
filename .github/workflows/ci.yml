@@ -88,11 +88,23 @@ jobs:
       - uses: dflook/terraform-test@v3
         with:
           path: ${{ env.TERRAFORM_DIR }}
-      # Worker uploads and routes belong to release.mjs; two tools must never own
-      # the same resource. Permanent boundary, see tools/deploy/cloudflare/README.md.
-      - name: Worker resources stay out of Terraform
+      # Three things are owned elsewhere and must never appear here: Worker
+      # uploads and routes belong to release.mjs (tools/deploy/cloudflare/README.md),
+      # the Origin CA key and the R2 S3 credentials belong to the box. Two tools
+      # must never own the same resource; see docs/cloudflare-terraform.md §2–§3.
+      - name: Out-of-scope resources stay out of Terraform
         run: |
-          if grep -rn 'cloudflare_workers_' "$TERRAFORM_DIR" --include='*.tf'; then
-            echo "::error::Worker resources are owned by release.mjs, not Terraform."
+          if grep -rnE 'cloudflare_(workers_|origin_ca_certificate|account_token)' \
+              "$TERRAFORM_DIR" --include='*.tf'; then
+            echo "::error::Worker uploads/routes, Origin CA, and account tokens are owned outside Terraform."
+            exit 1
+          fi
+      # imports.tf is an adoption-only artifact. `terraform test` runs under a
+      # mock provider, which cannot import, so committing it fails the test step
+      # above with a cryptic message. Fail here instead, and say why.
+      - name: Adoption-only import blocks stay out
+        run: |
+          if [ -e "$TERRAFORM_DIR/imports.tf" ]; then
+            echo "::error::imports.tf is needed only for the first apply and breaks terraform test. Delete it before committing."
             exit 1
           fi
