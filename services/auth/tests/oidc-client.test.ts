@@ -8,7 +8,7 @@
  * Better Auth's provider plugin, v1 falls back to GitHub OAuth in PocketBase.
  */
 import { createHash, randomBytes } from "node:crypto";
-import { decodeJwt } from "jose";
+import { decodeJwt, decodeProtectedHeader, createLocalJWKSet, jwtVerify } from "jose";
 import { afterAll, beforeAll, describe, expect, test } from "vite-plus/test";
 import { createTestService, type TestService } from "../src/testing.ts";
 
@@ -91,6 +91,16 @@ describe("the seeded beszel OIDC client", () => {
     expect(typeof tokens.id_token).toBe("string");
     expect(tokens.refresh_token).toBeUndefined(); // authorization_code only
     const id = decodeJwt(tokens.id_token as string);
+    expect(decodeProtectedHeader(tokens.id_token as string).alg).toBe("ES256");
+    await jwtVerify(
+      tokens.id_token as string,
+      createLocalJWKSet(await t.service.auth.api.getJwks()),
+      {
+        issuer: t.issuer,
+        audience: "beszel",
+        algorithms: ["ES256"],
+      },
+    );
     expect(id.iss).toBe(t.issuer);
     expect(id.aud).toBe("beszel");
     expect(typeof id.sub).toBe("string");

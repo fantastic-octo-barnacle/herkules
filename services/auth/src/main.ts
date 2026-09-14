@@ -22,6 +22,7 @@ import { createGithubApi } from "./github.ts";
 import { buildRegistry, RESOURCE_SPECS, type ResourceSpec } from "./registry.ts";
 import type { Users } from "./users.ts";
 import { createUsers } from "./users.ts";
+import { ensureSigningKeys } from "./signing.ts";
 
 export interface ServiceDeps {
   readonly env?: NodeJS.ProcessEnv;
@@ -83,7 +84,7 @@ export async function createService(deps: ServiceDeps = {}) {
   await users.reconcileEnvAdmins(); // seed, never demote
   const bearer = createBearer(auth, registry, config.issuer, db);
   await ensureFirstPartyClients(db, config, now);
-  await auth.api.getJwks(); // creates the first signing key at boot, not on the first token request
+  await ensureSigningKeys(auth, config.issuer);
 
   const prune = () =>
     pruneIdleClients(

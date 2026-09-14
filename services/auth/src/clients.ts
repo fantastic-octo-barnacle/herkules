@@ -220,6 +220,20 @@ export const FIRST_PARTY_CLIENTS = [
     // This exception is restricted to this confidential client and its exact callback.
     requirePKCE: false,
   },
+  {
+    clientId: "cloudflare-access",
+    name: "Cloudflare Access",
+    redirectUris: (c) =>
+      c.CLOUDFLARE_TEAM_NAME
+        ? [`https://${c.CLOUDFLARE_TEAM_NAME}.cloudflareaccess.com/cdn-cgi/access/callback`]
+        : [],
+    skipConsent: true,
+    tokenEndpointAuthMethod: "client_secret_basic",
+    applicationType: "web",
+    grantTypes: ["authorization_code"],
+    requirePKCE: true,
+    secret: (c) => c.CLOUDFLARE_CLIENT_SECRET,
+  },
 ] as const satisfies readonly FirstPartyClient[];
 
 /** True for the first-party dev-token client, read from the oauthClient.metadata the token callbacks receive. */
