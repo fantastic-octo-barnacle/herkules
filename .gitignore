@@ -18,6 +18,22 @@ dist-ssr
 .env.*
 !.env.example
 
+# Terraform (tools/deploy/cloudflare/terraform). State can hold record contents
+# and, at any later scope, secrets -- never commit it. The dependency lock file
+# is deliberately NOT ignored: it pins provider versions and must be committed.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/settings.json

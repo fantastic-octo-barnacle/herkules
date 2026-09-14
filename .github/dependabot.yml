@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # Bumps the Cloudflare provider in .terraform.lock.hcl; the ~> 5.25 constraint
+  # in versions.tf still bounds what it may propose.
+  - package-ecosystem: terraform
+    directory: /tools/deploy/cloudflare/terraform
+    schedule:
+      interval: weekly
