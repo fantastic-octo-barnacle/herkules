@@ -1,10 +1,11 @@
 name: Terraform
 
-# DNS-as-code for the herkules.dev zone (tools/deploy/cloudflare/terraform).
+# Cloudflare-as-code for the herkules.dev zone and the Zero Trust account that
+# fronts it (tools/deploy/cloudflare/terraform): the DNS records, and the Access
+# applications and policies.
 #
 # This workflow is INERT until the repository variable TERRAFORM_ENABLED is set
-# to 'true'. Until then it does not run at all, so merging it changes nothing
-# about the deploy path. Enable it only after:
+# to 'true'. It is now enabled. Enablement required:
 #   1. the records import cleanly with an empty plan (tools/deploy/cloudflare/terraform/README.md),
 #   2. state has been moved to the R2 remote backend (the same commit that adds
 #      the backend block should flip the flag), and
@@ -89,7 +90,7 @@ jobs:
       - uses: dflook/terraform-plan@v3
         with:
           path: tools/deploy/cloudflare/terraform
-          label: herkules.dev DNS
+          label: herkules.dev Cloudflare
 
   apply:
     # Spelled out rather than "not a pull_request": the scheduled drift run is
@@ -116,7 +117,7 @@ jobs:
       - uses: dflook/terraform-apply@v3
         with:
           path: tools/deploy/cloudflare/terraform
-          label: herkules.dev DNS
+          label: herkules.dev Cloudflare
           # On a push to main the action applies only if its fresh plan matches
           # the one commented on the merged PR. A manual dispatch has no PR to
           # check against, so it is auto-approved; the environment still gates it.
@@ -138,7 +139,7 @@ jobs:
         id: plan
         with:
           path: tools/deploy/cloudflare/terraform
-          label: herkules.dev DNS
+          label: herkules.dev Cloudflare
           # A scheduled run has no pull request to comment on. The plan is still
           # printed to the workflow log by the action.
           add_github_comment: false

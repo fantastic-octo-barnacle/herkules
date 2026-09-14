@@ -9,12 +9,25 @@
 #
 # Required environment:
 #
-#   TF_VAR_api_token   a token scoped to this zone only:
-#                        Zone -> DNS -> Edit        (DNS Read + DNS Write)
-#                        Zone -> Zone -> Read       (resolving the zone ID)
+#   TF_VAR_api_token   a token scoped to this zone for DNS, and to this account for
+#                      Access (the Access API is account-scoped, so it cannot be
+#                      zone-scoped even though both applications are on the zone):
+#                        Zone    -> DNS -> Edit                  (DNS Read + DNS Write)
+#                        Zone    -> Zone -> Read                 (resolving the zone ID)
+#                        Account -> Access: Apps and Policies -> Edit
+#                        Account -> Access: Organizations, Identity Providers,
+#                                   and Groups -> Read
+#                        Account -> Access: Service Tokens -> Read
+#
+#                      The IdP/organization read is granted but not called by this
+#                      configuration: a traced plan touches only access/apps,
+#                      access/policies, and access/service_tokens. It is kept for
+#                      the org/IdP hardening pass in docs/cloudflare-terraform.md
+#                      §8; README.md records it as the first thing to drop.
 #
 # It must not carry Workers, R2, or billing permissions. Cloudflare API tokens are
-# the supported credential; API keys are legacy.
+# the supported credential; API keys are legacy. Each phase widens the token on
+# purpose and README.md carries the probe matrix that proves the rest is denied.
 provider "cloudflare" {
   api_token = var.api_token
 }
