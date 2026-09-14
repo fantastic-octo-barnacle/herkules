@@ -84,6 +84,21 @@ delegated:
    export TF_VAR_api_token="$(cat ~/.config/herkules/terraform/api-token)"
    ```
 
+   **Check the scope after creating or rotating it.** DNS should work and
+   everything else should be denied — each later phase widens the token on
+   purpose, so a 200 where a 403 is expected means the token is too broad:
+
+   | Endpoint                              | Expected                           |
+   | ------------------------------------- | ---------------------------------- |
+   | `GET /zones/<zone>/dns_records`       | `200`                              |
+   | `GET /zones/<zone>/settings`          | `403` — Phase C adds Zone Settings |
+   | `GET /zones/<zone>/rulesets`          | `403` — Phase D adds rules         |
+   | `GET /zones/<zone>/workers/routes`    | `403` — `release.mjs` owns these   |
+   | `GET /accounts/<account>/access/apps` | `403` — Phase B adds Access        |
+   | `GET /accounts/<account>/r2/buckets`  | `403` — never granted              |
+
+   Verified on 2026-09-14 against the production token.
+
 2. **Terraform >= 1.7** and **cf-terraforming**:
 
    ```sh
