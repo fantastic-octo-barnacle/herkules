@@ -66,23 +66,21 @@ jobs:
       github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # The three secrets live in the production environment, which has no
-    # protection rules, so this job hands them to code from a pull-request branch
-    # in this repository before that code has been reviewed. A fork PR cannot
-    # reach them at all, and Dependabot is excluded above, but a collaborator's
-    # branch can. Two ways to close that, and neither is free:
+    # Secrets notice. This repository is private and cannot be forked by anyone
+    # without access to it, and fork PRs and Dependabot are excluded by the
+    # condition above, so the only way to reach these secrets through this job is
+    # to be a collaborator who can push a branch here.
     #
-    #   1. Required reviewers on the environment. Strongest, but then every PR
-    #      plan *and* every apply waits for a human. Moving this job to a separate
-    #      unprotected environment with the same three secrets would not help --
-    #      it would hand them out exactly the same way.
-    #   2. Read-only credentials for this job only (Zone DNS Read, R2 Object Read)
-    #      plus TF_CLI_ARGS_plan=-lock=false, which is safe here because the
-    #      concurrency group below already serialises plan and apply. Exfiltration
-    #      would still leak read-only access to the zone and the state.
+    # That is not a hard boundary: a write-access collaborator could reach the
+    # same secrets by pushing a modified workflow to main, because branch
+    # protection is unavailable for a private repository on the Free plan. Both
+    # controls that would close it -- protected branches and required reviewers on
+    # this environment -- need a paid plan; GitHub rejects the latter here with
+    # "Please ensure the billing plan supports the required reviewers protection
+    # rule" (HTTP 422, checked 2026-09-14). If the repository ever moves to Pro,
+    # add required reviewers to `production` first, then protected branches.
     #
-    # Until one of those is chosen the exposure is a deliberate, recorded
-    # trade-off rather than an oversight. See docs/cloudflare-terraform.md §6.
+    # Recorded and accepted, not overlooked. See docs/cloudflare-terraform.md §6.
     environment: production
     steps:
       - uses: actions/checkout@v6
@@ -100,8 +98,8 @@ jobs:
     # A manual dispatch must be on main. `auto_approve` is true for dispatch
     # because there is no reviewed plan to compare against, so allowing any ref
     # would let a feature branch apply its own configuration with the production
-    # token, skipping review; the production environment has no protection rules
-    # to catch that. Push-to-main keeps the compare-against-the-PR-comment check.
+    # token, skipping review. Push-to-main keeps the compare-against-the-PR-comment
+    # check. See the secrets notice on the plan job above.
     if: >-
       vars.TERRAFORM_ENABLED == 'true' &&
       (github.event_name == 'push' ||
