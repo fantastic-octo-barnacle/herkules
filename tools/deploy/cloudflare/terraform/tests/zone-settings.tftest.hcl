@@ -1,0 +1,87 @@
+# Credential-free invariants for the zone TLS and security settings, run by
+# `terraform test` in the normal CI job next to the records and Access files.
+#
+# The provider is mocked, so nothing here talks to Cloudflare. The authoritative
+# check that each setting individually matches the live zone is `terraform plan`
+# converging to no changes after import; these assertions guard the properties a
+# refactor could quietly drop -- which for a TLS setting means an outage or a
+# downgrade nobody notices.
+
+mock_provider "cloudflare" {}
+
+variables {
+  api_token = "unused-under-mock-provider"
+}
+
+run "settings" {
+  command = plan
+
+  # The adopted set: nine string settings, no more. Dropping one takes it out of
+  # management without changing it (this resource's Delete is a no-op), which is
+  # silent drift; adding one widens the pass beyond what was reviewed.
+  assert {
+    condition = keys(cloudflare_zone_setting.string) == [
+      "always_use_https", "automatic_https_rewrites", "brotli", "browser_check",
+      "http3", "min_tls_version", "opportunistic_encryption", "ssl", "tls_1_3",
+    ]
+    error_message = "The managed zone-setting set changed. Update this list only alongside a reviewed TLS change."
+  }
+
+  # The three settings that are the contract with the VPS and the Origin CA cert.
+  assert {
+    condition     = cloudflare_zone_setting.string["ssl"].value == "strict"
+    error_message = "SSL must stay strict (full end-to-end validation of the Origin CA cert)."
+  }
+  assert {
+    condition     = cloudflare_zone_setting.string["tls_1_3"].value == "on"
+    error_message = "TLS 1.3 must stay enabled."
+  }
+  assert {
+    condition = alltrue([
+      for id in ["always_use_https", "automatic_https_rewrites", "opportunistic_encryption"] :
+      cloudflare_zone_setting.string[id].value == "on"
+    ])
+    error_message = "Plain-HTTP requests and mixed content must keep being rewritten or redirected."
+  }
+
+  # The floor is the *adopted* value, which is 1.0 and is not good enough: raising
+  # it to 1.2 is a documented hardening change, not part of an adoption pass. This
+  # assertion exists so that a silent downgrade to something below 1.0 -- which the
+  # API would accept -- is not possible; it is deliberately not a floor test yet.
+  assert {
+    condition     = contains(["1.0", "1.1", "1.2", "1.3"], cloudflare_zone_setting.string["min_tls_version"].value)
+    error_message = "min_tls_version must stay one of the versions Cloudflare accepts."
+  }
+
+  assert {
+    condition = alltrue([
+      for id in ["brotli", "http3", "browser_check"] :
+      cloudflare_zone_setting.string[id].value == "on"
+    ])
+    error_message = "Brotli, HTTP/3 and Browser Integrity Check must stay enabled."
+  }
+
+  # `http2` is reported not editable on this plan. Managing it would fail at apply,
+  # so its absence is the invariant.
+  assert {
+    condition     = !contains(keys(cloudflare_zone_setting.string), "http2")
+    error_message = "http2 is not editable on this plan and must not be managed."
+  }
+
+  # HSTS is off live and the config preserves that, with every field stated: a
+  # dropped `enabled = false` or a defaulted `max_age` would change what browsers
+  # remember for a year or more.
+  assert {
+    condition = (
+      cloudflare_zone_setting.hsts.setting_id == "security_header" &&
+      cloudflare_zone_setting.hsts.value.strict_transport_security == {
+        enabled            = false
+        max_age            = 0
+        include_subdomains = false
+        preload            = false
+        nosniff            = false
+      }
+    )
+    error_message = "security_header must stay the adopted (disabled) object, with every field stated."
+  }
+}
