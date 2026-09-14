@@ -34,6 +34,9 @@ env:
 
 jobs:
   rollback:
+    # Production scripts must come from main, even for a manual rollback.
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     environment:
       name: production

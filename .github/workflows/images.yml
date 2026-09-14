@@ -13,10 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
-  deployments: write
-  packages: write
 
 env:
   BUILD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -25,7 +22,20 @@ env:
 
 jobs:
   changes:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      deployments: read
+    timeout-minutes: 10
+    # workflow_run has privileged credentials even when CI ran for a fork PR.
+    # A branch named main is insufficient: only this repository's successful
+    # push CI may supply BUILD_SHA. Manual builds must also select main.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
       targets: ${{ steps.select.outputs.targets }}
@@ -54,6 +64,11 @@ jobs:
           echo "$selection"
 
   build:
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    timeout-minutes: 45
     needs: changes
     if: needs.changes.outputs.targets != '[]'
     runs-on: ubuntu-latest
@@ -91,10 +106,12 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
-            type=gha,scope=build
-            type=gha,scope=${{ matrix.target }}
+            type=gha,scope=auth
+            type=gha,scope=bbs
+            type=gha,scope=caddy
+            type=gha,scope=ai-backend
+            type=gha,scope=backup
           cache-to: |
-            type=gha,scope=build,mode=max
             type=gha,scope=${{ matrix.target }},mode=max
       - name: Record immutable image reference
         env:
@@ -114,9 +131,15 @@ jobs:
           if-no-files-found: error
 
   release:
+    permissions:
+      actions: read
+      contents: read
+      deployments: write
+      packages: write
+    timeout-minutes: 30
     needs: [changes, build]
-    # Only main reaches production. Under workflow_run github.ref is the default branch, which
-    # the branches filter above already restricted; this guards manual runs from other branches.
+    # The changes job verifies the triggering run's event, repository and branch.
+    # github.ref alone is insufficient: workflow_run uses the default branch.
     if: >-
       always() &&
       github.ref == 'refs/heads/main' &&
