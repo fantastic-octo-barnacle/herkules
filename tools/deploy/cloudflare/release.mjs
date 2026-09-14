@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile, appendFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile, appendFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout } from "node:timers/promises";
+import { assetFiles } from "./assets.mjs";
 import { validateRelease } from "../release.mjs";
 
 export const routes = [
@@ -101,16 +102,19 @@ async function extract(image, path, target) {
   }
 }
 
-async function verifyPublic(output) {
+export async function verifyPublic(output, fetchImpl = fetch) {
   for (const [name, origin] of [
     ["platform", "https://herkules.dev"],
     ["bbs-assets", "https://bbs.herkules.dev"],
   ]) {
-    const files = await readdir(join(output, name, "assets"));
+    const files = await assetFiles(join(output, name, "assets"));
     for (const file of files) {
-      const response = await fetch(`${origin}/assets/${file}`, {
-        signal: AbortSignal.timeout(15000),
-      });
+      const response = await fetchImpl(
+        `${origin}/assets/${file.split("/").map(encodeURIComponent).join("/")}`,
+        {
+          signal: AbortSignal.timeout(15000),
+        },
+      );
       const expected = await readFile(join(output, name, "assets", file));
       if (
         !response.ok ||
@@ -121,27 +125,32 @@ async function verifyPublic(output) {
       }
     }
   }
-  const document = await fetch("https://herkules.dev/", { signal: AbortSignal.timeout(15000) });
+  const document = await fetchImpl("https://herkules.dev/", { signal: AbortSignal.timeout(15000) });
   if (
     document.headers.get("x-herkules-delivery") !== "cloudflare-assets-experiment" ||
     (await document.text()) !== (await readFile(join(output, "platform/index.html"), "utf8"))
   ) {
     throw new Error("Platform document does not match release");
   }
-  const health = await fetch("https://herkules.dev/auth/healthz", {
+  const health = await fetchImpl("https://herkules.dev/auth/healthz", {
     signal: AbortSignal.timeout(15000),
   });
   if (!health.ok || !(await health.json()).ok) throw new Error("Auth bypass failed");
-  const internal = await fetch("https://herkules.dev/auth/internal/ai-membership", {
+  const internal = await fetchImpl("https://herkules.dev/auth/internal/ai-membership", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ids: ["release-check"] }),
     signal: AbortSignal.timeout(15000),
   });
   if (internal.status !== 404) throw new Error("Internal auth route is exposed");
-  const discovery = await fetch(
+  const discovery = await fetchImpl(
     "https://herkules.dev/.well-known/oauth-authorization-server/auth",
     { signal: AbortSignal.timeout(15000) },
   );
   if (!discovery.ok || !(await discovery.json()).issuer) throw new Error("Discovery bypass failed");
-  const mcp = await fetch("https://herkules.dev/mcp/bbs", { signal: AbortSignal.timeout(15000) });
+  const mcp = await fetchImpl("https://herkules.dev/mcp/bbs", {
+    signal: AbortSignal.timeout(15000),
+  });
   if (mcp.status !== 401 || !mcp.headers.get("www-authenticate"))
     throw new Error("MCP bypass failed");
 }

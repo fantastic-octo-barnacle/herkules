@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
+import { assetFiles } from "./assets.mjs";
 import { createApi } from "../../../services/web/src/api.ts";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -60,7 +61,7 @@ async function verify(name, port, check) {
 }
 
 async function verifyAsset(origin, name) {
-  const files = await readdir(new URL(`${name}/assets/`, directory));
+  const files = await assetFiles(fileURLToPath(new URL(`${name}/assets/`, directory)));
   for (const file of files) {
     const response = await fetch(`${origin}/assets/${file}`);
     assert.equal(response.status, 200);

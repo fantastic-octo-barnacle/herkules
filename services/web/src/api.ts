@@ -153,9 +153,22 @@ export function createApi(fetchImpl: Fetch = (...args) => globalThis.fetch(...ar
       if (
         !isRecord(value) ||
         !isRecord(value.user) ||
-        typeof value.user.id !== "string" ||
+        !stringFields(value.user, [
+          "id",
+          "name",
+          "email",
+          "githubLogin",
+          "githubId",
+          "createdAt",
+        ]) ||
+        !(value.user.image === null || typeof value.user.image === "string") ||
+        !(
+          value.user.role === undefined ||
+          value.user.role === null ||
+          typeof value.user.role === "string"
+        ) ||
         !isRecord(value.session) ||
-        typeof value.session.id !== "string"
+        !stringFields(value.session, ["id", "expiresAt", "createdAt"])
       ) {
         throw new ApiError(200, "invalid_response", "The API returned an invalid session.");
       }
@@ -254,4 +267,8 @@ function safeJson(text: string): unknown {
 }
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function stringFields(value: Record<string, unknown>, fields: readonly string[]): boolean {
+  return fields.every((field) => typeof value[field] === "string");
 }

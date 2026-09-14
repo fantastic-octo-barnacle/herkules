@@ -14,6 +14,7 @@ const deploymentFiles = new Set([
   "tools/deploy/apply-release.sh",
   "tools/deploy/compose.sh",
   "tools/deploy/cloudflare/release.mjs",
+  "tools/deploy/cloudflare/assets.mjs",
   "tools/deploy/cloudflare/prepare.mjs",
   "tools/deploy/cloudflare/platform.json",
   "tools/deploy/cloudflare/bbs-assets.json",

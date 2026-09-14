@@ -134,3 +134,58 @@ test("component rollback uses each selected image digest, never the release sour
   release.images.bbs = "ghcr.io/team/bbs:latest";
   assert.throws(() => imageAssets(release), /invalid/);
 });
+
+test("public verification checks nested assets and probes the actual POST-only internal endpoint", async () => {
+  const { mkdtemp, mkdir, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { verifyPublic } = await import("./release.mjs");
+  const output = await mkdtemp(join(tmpdir(), "edge-verification-"));
+  const calls = [];
+  const bytes = new Map();
+  try {
+    for (const [name, host] of [
+      ["platform", "herkules.dev"],
+      ["bbs-assets", "bbs.herkules.dev"],
+    ]) {
+      await mkdir(join(output, name, "assets/fonts"), { recursive: true });
+      for (const file of ["main.js", "fonts/team font.woff2"]) {
+        await writeFile(join(output, name, "assets", file), `${name}/${file}`);
+        bytes.set(
+          `https://${host}/assets/${file.split("/").map(encodeURIComponent).join("/")}`,
+          `${name}/${file}`,
+        );
+      }
+    }
+    await writeFile(join(output, "platform/index.html"), "<html>platform</html>");
+    bytes.set("https://herkules.dev/", "<html>platform</html>");
+    let internalStatus = 404;
+    const fetchImpl = async (url, init) => {
+      calls.push(url);
+      if (bytes.has(url))
+        return new Response(bytes.get(url), {
+          headers: { "x-herkules-delivery": "cloudflare-assets-experiment" },
+        });
+      if (url.endsWith("/auth/healthz")) return Response.json({ ok: true });
+      if (url.endsWith("/ai-membership")) {
+        assert.equal(init.method, "POST");
+        assert.equal(init.headers["content-type"], "application/json");
+        assert.deepEqual(JSON.parse(init.body), { ids: ["release-check"] });
+        return new Response(null, { status: internalStatus });
+      }
+      if (url.includes("/.well-known/"))
+        return Response.json({ issuer: "https://herkules.dev/auth" });
+      if (url.endsWith("/mcp/bbs"))
+        return new Response(null, { status: 401, headers: { "www-authenticate": "Bearer" } });
+      throw new Error(`Unexpected request: ${url}`);
+    };
+    await verifyPublic(output, fetchImpl);
+    for (const url of bytes.keys()) assert.ok(calls.includes(url), `must verify ${url}`);
+    internalStatus = 401;
+    await assert.rejects(verifyPublic(output, fetchImpl), /Internal auth route is exposed/);
+    bytes.set("https://herkules.dev/assets/fonts/team%20font.woff2", "corrupt");
+    await assert.rejects(verifyPublic(output, fetchImpl), /Asset verification failed/);
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
+});
