@@ -134,7 +134,8 @@ An exact managed pattern belonging to another Worker is a conflict and stops the
 operation. Before first activation, audit overlapping wildcard/more-specific routes,
 redirect/cache rules and custom domains in the dashboard; this script does not
 rewrite them. Future Terraform must not also own these five route resources or
-Worker uploads. It can own DNS and unrelated zone configuration separately.
+Worker uploads. It can own DNS, Cloudflare Access, and unrelated zone configuration
+separately.
 
 ## Disable and recovery
 

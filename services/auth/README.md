@@ -68,5 +68,7 @@ needed. The service currently has one auth process. Configure Cloudflare with
 `openid email profile`, PKCE enabled, authorization `/auth/oauth2/authorize`, token
 `/auth/oauth2/token`, and JWKS `/auth/jwks` on the public issuer origin. SCIM is not
 implemented. Use an Access policy restricted to the Herkules login method: the
-issuer's existing admission gate checks team membership on token grants. Access
+issuer's existing admission gate checks team membership on token grants. That policy
+is `Herkules team` in `tools/deploy/cloudflare/terraform/access.tf`, so recreating
+this identity provider means updating the `oidc_idp_id` variable there. Access
 sessions remain valid until their own expiry or explicit revocation.

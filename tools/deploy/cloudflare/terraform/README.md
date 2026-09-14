@@ -404,13 +404,16 @@ curl -sI https://capability-map.herkules.dev/ | grep -iE '^(HTTP|location)'
 curl -s -o /dev/null -w '%{http_code}\n' https://gpu-4090.herkules.dev/
 
 # The portal is NOT behind Access: this answers with the portal's own redirect.
-curl -sI https://ai-portal.herkules.dev/ | grep -iE '^(HTTP|location)'
+# A GET, not a HEAD: this host answers HEAD with 404 and a bodyless 302 with GET.
+curl -s -o /dev/null -D - https://ai-portal.herkules.dev/ | grep -iE '^(HTTP|location)'
 ```
 
 Expected on 2026-09-14: `302` to `hxyulin.cloudflareaccess.com/cdn-cgi/access/login/capability-map.herkules.dev`,
 `403`, and a `302` to `https://ai-portal.herkules.dev/dashboard` respectively. A
 `302` on the second line, or an Access challenge on the third, means the adoption
-changed which hostnames Zero Trust protects.
+changed which hostnames Zero Trust protects. The first two lines answer a HEAD and a
+GET identically — only the portal distinguishes them, which is why its line is
+written as a GET and the other two are not.
 
 ## State
 

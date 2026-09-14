@@ -176,7 +176,10 @@ which is what makes adoption of our live zone safe. The one oddity: for
 
 ## 3. Scope decision
 
-### Adopted now: DNS records only
+### Adopted in Phase A: DNS records
+
+(Phase B later added Access applications and policies to the same directory; §8 has
+both passes. This section is the DNS record set and the decisions behind it.)
 
 **Implemented** in [`tools/deploy/cloudflare/terraform/`](../tools/deploy/cloudflare/terraform/README.md).
 The zone export of 2026-09-14 revealed **twelve** records, not the seven
