@@ -10,8 +10,12 @@ variable "root_domain" {
   default     = "herkules.dev"
 
   validation {
-    condition     = !endswith(var.root_domain, ".")
-    error_message = "Use the bare apex without a trailing dot, e.g. \"herkules.dev\"."
+    # Lowercase labels, at least one dot, and a letters-only final label. The old
+    # check only rejected a trailing dot, so the empty string, "api..example",
+    # spaces and uppercase all passed and then reached the zone lookup and the
+    # record-name suffix.
+    condition     = can(regex("^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$", var.root_domain))
+    error_message = "Use a lowercase apex domain with no trailing dot, e.g. \"herkules.dev\"."
   }
 }
 

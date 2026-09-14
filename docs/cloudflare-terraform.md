@@ -414,14 +414,15 @@ practical risk is contained once imports are complete and verified.
 
 ## 6. Risks
 
-| Risk                                             | Mitigation                                                                   |
-| ------------------------------------------------ | ---------------------------------------------------------------------------- |
-| Terraform and `release.mjs` fighting over routes | Routes are out of scope by decision, not by convention                       |
-| State leaks secrets                              | No certs, keys, or R2 credentials in scope                                   |
-| A bad apply takes the site down                  | Import-then-plan-empty gate, `prevent_destroy`, apply only from `production` |
-| Token over-privilege                             | Separate token, least privilege per resource's documented scopes             |
-| State file is a single point of truth/failure    | R2 backend, private bucket; it is not on the critical serving path           |
-| Provider v5 churn                                | Pin `~> 5.25`; v5 is the current line, v4 is behind us                       |
+| Risk                                             | Mitigation                                                                                                                                                   |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Terraform and `release.mjs` fighting over routes | Routes are out of scope by decision, not by convention                                                                                                       |
+| State leaks secrets                              | No certs, keys, or R2 credentials in scope                                                                                                                   |
+| A bad apply takes the site down                  | Import-then-plan-empty gate, `prevent_destroy`, apply only from `production`                                                                                 |
+| Token over-privilege                             | Separate token, least privilege per resource's documented scopes                                                                                             |
+| State file is a single point of truth/failure    | R2 backend, private bucket; it is not on the critical serving path                                                                                           |
+| PR-branch code can read the production secrets   | Fork PRs and Dependabot are excluded; required reviewers **or** read-only plan credentials is the open choice, recorded in `.github/workflows/terraform.yml` |
+| Provider v5 churn                                | Pin `~> 5.25`; v5 is the current line, v4 is behind us                                                                                                       |
 
 R2 cannot enable bucket versioning (unimplemented `PutBucketVersioning`), so the
 state bucket has no built-in undo. That is acceptable only while state holds no

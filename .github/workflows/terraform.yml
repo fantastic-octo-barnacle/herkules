@@ -66,9 +66,23 @@ jobs:
       github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # The secrets live in the production environment. It has no protection rules
-    # today, so a PR plan does not wait on approval; if reviewers are ever added,
-    # move the plan job to a separate environment holding the same three secrets.
+    # The three secrets live in the production environment, which has no
+    # protection rules, so this job hands them to code from a pull-request branch
+    # in this repository before that code has been reviewed. A fork PR cannot
+    # reach them at all, and Dependabot is excluded above, but a collaborator's
+    # branch can. Two ways to close that, and neither is free:
+    #
+    #   1. Required reviewers on the environment. Strongest, but then every PR
+    #      plan *and* every apply waits for a human. Moving this job to a separate
+    #      unprotected environment with the same three secrets would not help --
+    #      it would hand them out exactly the same way.
+    #   2. Read-only credentials for this job only (Zone DNS Read, R2 Object Read)
+    #      plus TF_CLI_ARGS_plan=-lock=false, which is safe here because the
+    #      concurrency group below already serialises plan and apply. Exfiltration
+    #      would still leak read-only access to the zone and the state.
+    #
+    # Until one of those is chosen the exposure is a deliberate, recorded
+    # trade-off rather than an oversight. See docs/cloudflare-terraform.md §6.
     environment: production
     steps:
       - uses: actions/checkout@v6
