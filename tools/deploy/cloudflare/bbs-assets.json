@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "name": "herkules-bbs-assets-experiment",
+  "compatibility_date": "2026-09-14",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [],
+  "assets": {
+    "directory": "./dist/bbs-assets",
+    "html_handling": "none",
+    "not_found_handling": "none"
+  }
+}

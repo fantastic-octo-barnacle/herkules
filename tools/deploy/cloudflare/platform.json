@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "name": "herkules-platform-experiment",
+  "compatibility_date": "2026-09-14",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [],
+  "assets": {
+    "directory": "./dist/platform",
+    "html_handling": "none",
+    "not_found_handling": "single-page-application"
+  }
+}

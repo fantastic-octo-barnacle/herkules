@@ -123,6 +123,15 @@ async function request<T>(fetchImpl: Fetch, path: string, init: RequestInit = {}
           : `${res.status} ${res.statusText}`,
     );
   }
+  // Asset-only previews and misconfigured proxies may return SPA HTML with 200.
+  // Never let that masquerade as a typed API response.
+  if (text && typeof body === "string") {
+    throw new ApiError(
+      res.status,
+      "invalid_response",
+      "The API is unavailable at this address. Please try again from the main site.",
+    );
+  }
   return body as T;
 }
 
@@ -138,7 +147,20 @@ export function createApi(fetchImpl: Fetch = (...args) => globalThis.fetch(...ar
 
   return {
     /** null when signed out. */
-    session: () => get<Session | null>("/auth/get-session"),
+    session: async (): Promise<Session | null> => {
+      const value = await get<unknown>("/auth/get-session");
+      if (value === null) return null;
+      if (
+        !isRecord(value) ||
+        !isRecord(value.user) ||
+        typeof value.user.id !== "string" ||
+        !isRecord(value.session) ||
+        typeof value.session.id !== "string"
+      ) {
+        throw new ApiError(200, "invalid_response", "The API returned an invalid session.");
+      }
+      return value as unknown as Session;
+    },
     /** Returns the GitHub URL to navigate to. `oauthQuery` continues an IDE's authorization after login. */
     signInWithGithub: (callbackURL: string, oauthQuery?: string) =>
       send<{ url: string }>("POST", "/auth/sign-in/social", {

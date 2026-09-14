@@ -100,6 +100,11 @@ the production requirement.
 
 ## Deploy
 
+The optional [Cloudflare static assets experiment](cloudflare/README.md) previews
+the platform SPA and BBS JS/CSS on Workers Free. It does not replace `vp run dev`
+or the production release flow. If experiment routes are attached, follow its
+detach/update instructions before a production deploy or rollback.
+
 Push to `main` and wait for CI. `images.yml` runs only after that commit's `CI`
 workflow succeeds. It diffs the commit against the source of the active
 production release and builds the affected `linux/amd64` images, so a failed
