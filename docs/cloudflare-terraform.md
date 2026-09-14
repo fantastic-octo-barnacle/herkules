@@ -593,7 +593,11 @@ live authentication path rather than an adoption:
   ([issue #5693](https://github.com/cloudflare/terraform-provider-cloudflare/issues/5693)),
   so removing it would be a deliberate one-off hand change.
 - The organization's `session_duration`, `mfa_configuration`, and `is_ui_read_only`
-  are all unset, and `ai-portal.herkules.dev` has no Zero Trust layer at all.
+  are all unset. Both applications also carry `http_only_cookie_attribute = false`,
+  which the config now preserves deliberately: the session cookie Access issues is
+  readable from JavaScript there, so flipping it to `true` is a hardening candidate
+  in its own right — but it changes behaviour for whatever reads that cookie, so it
+  is not part of an adoption. `ai-portal.herkules.dev` has no Zero Trust layer at all.
 
 ### Phase C — zone TLS and security settings
 
