@@ -54,7 +54,16 @@ env:
 
 jobs:
   plan:
-    if: vars.TERRAFORM_ENABLED == 'true' && github.event_name == 'pull_request'
+    # Dependabot and fork pull requests never receive repository secrets, so
+    # dflook/terraform-plan would fail to authenticate against Cloudflare and the
+    # R2 backend — which matters here because Dependabot bumps the provider inside
+    # this path every week. Those PRs still get ci.yml's credential-free checks;
+    # only a live plan is skipped.
+    if: >-
+      vars.TERRAFORM_ENABLED == 'true' &&
+      github.event_name == 'pull_request' &&
+      github.actor != 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # The secrets live in the production environment. It has no protection rules

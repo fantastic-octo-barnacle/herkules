@@ -240,7 +240,7 @@ new top-level directory:
 ```
 tools/deploy/cloudflare/terraform/
 ├── README.md                  # how to plan/apply, token scopes, import steps
-├── versions.tf                # required_version >= 1.7, provider pinned ~> 5.25
+├── versions.tf                # required_version >= 1.10, provider pinned ~> 5.25
 ├── providers.tf               # provider + zone lookup by name
 ├── variables.tf               # api_token, root_domain, origin ipv4
 ├── dns.tf                     # the twelve records, one for_each resource

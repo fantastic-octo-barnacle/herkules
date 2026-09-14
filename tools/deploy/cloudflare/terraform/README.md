@@ -7,9 +7,11 @@ for the full research and reasoning, including the agreed phase order in §8).
 
 **Status: adopted, on remote state, CI not yet enabled.** The twelve records are
 imported, state lives in the R2 backend (`backend.tf`), and `terraform plan`
-reports "No changes". Only the `TERRAFORM_ENABLED` repository variable is
-outstanding, so `.github/workflows/terraform.yml` is still inert. The zone itself
-is **live**: read "Adopting the live zone" before re-running any part of it.
+reports "No changes". Enabling CI needs **both** the `production` environment's
+`TF_VAR_api_token`, `TF_STATE_ACCESS_KEY_ID` and `TF_STATE_SECRET_ACCESS_KEY`
+secrets **and** the `TERRAFORM_ENABLED` repository variable; until both are in
+place, `.github/workflows/terraform.yml` is inert. The zone itself is **live**:
+read "Adopting the live zone" before re-running any part of it.
 
 ## Scope
 
@@ -98,7 +100,7 @@ delegated:
 
    Verified on 2026-09-14 against the production token.
 
-2. **Terraform >= 1.7** and **cf-terraforming**:
+2. **Terraform >= 1.10** and **cf-terraforming**:
 
    ```sh
    brew install hashicorp/tap/terraform cloudflare/cloudflare/cf-terraforming

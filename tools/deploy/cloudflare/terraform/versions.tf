@@ -5,7 +5,11 @@
 # The CI actions (dflook/terraform-*) install whatever satisfies required_version,
 # so this is the single place the Terraform floor is declared.
 terraform {
-  required_version = ">= 1.7.0" # mock_provider in tests/ arrived in 1.7
+  # 1.10 is the floor for the S3 backend's `use_lockfile` (backend.tf); the
+  # mock_provider in tests/ needs only 1.7, so the lockfile is the binding
+  # requirement. Lowering this would let `terraform init` fail on a backend
+  # argument the installed version does not recognise.
+  required_version = ">= 1.10.0"
 
   required_providers {
     cloudflare = {
