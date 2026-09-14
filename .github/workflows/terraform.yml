@@ -1,0 +1,83 @@
+name: Terraform
+
+# DNS-as-code for the herkules.dev zone (tools/deploy/cloudflare/terraform).
+#
+# This workflow is INERT until the repository variable TERRAFORM_ENABLED is set
+# to 'true'. Until then it does not run at all, so merging it changes nothing
+# about the deploy path. Enable it only after:
+#   1. the records import cleanly with an empty plan (tools/deploy/cloudflare/terraform/README.md),
+#   2. state has been moved to the R2 remote backend (the same commit that adds
+#      the backend block should flip the flag), and
+#   3. the production environment has TF_VAR_api_token and the backend credentials.
+#
+# The plan/apply mechanics are dflook/terraform-github-actions: the plan is posted
+# on the PR as a comment, and the apply on main re-plans and refuses to run if
+# the result differs from the plan that was reviewed. The plan file never leaves
+# the runner (a saved plan holds variable values, including the token, in clear).
+# Terraform itself is installed from required_version in versions.tf.
+#
+# Credential-free checks (fmt, validate, terraform test) run in ci.yml on every
+# PR and are not gated. This workflow never touches Worker routes or uploads;
+# those belong to images.yml/rollback.yml and tools/deploy/cloudflare/release.mjs.
+on:
+  pull_request:
+    paths: ["tools/deploy/cloudflare/terraform/**", ".github/workflows/terraform.yml"]
+  push:
+    branches: [main]
+    paths: ["tools/deploy/cloudflare/terraform/**", ".github/workflows/terraform.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write # the plan comment; apply reads it back to verify
+
+# One run at a time across PR plans and main applies, on top of the state lock.
+concurrency:
+  group: terraform-herkules-dev
+  cancel-in-progress: false
+
+env:
+  TF_VAR_api_token: ${{ secrets.TF_VAR_api_token }}
+  # R2-backed S3 state. The S3 backend reads the standard AWS_* names; these hold
+  # R2 access keys, which are scoped to the state bucket only.
+  AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  plan:
+    if: vars.TERRAFORM_ENABLED == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The secrets live in the production environment. It has no protection rules
+    # today, so a PR plan does not wait on approval; if reviewers are ever added,
+    # move the plan job to a separate environment holding the same three secrets.
+    environment: production
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dflook/terraform-plan@v3
+        with:
+          path: tools/deploy/cloudflare/terraform
+          label: herkules.dev DNS
+
+  apply:
+    if: vars.TERRAFORM_ENABLED == 'true' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://herkules.dev
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dflook/terraform-apply@v3
+        with:
+          path: tools/deploy/cloudflare/terraform
+          label: herkules.dev DNS
+          # On a push to main the action applies only if its fresh plan matches
+          # the one commented on the merged PR. A manual dispatch has no PR to
+          # check against, so it is auto-approved; the environment still gates it.
+          auto_approve: ${{ github.event_name == 'workflow_dispatch' }}

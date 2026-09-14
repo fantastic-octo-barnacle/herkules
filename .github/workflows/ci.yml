@@ -66,3 +66,33 @@ jobs:
           push: false
           cache-from: type=gha,scope=ai-backend
           cache-to: type=gha,scope=ai-backend,mode=max
+
+  # Credential-free checks on the DNS-as-code config. Format, schema validation,
+  # and the invariants in tests/ under a mocked provider; nothing talks to
+  # Cloudflare. Plans and applies live in terraform.yml behind TERRAFORM_ENABLED.
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TERRAFORM_DIR: tools/deploy/cloudflare/terraform
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dflook/terraform-fmt-check@v3
+        with:
+          path: ${{ env.TERRAFORM_DIR }}
+      - uses: dflook/terraform-validate@v3
+        with:
+          path: ${{ env.TERRAFORM_DIR }}
+      - uses: dflook/terraform-test@v3
+        with:
+          path: ${{ env.TERRAFORM_DIR }}
+      # Worker uploads and routes belong to release.mjs; two tools must never own
+      # the same resource. Permanent boundary, see tools/deploy/cloudflare/README.md.
+      - name: Worker resources stay out of Terraform
+        run: |
+          if grep -rn 'cloudflare_workers_' "$TERRAFORM_DIR" --include='*.tf'; then
+            echo "::error::Worker resources are owned by release.mjs, not Terraform."
+            exit 1
+          fi
