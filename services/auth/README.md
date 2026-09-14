@@ -53,3 +53,20 @@ The exact callback is `${AI_PORTAL_ORIGIN}/oauth/herkules`; identities bind by `
 `POST /auth/internal/ai-membership` requires the dedicated sync secret, accepts at
 most 100 IDs, and reports missing/disabled accounts as unavailable. Caddy blocks
 this internal route. See [AI setup](../../tools/ai/README.md).
+
+## Cloudflare Access
+
+Set `CLOUDFLARE_TEAM_NAME` (the label before `.cloudflareaccess.com`) and
+`CLOUDFLARE_CLIENT_SECRET` together in the auth environment. Boot seeds the
+confidential `cloudflare-access` client, requiring PKCE and the exact callback
+`https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`.
+
+OIDC ID tokens use ES256 and include email/email_verified when `email` is granted.
+Registry API/MCP access tokens remain EdDSA. Boot provisions any missing signing
+algorithm before listening and retains old keys; no database schema migration is
+needed. The service currently has one auth process. Configure Cloudflare with
+`openid email profile`, PKCE enabled, authorization `/auth/oauth2/authorize`, token
+`/auth/oauth2/token`, and JWKS `/auth/jwks` on the public issuer origin. SCIM is not
+implemented. Use an Access policy restricted to the Herkules login method: the
+issuer's existing admission gate checks team membership on token grants. Access
+sessions remain valid until their own expiry or explicit revocation.

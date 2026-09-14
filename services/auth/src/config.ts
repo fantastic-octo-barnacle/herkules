@@ -91,6 +91,14 @@ export const configSchema = z.object({
    * Set: the confidential first-party `bbs` client is seeded with `${BBS_ORIGIN}/callback`.
    * Unset (or empty): not seeded. Both BBS_* variables or neither.
    */
+  CLOUDFLARE_TEAM_NAME: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/)
+      .optional(),
+  ),
+  CLOUDFLARE_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
   AI_PORTAL_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
   AI_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
   /** Internal account-status checks; never a browser or inference API credential. */
@@ -130,6 +138,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   if ((parsed.OPS_ORIGIN === undefined) !== (parsed.BESZEL_CLIENT_SECRET === undefined)) {
     throw new TypeError("OPS_ORIGIN and BESZEL_CLIENT_SECRET must be set together or not at all");
+  }
+  if (
+    (parsed.CLOUDFLARE_TEAM_NAME === undefined) !==
+    (parsed.CLOUDFLARE_CLIENT_SECRET === undefined)
+  ) {
+    throw new TypeError(
+      "CLOUDFLARE_TEAM_NAME and CLOUDFLARE_CLIENT_SECRET must be set together or not at all",
+    );
   }
   const aiSettings = [parsed.AI_PORTAL_ORIGIN, parsed.AI_CLIENT_SECRET, parsed.AI_SYNC_SECRET];
   if (

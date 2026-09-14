@@ -35,7 +35,12 @@ describe("discovery", () => {
       keys: { kty: string; crv: string; kid: string; alg: string }[];
     };
     expect(keys.length).toBeGreaterThan(0);
-    expect(keys[0]).toMatchObject({ kty: "OKP", crv: "Ed25519", alg: "EdDSA" });
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kty: "OKP", crv: "Ed25519", alg: "EdDSA" }),
+        expect.objectContaining({ kty: "EC", crv: "P-256", alg: "ES256" }),
+      ]),
+    );
   });
   test("PRM for every registry entry", async () => {
     for (const e of t.service.registry.entries) {

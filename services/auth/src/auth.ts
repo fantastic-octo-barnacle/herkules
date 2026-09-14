@@ -22,6 +22,7 @@ import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "bette
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { admin } from "better-auth/plugins/admin";
 import { jwt } from "better-auth/plugins/jwt";
+import { signingOptions } from "./signing.ts";
 
 import type { Audit } from "./audit.ts";
 import { auditAfterHook } from "./audit.ts";
@@ -240,9 +241,7 @@ export function authOptions(deps: AuthDeps) {
 
     plugins: [
       jwt({
-        jwks: { keyPairConfig: { alg: "EdDSA", crv: "Ed25519" }, gracePeriod: 30 * DAY }, // rotation stays manual in v1; verifiers already select by kid
-        jwt: { issuer: config.issuer },
-        disableSettingJwtHeader: true,
+        ...signingOptions(config.issuer),
       }),
       admin({
         defaultRole: "member" satisfies Role,
@@ -308,6 +307,9 @@ export function authOptions(deps: AuthDeps) {
             error_description: DESCRIPTIONS[verdict.reason],
           });
         },
+        // Cloudflare reads email from the ID token rather than fetching UserInfo.
+        customIdTokenClaims: async ({ user, scopes }) =>
+          scopes.includes("email") ? { email: user.email, email_verified: user.emailVerified } : {},
         /** Role stamp. `user` is the DB row; the admin plugin owns `role`. A row without a valid role never becomes a token. */
         customAccessTokenClaims: async ({ user }) => {
           if (!user) throw new APIError("BAD_REQUEST", { error: "invalid_grant" });

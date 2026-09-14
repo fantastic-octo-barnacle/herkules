@@ -179,6 +179,7 @@ export function buildRegistry(input: {
     oauthResources: () =>
       entries.map((e) => ({
         identifier: e.audience,
+        signingAlgorithm: "EdDSA", // API/MCP verifiers retain their existing algorithm contract.
         name: e.title,
         accessTokenTtl: e.accessTokenTtlSeconds,
         allowedScopes: [...e.allowedScopes],

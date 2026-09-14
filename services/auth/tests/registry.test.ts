@@ -36,12 +36,14 @@ describe("buildRegistry", () => {
     const r = buildRegistry({ origin, issuer, specs });
     expect(r.oauthResources()).toEqual([
       {
+        signingAlgorithm: "EdDSA",
         identifier: "https://herkules.dev/mcp/directory",
         name: "dir",
         accessTokenTtl: 900,
         allowedScopes: ["offline_access"],
       },
       {
+        signingAlgorithm: "EdDSA",
         identifier: "https://herkules.dev/api/notes",
         name: "notes",
         accessTokenTtl: 300,
