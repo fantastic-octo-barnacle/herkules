@@ -1,11 +1,12 @@
 # Terraform for Cloudflare
 
 Research and plan for bringing `herkules.dev`'s Cloudflare configuration under
-Terraform. Status: **DNS records imported 2026-09-14** into local state from
+Terraform. Status: **DNS records adopted 2026-09-14** — twelve records imported and
+state migrated to the R2 backend from
 [`tools/deploy/cloudflare/terraform/`](../tools/deploy/cloudflare/terraform/README.md),
-and the follow-up plan reports "No changes". State is still local: the R2 backend,
-the CI secrets, and `TERRAFORM_ENABLED` are the remaining Phase A items. §1–§2 and
-§6 are the research; §3–§5 and §7 are the decisions; §8 is the agreed phase plan.
+with `terraform plan` reporting "No changes" against it. The `production` secrets
+and the `TERRAFORM_ENABLED` repository variable are the last Phase A items. §1–§2
+and §6 are the research; §3–§5 and §7 are the decisions; §8 is the phase plan.
 
 Provider facts below were read from the official provider's own documentation at
 tag `v5.25.0`, not from memory.
@@ -473,25 +474,29 @@ so they cannot be confused with the §3 numbering.
 
 ### Phase A — finish the DNS adoption
 
-The module is committed but nothing is live: no imports, no remote state, and
-`TERRAFORM_ENABLED` unset, so `terraform.yml` is still inert. Nothing else can be
-applied until this closes.
+**Steps 1, 2, 4, and 5 are done** (2026-09-14). Step 3 is the last one: until
+`TERRAFORM_ENABLED` is set, `terraform.yml` stays inert and CI cannot apply.
 
-1. Import the twelve records per
-   [`terraform/README.md`](../tools/deploy/cloudflare/terraform/README.md). Do not
-   apply until the plan reads `12 to import, 0 to change, 0 to destroy`, then a
-   second plan reads `No changes`.
-2. Create the private `herkules-tfstate` bucket and a bucket-scoped R2 token, add
-   the §4 backend block, and `terraform init -migrate-state`.
-3. Set `TF_VAR_api_token`, `TF_STATE_ACCESS_KEY_ID`, and
-   `TF_STATE_SECRET_ACCESS_KEY` in the `production` environment, then flip
-   `TERRAFORM_ENABLED`.
-4. **Add a scheduled plan** to `.github/workflows/terraform.yml` (weekly is
-   enough) that fails on a non-empty plan. Codifying hand-set configuration only
-   pays off if a dashboard change is noticed; without this, drift surfaces only
-   when someone happens to edit the directory.
-5. Extend the CI ownership grep beyond `cloudflare_workers_*` to also reject
-   `cloudflare_origin_ca_certificate` and `cloudflare_account_token`.
+1. ~~Import the twelve records.~~ Done. The first plan read `12 to import, 0 to
+add, 3 to change, 0 to destroy` — the three TXT records normalized from the
+   API's quoted representation to the canonical unquoted value — the apply
+   completed, and the follow-up plan reported "No changes". Served TXT values
+   were byte-identical before and after.
+2. ~~Create the bucket, the scoped R2 token, and the remote backend.~~ Done. State
+   lives in `herkules-tfstate` under `cloudflare/herkules.dev.tfstate`, and
+   `use_lockfile` works because R2 implements conditional `PutObject`. The empty
+   plan is verified against the remote backend.
+3. **Set the `production` secrets** (`TF_VAR_api_token`,
+   `TF_STATE_ACCESS_KEY_ID`, `TF_STATE_SECRET_ACCESS_KEY`) **and flip
+   `TERRAFORM_ENABLED`** — the only remaining item.
+4. ~~Add a scheduled plan.~~ Done: weekly, Mondays 06:00 UTC, failing on a
+   non-empty plan. The `apply` gate was also narrowed to
+   `push || workflow_dispatch`, because `event_name != 'pull_request'` is true for
+   a scheduled run and would have applied.
+5. ~~Extend the CI ownership grep.~~ Done: it now also rejects
+   `cloudflare_origin_ca_certificate` and `cloudflare_account_token`, plus a guard
+   that rejects a committed `imports.tf` — `terraform test` runs under a mock
+   provider, which cannot import, so that file is adoption-only and breaks CI.
 
 Token: unchanged — DNS Read, DNS Write, Zone Read.
 

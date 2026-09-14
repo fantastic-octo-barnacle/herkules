@@ -266,10 +266,12 @@ State is **local** for the adoption pass on purpose: it keeps the first import a
 solo, reviewable operation with no new infrastructure (no bucket, no token, no
 workflow) created before the config is proven.
 
-**Done on 2026-09-14:** the twelve records are imported and `terraform plan`
-reports "No changes". The state file is `terraform.tfstate` in this directory,
-gitignored, and it now exists on one machine only — which is exactly why the
-remote backend below is not optional.
+**Done on 2026-09-14:** the twelve records were imported, and state has since
+migrated to the R2 backend below (`backend.tf`). The local `terraform.tfstate` is
+now the empty placeholder a remote backend leaves behind, and
+`terraform.tfstate.backup` is the pre-migration copy. `terraform plan` reports
+"No changes" against the remote state, and the lock works — R2 implements the
+conditional `PutObject` that `use_lockfile` needs.
 
 Once the plan is clean and the records are imported, move to the R2 remote
 backend described in [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md)
