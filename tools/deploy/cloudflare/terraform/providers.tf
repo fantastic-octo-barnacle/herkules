@@ -18,6 +18,7 @@
 #                        Account -> Access: Organizations, Identity Providers,
 #                                   and Groups -> Read
 #                        Account -> Access: Service Tokens -> Read
+#                        Zone    -> Zone Settings -> Edit        (Phase C's ten settings)
 #
 #                      The IdP/organization read is granted but not called by this
 #                      configuration: a traced plan touches only access/apps,

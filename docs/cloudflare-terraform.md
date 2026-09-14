@@ -1,9 +1,9 @@
 # Terraform for Cloudflare
 
 Research and plan for bringing `herkules.dev`'s Cloudflare configuration under
-Terraform. Status: **DNS records and Cloudflare Access adopted 2026-09-14** — twelve
-records, two Access applications and their two reusable policies, imported into the
-R2 backend from
+Terraform. Status: **DNS records, Cloudflare Access, and the zone's TLS/security
+settings adopted 2026-09-14** — twelve records, two Access applications and their two
+reusable policies, and ten zone settings, imported into the R2 backend from
 [`tools/deploy/cloudflare/terraform/`](../tools/deploy/cloudflare/terraform/README.md),
 with `terraform plan` reporting "No changes" against it and CI live behind
 `TERRAFORM_ENABLED`. §1–§2 and §6 are the research; §3–§5 and §7 are the decisions;
@@ -15,15 +15,16 @@ tag `v5.25.0`, not from memory.
 
 ## 1. What Cloudflare is doing for us today
 
-Everything Cloudflare-side was originally configured by hand in the dashboard. Two
-areas have since moved into Terraform — the DNS records and the Access applications
-and policies (Phases A and B below). The Workers asset delivery was already
-automated by our own script.
+Everything Cloudflare-side was originally configured by hand in the dashboard. Three
+areas have since moved into Terraform — the DNS records, the Access applications and
+policies, and the zone-level TLS/security settings (Phases A, B and C below). The
+Workers asset delivery was already automated by our own script.
 
 | Area                                  | Where it lives now                                   | Managed by              |
 | ------------------------------------- | ---------------------------------------------------- | ----------------------- |
 | DNS records (7 hostnames, proxied A)  | `tools/deploy/cloudflare/terraform/dns.tf`           | Terraform (Phase A)     |
-| SSL/TLS mode = Full (strict), TLS 1.3 | Cloudflare dashboard                                 | hand                    |
+| SSL/TLS mode = Full (strict), TLS 1.3 | `tools/deploy/cloudflare/terraform/zone-settings.tf` | Terraform (Phase C)     |
+| Other zone settings (cache, speed, …) | Cloudflare dashboard                                 | hand, by decision (§8)  |
 | Origin CA cert + key                  | `/etc/herkules-tls/` on the VPS                      | hand, manual rotation   |
 | Workers asset routes (5 patterns)     | `tools/deploy/cloudflare/release.mjs`                | our script, per release |
 | Workers script + asset uploads        | `wrangler deploy` from CI                            | our script, per release |
@@ -208,16 +209,18 @@ Three things only became visible from the export and are worth recording:
 Zone-level TLS settings remain **hand-set** for now, and so do the three Access
 objects this pass deliberately does not own — the identity provider, the service
 token, and the organization. The config deliberately asserts nothing about any of
-them. The Access **applications and policies** are the exception: §8 Phase B
-adopted them, and the list below records what that changed.
+them. The Access **applications and policies** and the zone's **TLS/security
+settings** are the exception: §8 Phases B and C adopted them, and the lists below
+record what that changed.
 
 ### Adopt next
 
-1. **Zone TLS/security settings** — `ssl = "strict"`, `min_tls_version`,
-   `tls_1_3`, `always_use_https`, `automatic_https_rewrites`, HSTS. These encode
-   the "Full (strict)" contract the VPS and the Origin CA cert depend on. Today
-   nothing catches a dashboard toggle that silently breaks it. Deferred only to
-   keep the first apply small.
+1. **Zone TLS/security settings** — **done 2026-09-14**, see §8 Phase C. Ten settings
+   are managed, headed by the ones that encode the "Full (strict)" contract the VPS
+   and the Origin CA cert depend on. The survey found the contract weaker than the
+   docs assumed in two places and this pass preserved both, deliberately: TLS 1.0 is
+   still accepted, and no HSTS is sent. Both are recorded as hardening changes rather
+   than adoption.
 2. **Cloudflare Access** — **done 2026-09-14**, see §8 Phase B. The live account
    held exactly two applications, `capability-map.herkules.dev` and
    `gpu-4090.herkules.dev`, plus two reusable policies attached to them. The IdP
@@ -231,7 +234,7 @@ adopted them, and the list below records what that changed.
 3. **R2 bucket** (bucket definition only, no credentials) and `r2_custom_domain`.
 4. **Zone rules** (`cloudflare_ruleset`) — cache rules, redirect rules, and any
    WAF/rate-limit policy. The `www` → apex redirect is one of these and is not
-   managed today.
+   managed today. This is Phase D, and it is the last phase on the plan.
 
 ### Explicitly out of scope
 
@@ -424,7 +427,9 @@ a record or reset a setting, or pruning records it does not know about.
    destroy-original.
 8. **Verify the real contract after the first apply**: `curl -fsS
 https://herkules.dev/auth/healthz`, the OAuth discovery document, and the
-   MCP 401 challenge, exactly as `tools/deploy/README.md` already prescribes.
+   MCP 401 challenge, exactly as `tools/deploy/README.md` already prescribes. Since
+   Phase C, the Terraform README's TLS block joins them: apex, the plain-HTTP
+   redirect, the absence of HSTS, and a TLS 1.2 and 1.3 handshake.
 
 Terraform only deletes a record it manages and that is absent from config, so the
 practical risk is contained once imports are complete and verified.
@@ -437,6 +442,7 @@ practical risk is contained once imports are complete and verified.
 | State leaks secrets                              | No certs, keys, R2 credentials, or Access `client_secret` values in scope: the IdP is referenced by id, the service token through a data source that exposes no secret (§8)                                                                                                                   |
 | A bad apply takes the site down                  | Import-then-plan-empty gate, `prevent_destroy`, apply only from `production`                                                                                                                                                                                                                  |
 | An Access adoption locks people out of an app    | Same gate, plus the served contract (`capability-map` challenge, `gpu-4090` 403) is captured with `curl` before and after the apply, as the Terraform README prescribes                                                                                                                       |
+| A settings adoption downgrades TLS or HSTS       | Same gate — the plan must read `0 to change`, so a live value can only be reproduced, never asserted — plus a handshake-and-HSTS probe captured before and after. `min_tls_version` and HSTS are hardening items, not adoption items (§8)                                                     |
 | Token over-privilege                             | Separate token, least privilege per resource's documented scopes, re-probed after every widening                                                                                                                                                                                              |
 | State file is a single point of truth/failure    | R2 backend, private bucket; it is not on the critical serving path                                                                                                                                                                                                                            |
 | PR-branch code can read the production secrets   | Private repo, and fork PRs and Dependabot are excluded, so only collaborators who can push here can reach them. Required reviewers and protected branches both need a paid plan (HTTP 422 on Free, checked 2026-09-14), so this is accepted and recorded in `.github/workflows/terraform.yml` |
@@ -444,26 +450,28 @@ practical risk is contained once imports are complete and verified.
 
 R2 cannot enable bucket versioning (unimplemented `PutBucketVersioning`), so the
 state bucket has no built-in undo. That stays acceptable only because state holds no
-secrets: DNS records, plus Access objects whose secret-bearing parts are referenced
-rather than managed (§8). State does now describe the live Access configuration —
-policy rules, object ids, cookie settings — so adding any secret to state, or
-widening a later phase to include one, requires revisiting encryption or a versioned
-backend first.
+secrets: DNS records, zone settings, plus Access objects whose secret-bearing parts
+are referenced rather than managed (§8). State does now describe the live
+configuration — policy rules, object ids, cookie settings, TLS values — so adding any
+secret to state, or widening a later phase to include one, requires revisiting
+encryption or a versioned backend first.
 
 ## 7. Decisions and remaining questions
 
 Decided:
 
-- **Scope:** DNS records (Phase A) and Access applications and policies (Phase B)
-  are adopted. Zone TLS settings (Phase C) and zone rules (Phase D) are next, and
-  deliberately not in yet.
+- **Scope:** DNS records (Phase A), Access applications and policies (Phase B), and
+  the zone's TLS/security settings (Phase C) are adopted. Zone rules (Phase D) are
+  next, and deliberately not in yet; the cache, speed and challenge tuning inside the
+  settings API stays hand-set by decision (§8).
 - **State:** R2 via the S3 backend (see §4). Local state is used for the adoption
   pass, then migrated before CI is allowed to apply.
 - **Token:** a dedicated Terraform token, exposed as `TF_VAR_api_token` so it
   cannot be confused with the Workers release job's `CLOUDFLARE_API_TOKEN`. The
   zone ID is resolved from the domain name at plan time, so it is the only value
   a shell or CI has to carry. It gained account-scoped Access permissions in
-  Phase B, and the probe matrix is re-run after every widening.
+  Phase B and Zone Settings in Phase C; the probe matrix is re-run after every
+  widening, and a permission edit takes minutes to propagate at the edge (§8).
 - **Access objects that carry secrets stay hand-made.** The OIDC identity provider
   is referenced by id and the service token through a data source that exposes no
   secret, so state never holds a `client_secret` (§2, §8). CI fails if either is
@@ -625,16 +633,67 @@ live authentication path rather than an adoption:
 
 ### Phase C — zone TLS and security settings
 
-- `zone-settings.tf`, one `cloudflare_zone_setting` per setting behind a
-  `for_each` map. Import each `setting_id` first and gate on an empty plan.
-- Candidates: `ssl = "strict"`, `min_tls_version`, `tls_1_3`, `always_use_https`,
-  `automatic_https_rewrites`, `opportunistic_encryption`, `security_header`
-  (HSTS), `brotli`, `http2`/`http3`, `browser_check`.
-- HSTS is sticky in browsers, so its max-age, `include_subdomains`, and `preload`
-  values are a deliberate decision rather than a copied default.
-- `terraform test` asserts `ssl = "strict"`, a minimum TLS floor, and HSTS.
+**Done 2026-09-14.** `zone-settings.tf` manages ten settings; `terraform plan` reports
+"No changes"; CI covers it exactly like the other two passes. The survey changed the
+plan in four ways:
 
-Token: add Zone Settings Read/Write.
+- **Ten settings, not eleven.** `cf-terraforming` is the wrong tool for this resource
+  — it emits one resource per setting with every read-only attribute — so the survey
+  was a read of `GET /zones/<zone>/settings`: **56 settings, 44 editable**. The
+  managed set is the contract, not the tuning: `ssl = "strict"`, `min_tls_version =
+"1.0"`, `tls_1_3 = "on"`, `always_use_https = "on"`, `automatic_https_rewrites =
+"on"`, `opportunistic_encryption = "on"`, `brotli = "on"`, `http3 = "on"`,
+  `browser_check = "on"`, and `security_header`. The one candidate this drops is
+  `http2`: the API reports `editable = false` for it on this plan, so a managed
+  resource would have failed at apply. `mirage`, `polish`, `webp`, and the other
+  image/performance settings are in the same category.
+- **`value` is `Dynamic`**, so a single `for_each` cannot hold the set: Terraform
+  needs one element type per map. The nine string settings share one `for_each` and
+  the HSTS object is its own resource. Adopting `browser_cache_ttl` or
+  `challenge_ttl` later means adding a number-valued group, and `ciphers` a
+  list-valued one.
+- **The contract is weaker than this document assumed, and the pass preserves it.**
+  `min_tls_version` is `"1.0"`, and a TLS 1.0 handshake to the apex completes today;
+  `security_header` has `enabled = false`, so no HSTS is sent. Both are hardening
+  changes rather than adoption — raising the floor locks out old clients, and HSTS is
+  sticky in browsers for as long as its `max_age` says — so they are recorded here
+  instead of applied:
+
+  - **`min_tls_version`: `"1.0"` → `"1.2"`.** One value change, and the handshake
+    probe in the Terraform README is what catches a regression. Today the zone still
+    accepts TLS 1.0 and 1.1, which is below what any current guidance asks for.
+  - **`security_header`: `enabled = false` → `true`.** Not a one-field change: it
+    needs a `max_age` answer (`86400` for a trial, a year for real), an
+    `include_subdomains` decision — which commits `gpu-4090` and `capability-map`
+    too — and `preload` only if every subdomain is HTTPS-only forever. Both
+    applications are behind Access over HTTPS, so nothing here breaks on paper; the
+    reason to be careful is that browsers remember it.
+
+- **`Delete` on this resource is a no-op** in provider 5.25.0 (read from
+  `internal/services/zone_setting/resource.go`): destroying one removes it from state
+  and leaves the live value alone. The `prevent_destroy` guards here therefore protect
+  the drift _detection_, not the value, which is worth knowing before anyone reasons
+  about them as they do the records' guards.
+
+Two operational notes the pass produced. **A permission edit is not immediately
+effective**: after `Zone Settings` was granted, the settings list answered `200`
+while individual reads of `always_use_https`, `automatic_https_rewrites` and `brotli`
+still answered `403` with code `10000` for several minutes, and one read flipped back
+and forth in between — propagation, not a wrong permission, so re-probe before
+changing anything (the README records it). And the **import gate is the whole
+exercise**: `10 to import, 0 to add, 0 to change, 0 to destroy`, because every live
+value has to match before anything is applied. The served TLS contract was captured
+before and after and is identical: apex `200`, plain HTTP `301` to HTTPS, no HSTS
+header, TLS 1.2 and 1.3 both handshaking, `www` still `301`, `bbs` `200`.
+
+`terraform test` asserts the ten, `ssl = "strict"`, TLS 1.3 and the HTTPS-rewrite
+family on, `min_tls_version` one of the versions Cloudflare accepts, `http2` absent,
+and the HSTS object field for field. It deliberately does **not** assert a TLS floor
+yet: the adopted value is `1.0`, so a floor assertion would fail against the config
+this pass was reviewed with.
+
+Token: Zone Settings Read/Write added, and the probe matrix re-run — settings answer
+`200`, `rulesets` still `403` (Phase D).
 
 ### Phase D — zone rules
 

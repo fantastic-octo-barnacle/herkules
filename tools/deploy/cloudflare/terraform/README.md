@@ -1,16 +1,17 @@
 # Cloudflare configuration as code
 
 Terraform for the `herkules.dev` zone and the Zero Trust account that fronts it.
-**Managed today: the twelve DNS records, and the Cloudflare Access applications and
-policies.** Zone TLS settings and zone rules are deliberately still out of scope
-(see "Scope" below and [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md)
-for the full research and reasoning, including the agreed phase order in §8).
+**Managed today: the twelve DNS records, ten zone-level TLS and security settings,
+and the Cloudflare Access applications and policies.** Zone rules are deliberately
+still out of scope (see "Scope" below and
+[`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md) for the
+full research and reasoning, including the agreed phase order in §8).
 
-**Status: adopted, on remote state, live in CI.** Twelve records and two Access
-applications with their two reusable policies are imported, state lives in the R2
-backend (`backend.tf`), and `terraform plan` reports "No changes". `TERRAFORM_ENABLED`
-is set, so a PR touching this directory gets a plan comment and a merge to `main`
-applies it; the `production` environment holds `TF_VAR_api_token`,
+**Status: adopted, on remote state, live in CI.** Twelve records, ten zone settings,
+and two Access applications with their two reusable policies are imported, state
+lives in the R2 backend (`backend.tf`), and `terraform plan` reports "No changes".
+`TERRAFORM_ENABLED` is set, so a PR touching this directory gets a plan comment and a
+merge to `main` applies it; the `production` environment holds `TF_VAR_api_token`,
 `TF_STATE_ACCESS_KEY_ID` and `TF_STATE_SECRET_ACCESS_KEY`. The zone and the Access
 configuration are **live**: read "Adopting the live zone" before re-running any part
 of it.
@@ -37,12 +38,27 @@ Access objects, adopted 2026-09-14 and described in `access.tf`:
 | `Capability Map`    | self-hosted app | `capability-map.herkules.dev`, OIDC-only, 24h sessions      |
 | `Herkules GPU 4090` | self-hosted app | `gpu-4090.herkules.dev`, service-token only (no login page) |
 
+Zone settings, adopted 2026-09-14 and described in `zone-settings.tf`:
+
+| Setting                                                                    | Live value | Why it is here                        |
+| -------------------------------------------------------------------------- | ---------- | ------------------------------------- |
+| `ssl`                                                                      | `"strict"` | the Origin CA contract                |
+| `min_tls_version`                                                          | `"1.0"`    | adopted as-is; raising it is a change |
+| `tls_1_3`                                                                  | `"on"`     | keep TLS 1.3 offered                  |
+| `always_use_https`, `automatic_https_rewrites`, `opportunistic_encryption` | `"on"`     | no plain-HTTP or mixed content        |
+| `brotli`, `http3`, `browser_check`                                         | `"on"`     | transport and origin challenge        |
+| `security_header` (HSTS)                                                   | disabled   | adopted as-is; see the hardening note |
+
 Deliberately not managed here, and why:
 
 - **SOA / NS records.** Cloudflare owns them; managing them risks the zone's
   delegation for no benefit.
-- **Zone SSL/TLS settings** (`ssl`, `min_tls_version`, HSTS, …). Deferred by
-  decision. They stay hand-set in the dashboard for now.
+- **The other zone settings.** 56 exist and 44 are editable; the ten above are the
+  contract, not the tuning. Left hand-set: `browser_cache_ttl`, `challenge_ttl`,
+  `cache_level`, `security_level`, `development_mode`, `ciphers`, `ipv6`,
+  `websockets`, `0rtt`, `early_hints` and the image/performance features that are
+  not editable on this plan. `http2` is not editable at all, so it cannot be
+  managed. See `zone-settings.tf` for the full list with the values read live.
 - **The Herkules OIDC identity provider and the `herkules-ai-gateway` service
   token.** Both carry a `client_secret` that is marked Sensitive in the provider
   schema but still lands in state as **plaintext**, and both must already exist in
@@ -86,6 +102,7 @@ delegated:
    dashboard create a token with exactly:
    - `Zone` → `DNS` → **Edit**
    - `Zone` → `Zone` → **Read**
+   - `Zone` → `Zone Settings` → **Edit**
    - `Account` → `Access: Apps and Policies` → **Edit**
    - `Account` → `Access: Organizations, Identity Providers, and Groups` → **Read**
    - `Account` → `Access: Service Tokens` → **Read**
@@ -94,6 +111,16 @@ delegated:
    cannot be zone-scoped — Cloudflare's Access API is account-level, even though
    both managed applications sit on this zone — so they are scoped to this account
    only. It needs no Workers, R2, or billing permissions.
+
+   **A permission edit is not immediately effective.** After adding `Zone Settings`,
+   `GET /zones/<zone>/settings` starts answering `200` while individual reads of some
+   settings still answer `403` with code `10000` for several minutes, and the same
+   read can flip back and forth in between. It is propagation, not a wrong
+   permission: re-probe the setting that failed a few minutes later before changing
+   anything. Observed on 2026-09-14, when a plan failed on `always_use_https`,
+   `automatic_https_rewrites`, and `brotli` and all three answered `200` shortly
+   after. The token value itself does not change when permissions are edited, so
+   the `production` secret never needs re-pasting for this.
 
    The `Organizations, Identity Providers, and Groups` read is **not exercised by
    the current configuration**: a traced plan calls only `access/apps`,
@@ -137,21 +164,24 @@ delegated:
    | `GET /accounts/<account>/access/identity_providers` | `200` — granted, but unused (see above) |
    | `GET /accounts/<account>/access/service_tokens`     | `200` — Phase B                         |
    | `GET /accounts/<account>/access/organizations`      | `200` — granted, but unused (see above) |
-   | `GET /zones/<zone>/settings`                        | `403` — Phase C adds Zone Settings      |
+   | `GET /zones/<zone>/settings`                        | `200` — Phase C                         |
+   | `GET /zones/<zone>/settings/<setting_id>`           | `200` — Phase C                         |
    | `GET /zones/<zone>/rulesets`                        | `403` — Phase D adds rules              |
    | `GET /zones/<zone>/workers/routes`                  | `403` — `release.mjs` owns these        |
    | `GET /accounts/<account>/workers/scripts`           | `403` — `release.mjs` owns these        |
    | `GET /accounts/<account>/r2/buckets`                | `403` — never granted                   |
    | `GET /zones/<other-zone>/dns_records`               | `403` — every other zone in the account |
 
-   Two notes from the 2026-09-14 re-verification. `GET /zones` with no filter lists
+   Three notes from the 2026-09-14 re-verification. `GET /zones` with no filter lists
    **all five** zones in the account, while `dns_records` and `settings` on the other
    four are `403`: the zone list is metadata, not reach, and is worth knowing before
    a config mistake is assumed to be contained by the token. `origin_ca_certificates`
    answers `400` rather than `403` (an unimplemented route), which is inconclusive
-   either way; Origin CA stays never-granted by policy.
+   either way; Origin CA stays never-granted by policy. And the settings rows are the
+   ones to re-probe rather than trust immediately after granting the permission —
+   see the propagation note above.
 
-   Verified on 2026-09-14 against the production token, after the Phase B widening.
+   Verified on 2026-09-14 against the production token, after the Phase C widening.
 
 2. **Terraform >= 1.10** and **cf-terraforming**:
 
@@ -329,6 +359,55 @@ Anything else is a change to a live authentication path: reconcile the config
 instead of applying. After the apply, `terraform output access_application_ids` and
 `access_policy_ids` print the adopted IDs, and the follow-up plan must be empty.
 
+### The settings pass (done 2026-09-14)
+
+`cf-terraforming` is the wrong tool here — it generates one resource per setting with
+every read-only attribute, and the import blocks are the only part worth having. Read
+the live values first instead, with the same config file trick as above so the token
+never reaches argv:
+
+```sh
+ZONE_ID=67cb36267fed15436458bf4dfdfbaf60
+
+# The whole list, values and all. This is the survey: it shows the value *type*,
+# which decides how the resources have to be grouped, and `editable`, which decides
+# whether a setting can be managed at all.
+curl -s -K "$TMPDIR/cf-curlcfg" \
+  "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings" \
+  | jq -r '.result[] | select(.editable) | "\(.id)\t\(.value|tojson)"' | column -t
+```
+
+Then the ten import blocks, one per managed setting, `to` a `for_each` instance where
+it is one:
+
+```hcl
+import {
+  to = cloudflare_zone_setting.string["ssl"]
+  id = "<zone_id>/ssl"
+}
+
+import {
+  to = cloudflare_zone_setting.hsts
+  id = "<zone_id>/security_header"
+}
+```
+
+`terraform plan` must read **`10 to import, 0 to add, 0 to change, 0 to destroy`**.
+Three things about this resource make that gate the whole exercise:
+
+- `value` is **Dynamic**, and Terraform needs one element type per map, so settings
+  are grouped by value shape: the nine strings share one `for_each`, the HSTS object
+  is its own resource. Adopting `browser_cache_ttl` or `challenge_ttl` means adding a
+  number-valued group; `ciphers` would be a list-valued one.
+- `editable` is a computed, plan-dependent field. The survey is what catches the ones
+  that cannot be managed: `http2`, `mirage`, `polish`, `webp`, and `preload`-era
+  performance settings are `editable: false` on this plan, so a resource for them
+  would fail at apply rather than at plan.
+- `Delete` for this resource is a **no-op** in provider 5.25.0 (read
+  `internal/services/zone_setting/resource.go` rather than assuming): destroying one
+  only removes it from state and leaves the live value alone. `prevent_destroy` is
+  therefore guarding the drift _detection_, not the value.
+
 ## Credential-free checks
 
 The `terraform` job in `.github/workflows/ci.yml` runs on every PR, with no
@@ -336,13 +415,16 @@ token and no network access to Cloudflare:
 
 - `terraform fmt -check`
 - `terraform validate`
-- `terraform test` — two files under a mocked provider. `tests/records.tftest.hcl`
+- `terraform test` — three files under a mocked provider. `tests/records.tftest.hcl`
   pins the record set, the mail TXT contents, that every A record is the proxied
   VPS, that there are no AAAA records, and the automatic TTL.
   `tests/access.tftest.hcl` pins the Access set, that every application reaches its
   destination through `destinations`, that each attached policy is a _reference_
   with an id rather than an inline copy, that `capability-map` stays OIDC-only, and
-  that `gpu-4090` stays service-token-only.
+  that `gpu-4090` stays service-token-only. `tests/zone-settings.tftest.hcl` pins the
+  ten managed settings, that `ssl` is `strict`, that TLS 1.3 and the HTTPS-rewrite
+  family stay on, that `min_tls_version` stays a version Cloudflare accepts, that
+  `http2` is absent, and that the HSTS object matches the adopted one field for field.
 - an ownership check that no `cloudflare_workers_*`, `cloudflare_origin_ca_certificate`,
   or `cloudflare_account_token` resource has crept in, and that neither
   `cloudflare_zero_trust_access_identity_provider` nor
@@ -428,6 +510,32 @@ Expected on 2026-09-14: `302` to `hxyulin.cloudflareaccess.com/cdn-cgi/access/lo
 changed which hostnames Zero Trust protects. The first two lines answer a HEAD and a
 GET identically — only the portal distinguishes them, which is why its line is
 written as a GET and the other two are not.
+
+And the TLS contract, which is what `zone-settings.tf` can break. Same rule: capture
+these **before** the apply as well as after, and compare:
+
+```sh
+# The zone still serves, and plain HTTP still redirects rather than serving.
+curl -s -o /dev/null -w 'apex: %{http_code}\n' https://herkules.dev/
+curl -sI http://herkules.dev/ | grep -iE '^(HTTP|location)'
+
+# HSTS is *absent* while `security_header` says enabled = false. If this starts
+# returning a header, something turned HSTS on for a year.
+curl -sI https://herkules.dev/ | grep -i strict-transport-security || echo "no HSTS, as adopted"
+
+# Both protocol versions still complete a handshake through the Origin CA cert.
+openssl s_client -connect herkules.dev:443 -servername herkules.dev -tls1_2 </dev/null 2>/dev/null | grep -m1 'Cipher is'
+openssl s_client -connect herkules.dev:443 -servername herkules.dev -tls1_3 </dev/null 2>/dev/null | grep -m1 'Cipher is'
+
+# The two records that depend on the settings: redirect and an ordinary app.
+curl -sI https://www.herkules.dev/ | grep -iE '^(HTTP|location)'
+curl -s -o /dev/null -w 'bbs: %{http_code}\n' https://bbs.herkules.dev/
+```
+
+Expected on 2026-09-14: `200`, a `301` to `https://herkules.dev/`, no HSTS header, a
+`Cipher is` line for each of TLS 1.2 and 1.3, a `301` from `www` to the apex, and
+`200` from `bbs`. A TLS handshake failure is the one that matters most: it means the
+Origin CA certificate and the zone's TLS settings no longer agree.
 
 ## State
 

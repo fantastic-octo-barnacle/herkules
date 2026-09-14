@@ -8,8 +8,8 @@
 # Deliberately NOT managed here:
 #   - SOA and NS records. Cloudflare owns these; managing them is a way to break
 #     the zone's delegation.
-#   - Zone-level SSL/TLS settings. Out of scope for this pass by decision; they
-#     remain hand-set in the dashboard.
+#   - Zone-level SSL/TLS settings. Not here: `zone-settings.tf` owns the ten that
+#     encode the contract (ssl, min_tls_version, HSTS, ...); the rest stay hand-set.
 #
 # `private_routing` is intentionally left unset on every record. Terraform would
 # otherwise assert its default (false) against records we have not read in full,
