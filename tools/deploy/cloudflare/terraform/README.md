@@ -95,6 +95,15 @@ delegated:
    both managed applications sit on this zone — so they are scoped to this account
    only. It needs no Workers, R2, or billing permissions.
 
+   The `Organizations, Identity Providers, and Groups` read is **not exercised by
+   the current configuration**: a traced plan calls only `access/apps`,
+   `access/policies`, and `access/service_tokens`, because the IdP is referenced by
+   id and the organization is not managed. It is listed because it is granted today
+   and the probe table below pins the result. Drop it when next rotating the token
+   (a hand edit — this repository has no `API Tokens` write scope) unless the
+   org/IdP hardening pass in [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md)
+   §8 has started by then.
+
    This is a **separate variable name** from the release job's
    `CLOUDFLARE_API_TOKEN` on purpose: if both used the same name, a Terraform run
    in a shell that also deploys Workers would silently pick up the wrong token.
@@ -125,9 +134,9 @@ delegated:
    | --------------------------------------------------- | --------------------------------------- |
    | `GET /zones/<zone>/dns_records`                     | `200`                                   |
    | `GET /accounts/<account>/access/apps`               | `200` — Phase B                         |
-   | `GET /accounts/<account>/access/identity_providers` | `200` — Phase B                         |
+   | `GET /accounts/<account>/access/identity_providers` | `200` — granted, but unused (see above) |
    | `GET /accounts/<account>/access/service_tokens`     | `200` — Phase B                         |
-   | `GET /accounts/<account>/access/organizations`      | `200` — Phase B                         |
+   | `GET /accounts/<account>/access/organizations`      | `200` — granted, but unused (see above) |
    | `GET /zones/<zone>/settings`                        | `403` — Phase C adds Zone Settings      |
    | `GET /zones/<zone>/rulesets`                        | `403` — Phase D adds rules              |
    | `GET /zones/<zone>/workers/routes`                  | `403` — `release.mjs` owns these        |
@@ -334,12 +343,17 @@ token and no network access to Cloudflare:
   destination through `destinations`, that each attached policy is a _reference_
   with an id rather than an inline copy, that `capability-map` stays OIDC-only, and
   that `gpu-4090` stays service-token-only.
-- a grep that no `cloudflare_workers_*`, `cloudflare_origin_ca_certificate`, or
-  `cloudflare_account_token` resource has crept in, and that neither
+- an ownership check that no `cloudflare_workers_*`, `cloudflare_origin_ca_certificate`,
+  or `cloudflare_account_token` resource has crept in, and that neither
   `cloudflare_zero_trust_access_identity_provider` nor
   `cloudflare_zero_trust_access_service_token` is declared as a **resource** — the
   data source for the service token is expected, a resource would put a
-  `client_secret` in state.
+  `client_secret` in state. It is not a plain `grep`: each `*.tf` file is stripped of
+  block comments and flattened to one line first, because HCL accepts a resource
+  whose keyword and type label are separated by a comment, including a multi-line
+  one, and a line-based match reads straight past that. A `*.tf.json` file is
+  rejected outright for the same reason — JSON syntax is legal to Terraform and
+  invisible to these patterns.
 
 Run the same locally with `terraform fmt -check -recursive && terraform validate && terraform test`.
 

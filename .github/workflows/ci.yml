@@ -97,18 +97,42 @@ jobs:
       #
       # The Access pair is matched as `resource` blocks only: access.tf legitimately
       # reads the service token through a *data* source, which exposes no secret.
+      #
+      # The matching is deliberately not a plain `grep` over the file. A line-based
+      # match misses a real declaration whose keyword and type label are separated
+      # by a comment -- `resource /* x */ "cloudflare_zero_trust_access_service_token"`
+      # parses as a resource block, and a `/* ... */` comment may even span lines
+      # between the two. So each file is stripped of block comments and flattened to
+      # one line first. `.tf.json` files are rejected outright for the same reason:
+      # JSON syntax is legal to Terraform and invisible to these patterns.
       - name: Out-of-scope resources stay out of Terraform
         run: |
-          if grep -rnE 'cloudflare_(workers_|origin_ca_certificate|account_token)' \
-              "$TERRAFORM_DIR" --include='*.tf'; then
-            echo "::error::Worker uploads/routes, Origin CA, and account tokens are owned outside Terraform."
+          command -v perl >/dev/null || { echo "::error::perl is required by the ownership check."; exit 1; }
+
+          if find "$TERRAFORM_DIR" -name '*.tf.json' -print -quit | grep -q .; then
+            echo "::error::Terraform in this directory is HCL only; a .tf.json file would bypass the ownership checks below."
             exit 1
           fi
-          if grep -rnE 'resource[[:space:]]+"cloudflare_zero_trust_access_(identity_provider|service_token)"' \
-              "$TERRAFORM_DIR" --include='*.tf'; then
-            echo "::error::The Access IdP and service token are hand-made: managing them would copy a client_secret into state."
-            exit 1
-          fi
+
+          # Fails with the file, not the line: the match runs on a flattened copy.
+          # `[[:space:]]` and not `[^"]` between the keyword and the label: the
+          # latter would let any earlier mention of the word "resource" in a
+          # comment pair up with a quoted *data* source label further down.
+          check() {
+            local pattern="$1" message="$2" file flat
+            while IFS= read -r file; do
+              flat=$(perl -0777 -pe 's{/\*.*?\*/}{ }gs' "$file" | tr '\n' ' ')
+              if printf '%s' "$flat" | grep -qE "$pattern"; then
+                echo "::error file=$file::$message"
+                return 1
+              fi
+            done < <(find "$TERRAFORM_DIR" -name '*.tf')
+          }
+
+          check 'cloudflare_(workers_|origin_ca_certificate|account_token)' \
+            'Worker uploads/routes, Origin CA, and account tokens are owned outside Terraform.' || exit 1
+          check 'resource[[:space:]]+"cloudflare_zero_trust_access_(identity_provider|service_token)"' \
+            'The Access IdP and service token are hand-made: managing them would copy a client_secret into state.' || exit 1
       # imports.tf is an adoption-only artifact. `terraform test` runs under a
       # mock provider, which cannot import, so committing it fails the test step
       # above with a cryptic message. Fail here instead, and say why.

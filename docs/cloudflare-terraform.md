@@ -205,8 +205,11 @@ Three things only became visible from the export and are worth recording:
   what prevents domain spoofing — which is the strongest single argument for
   putting DNS under version control with `prevent_destroy`.
 
-Zone-level TLS settings and Access remain **hand-set** for now; the config
-deliberately asserts nothing about them.
+Zone-level TLS settings remain **hand-set** for now, and so do the three Access
+objects this pass deliberately does not own — the identity provider, the service
+token, and the organization. The config deliberately asserts nothing about any of
+them. The Access **applications and policies** are the exception: §8 Phase B
+adopted them, and the list below records what that changed.
 
 ### Adopt next
 
@@ -529,7 +532,11 @@ add, 3 to change, 0 to destroy` — the three TXT records normalized from the
    that rejects a committed `imports.tf` — `terraform test` runs under a mock
    provider, which cannot import, so that file is adoption-only and breaks CI.
    Phase B added the Access identity-provider and service-token resources to the
-   same grep.
+   same check, and turned it from a line-based `grep` into one that strips block
+   comments and flattens each file first — HCL accepts `resource /* c */ "type"` and
+   a `/* ... */` comment may span the lines between them, both of which a line-based
+   match reads past — and that rejects `*.tf.json`, which Terraform also evaluates
+   and which the patterns cannot see.
 
 Token: unchanged in Phase A — DNS Read, DNS Write, Zone Read.
 
@@ -589,18 +596,32 @@ live authentication path rather than an adoption:
   restriction, so it is exactly as wide as the auth service's own registration
   policy — wider than the name suggests.
 - The account still carries the built-in **One-time PIN** login method. It is an
-  ordinary identity provider object and nothing needs it: `capability-map` offers
-  only the OIDC provider, and `gpu-4090` has no interactive policy at all, answering
-  `403` anonymously. It is also the only fallback login method if the OIDC provider
-  is ever unreachable, and the provider cannot manage it without a recurring diff
+  ordinary identity provider object and **nothing can reach it**: `capability-map`
+  lists only the OIDC provider in `allowed_idps`, and `gpu-4090` has no interactive
+  policy at all, answering `403` anonymously. So it is not a live fallback — an
+  operator facing a broken OIDC provider would have to re-add OTP by hand first,
+  which is the one reason to keep the object around rather than delete it. The
+  provider also cannot manage it without a recurring diff
   ([issue #5693](https://github.com/cloudflare/terraform-provider-cloudflare/issues/5693)),
   so removing it would be a deliberate one-off hand change.
 - The organization's `session_duration`, `mfa_configuration`, and `is_ui_read_only`
-  are all unset. Both applications also carry `http_only_cookie_attribute = false`,
-  which the config now preserves deliberately: the session cookie Access issues is
-  readable from JavaScript there, so flipping it to `true` is a hardening candidate
-  in its own right — but it changes behaviour for whatever reads that cookie, so it
-  is not part of an adoption. `ai-portal.herkules.dev` has no Zero Trust layer at all.
+  are all unset. Both applications also carry `http_only_cookie_attribute = false`
+  and `enable_binding_cookie = false`, which the config now preserves deliberately:
+  the session cookie Access issues is readable from JavaScript, and it cannot be
+  tied to the browser that obtained it. Flipping either is a hardening candidate in
+  its own right — `enable_binding_cookie = true` on `capability-map` in particular,
+  since it is browser-only, and the Cloudflare docs recommend the binding cookie
+  precisely against replay of a stolen `CF_Authorization` cookie — but both change
+  behaviour for whatever reads that cookie, so neither belongs in an adoption.
+  `ai-portal.herkules.dev` has no Zero Trust layer at all.
+- The Terraform token carries `Access: Organizations, Identity Providers, and Groups`
+  → **Read**, which the current configuration does not use: a traced plan calls only
+  `access/apps`, `access/policies`, and `access/service_tokens`, because the IdP is
+  referenced by id and the organization is not managed. It is kept for now because
+  narrowing it means editing the production token by hand (the token has no
+  `API Tokens` write scope, so this repository cannot do it), and the org/IdP
+  hardening pass above will need it. Dropping that one permission is the
+  least-privilege step to take first if the token is rotated for any other reason.
 
 ### Phase C — zone TLS and security settings
 
