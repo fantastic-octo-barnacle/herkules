@@ -630,7 +630,7 @@ dig +short TXT herkules.dev
 dig +short TXT _dmarc.herkules.dev
 ```
 
-And the two zone-level DNS guards. CAA must list all four CAs with both tags, or the
+And the zone-level DNS guards. CAA must list all four CAs with both tags, or the
 next Universal SSL renewal can fail if Cloudflare rotates to a CA that is missing;
 DNSSEC must still validate, or the zone stops resolving for validating resolvers.
 
@@ -642,17 +642,30 @@ dig +dnssec +short A herkules.dev | grep -c RRSIG   # at least 1
 delv @1.1.1.1 herkules.dev A | head -1        # "; fully validated"
 ```
 
+And the Certificate Transparency guard, which is the other half of CAA: CAA says
+which CAs may issue for the zone, CT alerting is how a certificate logged anyway is
+noticed.
+
+```sh
+# enabled must be true and the recipient list non-empty.
+terraform state show cloudflare_ct_alerting.this
+```
+
+Note the permission it needs. `zone-ct.tf` is the only resource here behind
+Cloudflare's **SSL and Certificates** Read/Write, not the `Zone Settings` and DNS
+permissions everything else uses, so the token carries that scope too.
+
 ## Hand-set, by design
 
-Two guards on this zone are dashboard toggles with no Terraform resource, so they
-are recorded here instead:
+One guard on this zone is a dashboard toggle with no Terraform resource, so it is
+recorded here instead:
 
-- **Certificate Transparency monitoring** (SSL/TLS → Edge Certificates). Emails the
-  account when any public CA logs a certificate for the domain, which is the only
-  way to notice mis-issuance that CAA did not prevent. Free on every plan.
 - **The registrar's DS record.** Terraform manages Cloudflare's half of DNSSEC; the
   registrar's half is the DS record, and `terraform output dnssec_ds` prints what it
   should be.
+
+CAA, DNSSEC and CT alerting used to be on the hand-set list as well. All three are
+Terraform-managed now, so a change to any of them is drift rather than a note.
 
 ### Zero Trust settings that stay hand-set
 
