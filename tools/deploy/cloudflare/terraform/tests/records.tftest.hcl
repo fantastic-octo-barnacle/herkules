@@ -24,15 +24,45 @@ variables {
 run "records" {
   command = plan
 
-  # The record set captured from the zone export on 2026-09-14. A missing entry
-  # would drop a live record out of management without deleting it, which is the
-  # quiet kind of drift; make it loud.
+  # The twelve records captured from the zone export on 2026-09-14 plus the eight
+  # CAA records added on 2026-09-15. A missing entry would drop a live record out of
+  # management without deleting it, which is the quiet kind of drift; make it loud.
   assert {
     condition = keys(cloudflare_dns_record.record) == [
-      "ai", "ai_portal", "apex", "bbs", "capability_map", "dkim",
-      "dmarc", "gpu_4090", "ops", "spf", "status", "www",
+      "ai", "ai_portal", "apex", "bbs", "caa_google_issue", "caa_google_issuewild",
+      "caa_letsencrypt_issue", "caa_letsencrypt_issuewild", "caa_sectigo_issue",
+      "caa_sectigo_issuewild", "caa_sslcom_issue", "caa_sslcom_issuewild",
+      "capability_map", "dkim", "dmarc", "gpu_4090", "ops", "spf", "status", "www",
     ]
     error_message = "The managed record set changed. Update this list only alongside a reviewed zone change."
+  }
+
+  # CAA: every CA Cloudflare may use for the Universal certificate is allowed for
+  # both the apex and the wildcard, all on the apex name, and none is proxied.
+  # Dropping a CA here would block the next renewal if Cloudflare rotates to it.
+  assert {
+    condition = alltrue([
+      for ca in ["pki.goog", "letsencrypt.org", "ssl.com", "sectigo.com"] :
+      alltrue([
+        for tag in ["issue", "issuewild"] :
+        length([
+          for r in cloudflare_dns_record.record : r
+          if r.type == "CAA" && r.name == var.root_domain && !r.proxied &&
+          r.data.tag == tag && startswith(r.data.value, ca)
+        ]) == 1
+      ])
+    ])
+    error_message = "CAA must allow issue and issuewild for each of pki.goog, letsencrypt.org, ssl.com and sectigo.com, on the apex, unproxied."
+  }
+
+  # No record carries both shapes. A CAA with `content` or an A with `data` would
+  # be rejected by the API at apply, not by validate.
+  assert {
+    condition = alltrue([
+      for r in cloudflare_dns_record.record :
+      (r.type == "CAA") == (r.data != null)
+    ])
+    error_message = "CAA records use `data`; every other record uses `content`."
   }
 
   # Losing these lets anyone spoof the domain.

@@ -1,17 +1,17 @@
 # Cloudflare configuration as code
 
 Terraform for the `herkules.dev` zone and the Zero Trust account that fronts it.
-**Managed today: the twelve DNS records, ten zone-level TLS and security settings,
-the `www` → apex redirect rule, and the Cloudflare Access applications and
-policies.** That completes the agreed phase order; what is still hand-set, and why,
+**Managed today: twenty DNS records (twelve adopted, eight CAA added), DNSSEC, ten
+zone-level TLS and security settings, the `www` → apex redirect rule, and the
+Cloudflare Access applications and policies.** That completes the agreed phase order; what is still hand-set, and why,
 is under "Deliberately not managed" below, with
 [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md) §8 as the
 record of the decisions.
 
 **Status: adopted, on remote state, live in CI.** Twelve records, ten zone settings,
 one redirect ruleset, and two Access applications with their two reusable policies
-are imported, state lives in the R2 backend (`backend.tf`), and `terraform plan`
-reports "No changes".
+are imported; eight CAA records and the DNSSEC resource were added afterwards. State
+lives in the R2 backend (`backend.tf`), and `terraform plan` reports "No changes".
 `TERRAFORM_ENABLED` is set, so a PR touching this directory gets a plan comment and a
 merge to `main` applies it; the `production` environment holds `TF_VAR_api_token`,
 `TF_STATE_ACCESS_KEY_ID` and `TF_STATE_SECRET_ACCESS_KEY`. The zone and the Access
@@ -22,14 +22,26 @@ of it.
 
 Managed here:
 
-| Record                                           | Type  | Points at                                  |
-| ------------------------------------------------ | ----- | ------------------------------------------ |
-| `herkules.dev` (apex)                            | A     | VPS, proxied                               |
-| `www`, `bbs`, `status`, `ops`, `ai`, `ai-portal` | A     | VPS, proxied                               |
-| `gpu-4090`, `capability-map`                     | CNAME | Cloudflare Tunnel on the GPU host, proxied |
-| `herkules.dev` (SPF)                             | TXT   | `v=spf1 -all`                              |
-| `_dmarc`                                         | TXT   | `v=DMARC1; p=reject; sp=reject; ...`       |
-| `*._domainkey`                                   | TXT   | `v=DKIM1; p=` (empty key, intentional)     |
+| Record                                           | Type  | Points at                                                                         |
+| ------------------------------------------------ | ----- | --------------------------------------------------------------------------------- |
+| `herkules.dev` (apex)                            | A     | VPS, proxied                                                                      |
+| `www`, `bbs`, `status`, `ops`, `ai`, `ai-portal` | A     | VPS, proxied                                                                      |
+| `gpu-4090`, `capability-map`                     | CNAME | Cloudflare Tunnel on the GPU host, proxied                                        |
+| `herkules.dev` (SPF)                             | TXT   | `v=spf1 -all`                                                                     |
+| `_dmarc`                                         | TXT   | `v=DMARC1; p=reject; sp=reject; ...`                                              |
+| `*._domainkey`                                   | TXT   | `v=DKIM1; p=` (empty key, intentional)                                            |
+| `herkules.dev` (CAA, eight records)              | CAA   | `issue` + `issuewild` for `pki.goog`, `letsencrypt.org`, `ssl.com`, `sectigo.com` |
+
+The CAA set is exactly the four CAs Cloudflare lists for Universal SSL (the edge
+certificate is Google Trust Services today; Cloudflare may rotate among the four).
+Both tags are needed because the Universal certificate covers the apex and `*`. There
+is no `iodef` record because the zone has no MX and nothing would receive the report.
+
+DNSSEC is declared in `dnssec.tf` as `status = "active"`. It was enabled by hand and
+the DS record is at the registrar; the resource exists so the drift job notices if
+signing is switched off. Its `Delete` disables DNSSEC and removes the keys, which
+with the DS still published is an outage for every hostname, so `prevent_destroy`
+there is not optional.
 
 Access objects, adopted 2026-09-14 and described in `access.tf`:
 
@@ -68,10 +80,15 @@ Deliberately not managed here, and why:
   delegation for no benefit.
 - **The other zone settings.** 56 exist and 44 are editable; the ten above are the
   contract, not the tuning. Left hand-set: `browser_cache_ttl`, `challenge_ttl`,
-  `cache_level`, `security_level`, `development_mode`, `ciphers`, `ipv6`,
-  `websockets`, `0rtt`, `early_hints` and the image/performance features that are
-  not editable on this plan. `http2` is not editable at all, so it cannot be
-  managed. See `zone-settings.tf` for the full list with the values read live.
+  `cache_level`, `security_level`, `development_mode`, `ipv6`, `websockets`,
+  `0rtt`, `early_hints` and the image/performance features that are not editable
+  on this plan. `http2` is not editable at all, so it cannot be managed. See
+  `zone-settings.tf` for the full list with the values read live.
+- **`ciphers`.** The API reports it editable and the zone-hardening pass meant to
+  pin Cloudflare's "modern" list once the floor was 1.2, but restricting cipher
+  suites at the zone level needs an Advanced Certificate Manager subscription. On
+  the current plan the setting stays `[]` (Cloudflare's defaults). Adopt it as a
+  list-valued group if ACM is ever bought.
 - **Cloudflare-managed rulesets.** Three appear in the zone's ruleset list — the DDoS
   L7 entry point, the Cloudflare Managed Free Ruleset, and the URL normalization
   ruleset — all `kind = "managed"`. They are Cloudflare's to version, so nothing here
@@ -522,9 +539,11 @@ token and no network access to Cloudflare:
 
 - `terraform fmt -check`
 - `terraform validate`
-- `terraform test` — four files under a mocked provider. `tests/records.tftest.hcl`
+- `terraform test` — five files under a mocked provider. `tests/records.tftest.hcl`
   pins the record set, the mail TXT contents, that every A record is the proxied
-  VPS, that there are no AAAA records, and the automatic TTL.
+  VPS, that there are no AAAA records, the automatic TTL, and that CAA allows both
+  tags for each of the four Universal SSL CAs. `tests/dnssec.tftest.hcl` pins
+  `status = "active"`.
   `tests/access.tftest.hcl` pins the Access set, that every application reaches its
   destination through `destinations`, that each attached policy is a _reference_
   with an id rather than an inline copy, that `capability-map` stays OIDC-only, and
@@ -607,6 +626,28 @@ anyone spoof the domain:
 dig +short TXT herkules.dev
 dig +short TXT _dmarc.herkules.dev
 ```
+
+And the two zone-level DNS guards. CAA must list all four CAs with both tags, or the
+next Universal SSL renewal can fail if Cloudflare rotates to a CA that is missing;
+DNSSEC must still validate, or the zone stops resolving for validating resolvers.
+
+```sh
+dig +short CAA herkules.dev | sort            # eight lines, four CAs x issue/issuewild
+dig +dnssec +short A herkules.dev | grep -c RRSIG   # at least 1
+delv @1.1.1.1 herkules.dev A | head -1        # "; fully validated"
+```
+
+## Hand-set, by design
+
+Two guards on this zone are dashboard toggles with no Terraform resource, so they
+are recorded here instead:
+
+- **Certificate Transparency monitoring** (SSL/TLS → Edge Certificates). Emails the
+  account when any public CA logs a certificate for the domain, which is the only
+  way to notice mis-issuance that CAA did not prevent. Free on every plan.
+- **The registrar's DS record.** Terraform manages Cloudflare's half of DNSSEC; the
+  registrar's half is the DS record, and `terraform output dnssec_ds` prints what it
+  should be.
 
 And the Access contract, which is what an adoption of `access.tf` can actually
 break. Capture these **before** an Access apply as well as after — the point is that

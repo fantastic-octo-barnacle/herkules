@@ -774,6 +774,35 @@ part of an adoption pass:
   `mfa_configuration` and `is_ui_read_only`, turn on `http_only_cookie_attribute`
   and `enable_binding_cookie`, and put `ai-portal.herkules.dev` behind Access.
 
+### Phase E — zone hardening
+
+**Done 2026-09-15**, as the follow-up to the TLS floor and HSTS. A read of the live
+settings and DNS found the zone already better than assumed — DNSSEC active,
+Encrypted Client Hello and post-quantum key exchange on, 0-RTT off — and three gaps:
+
+- **CAA records: none existed**, so any public CA could issue for the domain. Eight
+  were added in `dns.tf`: `issue` and `issuewild` for each of the four CAs Cloudflare
+  lists for Universal SSL (`pki.goog` with `cansignhttpexchanges=yes`,
+  `letsencrypt.org`, `ssl.com`, `sectigo.com`). Both tags because the Universal
+  certificate covers the apex and the wildcard; all four because Cloudflare rotates
+  among them and a missing one would block a renewal. No `iodef`: the zone has no MX.
+  CAA is the first record type here that uses `data` rather than `content`, so the
+  record resource now sets whichever of the two the entry carries.
+- **DNSSEC was active but unmanaged.** `cloudflare_zone_dnssec` is declared with
+  `status = "active"` and no import: the provider's Create is a PATCH of the status,
+  which is a no-op against the live value, so the plan reads `1 to add` and applies
+  without changing anything. Its Delete, by contrast, disables signing and removes
+  the keys while the DS record is still at the registrar — an outage for the whole
+  zone — so `prevent_destroy` is load-bearing. The DS value is exported as
+  `dnssec_ds`.
+- **Cipher suites cannot be restricted on this plan.** The API reports `ciphers` as
+  editable, but zone-level customization needs an Advanced Certificate Manager
+  subscription, so the intended "modern" list (the ECDHE AES-GCM and ChaCha20
+  suites) was not adopted. Recorded as the one item this pass could not do.
+
+Certificate Transparency monitoring is a dashboard toggle with no resource, and is
+listed in the README as a hand-set guard.
+
 ### Later, if it earns its place
 
 - `cloudflare_r2_bucket` for the backup bucket's definition, and
