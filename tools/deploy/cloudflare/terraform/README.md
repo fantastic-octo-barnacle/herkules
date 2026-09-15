@@ -632,7 +632,9 @@ next Universal SSL renewal can fail if Cloudflare rotates to a CA that is missin
 DNSSEC must still validate, or the zone stops resolving for validating resolvers.
 
 ```sh
-dig +short CAA herkules.dev | sort            # eight lines, four CAs x issue/issuewild
+# Eight matches: issue + issuewild for each CA. Cloudflare may serve extra CAA lines
+# of its own alongside these, so check for the four CAs, not for an exact count.
+dig +short CAA herkules.dev | grep -cE 'issue(wild)? "(pki\.goog|letsencrypt\.org|ssl\.com|sectigo\.com)'
 dig +dnssec +short A herkules.dev | grep -c RRSIG   # at least 1
 delv @1.1.1.1 herkules.dev A | head -1        # "; fully validated"
 ```
