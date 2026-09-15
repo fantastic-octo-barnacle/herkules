@@ -778,7 +778,7 @@ part of an adoption pass:
 
 **Done 2026-09-15**, as the follow-up to the TLS floor and HSTS. A read of the live
 settings and DNS found the zone already better than assumed — DNSSEC active,
-Encrypted Client Hello and post-quantum key exchange on, 0-RTT off — and three gaps:
+Encrypted Client Hello and post-quantum key exchange on, 0-RTT off — and four gaps:
 
 - **CAA records: none existed**, so any public CA could issue for the domain. Eight
   were added in `dns.tf`: `issue` and `issuewild` for each of the four CAs Cloudflare
@@ -795,13 +795,28 @@ Encrypted Client Hello and post-quantum key exchange on, 0-RTT off — and three
   the keys while the DS record is still at the registrar — an outage for the whole
   zone — so `prevent_destroy` is load-bearing. The DS value is exported as
   `dnssec_ds`.
+- **Certificate Transparency alerting.** CAA says which CAs may issue for the zone;
+  CT alerting is how a certificate logged anyway is noticed, so the two are one
+  control. `zone-ct.tf` manages it as `cloudflare_ct_alerting` with the alerts going
+  to the account's security contact. This is the one resource here behind
+  Cloudflare's **SSL and Certificates** Read/Write rather than the `Zone Settings`
+  and DNS permissions the rest of the directory uses, so the Terraform token carries
+  that scope as well.
+
+One item this pass did not take:
+
 - **Cipher suites cannot be restricted on this plan.** The API reports `ciphers` as
   editable, but zone-level customization needs an Advanced Certificate Manager
   subscription, so the intended "modern" list (the ECDHE AES-GCM and ChaCha20
-  suites) was not adopted. Recorded as the one item this pass could not do.
+  suites) was not adopted. Deferred by decision rather than by cost: ACM is not
+  wanted yet. The reason to record where it would land is that the work is small and
+  the prerequisite is not the subscription — it is the token. Adopting it means a
+  list-valued group in `zone-settings.tf`, and `ciphers` sits under `SSL and
+Certificates` too, the same scope CT alerting needed. So the token change above is
+  the real cost of this item, and it is paid once that scope is added.
 
-Certificate Transparency monitoring is a dashboard toggle with no resource, and is
-listed in the README as a hand-set guard.
+Certificate Transparency monitoring used to be a dashboard toggle; it is managed
+here now, and the README's guard list says so.
 
 ### Later, if it earns its place
 
