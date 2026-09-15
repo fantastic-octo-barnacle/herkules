@@ -1,8 +1,8 @@
 # Zone-level TLS and security settings, adopted from the live zone on 2026-09-14.
 #
 # These are the settings behind the "Full (strict)" contract the VPS and the Origin
-# CA certificate depend on. Until this file existed, nothing caught a dashboard
-# toggle that silently broke it.
+# CA certificate depend on. This file is what catches a dashboard toggle that would
+# silently break it.
 #
 # The managed set is the ten settings listed below, not all of them. The survey read
 # `GET /zones/<zone>/settings` and got 56 settings, 44 of them editable. The rest

@@ -246,10 +246,9 @@ rather than hand-copied, so the IDs in Git are provably the ones Cloudflare
 holds. `cf-terraforming` reads the provider schema from an initialised working
 directory, so init first.
 
-Since `backend.tf` now exists, `terraform init` initializes the R2 backend and
-therefore needs the state credentials — and `cf-terraforming` inherits that
-requirement. The original adoption could run without them because the backend
-block did not exist yet.
+`terraform init` initializes the R2 backend (`backend.tf`) and therefore needs the
+state credentials; `cf-terraforming` reads the initialized directory, so it inherits
+that requirement.
 
 ```sh
 cd tools/deploy/cloudflare/terraform
@@ -556,12 +555,15 @@ Run the same locally with `terraform fmt -check -recursive && terraform validate
 
 ## Plans and applies in CI
 
-`.github/workflows/terraform.yml` is inert until the repository variable
-`TERRAFORM_ENABLED` is `true`. Once it is: a PR touching this directory gets its
-plan posted as a comment by `dflook/terraform-plan`; the merge to main runs
-`dflook/terraform-apply`, which re-plans and refuses if the result differs from
-the plan that was commented and approved. The plan file never leaves the runner —
-a saved plan contains variable values, the token included, in clear.
+`.github/workflows/terraform.yml` is gated on the repository variable
+`TERRAFORM_ENABLED`, which is set: a PR touching this directory gets its plan posted
+as a comment by `dflook/terraform-plan`; the merge to main runs
+`dflook/terraform-apply`, which re-plans and refuses if the result differs from the
+plan that was commented and approved. The plan file never leaves the runner. It does
+not hold the token — `api_token` is an ephemeral variable, used to configure the
+provider and written to neither the plan nor state — but it does hold every other
+variable value and the full resource diff. Unsetting the variable pauses the
+workflow; the credential-free checks in `ci.yml` keep running regardless.
 
 A weekly scheduled run generates the same plan without a comment and **fails the
 workflow when the plan is non-empty**, so a hand-made dashboard change is noticed
@@ -679,40 +681,30 @@ HTTPS-upgrade hop and change which request does the work.
 
 ## State
 
-State is **local** for the adoption pass on purpose: it keeps the first import a
-solo, reviewable operation with no new infrastructure (no bucket, no token, no
-workflow) created before the config is proven.
+State lives in the private `herkules-tfstate` R2 bucket (`backend.tf`), migrated
+there on 2026-09-14 with `terraform init -migrate-state` once the adoption plan was
+clean. Local state is not acceptable when both a human and CI can apply.
 
-**Done on 2026-09-14:** the twelve records were imported, and state has since
-migrated to the R2 backend below (`backend.tf`). The local `terraform.tfstate` is
-now the empty placeholder a remote backend leaves behind, and
-`terraform.tfstate.backup` is the pre-migration copy. `terraform plan` reports
-"No changes" against the remote state, and the lock works — R2 implements the
-conditional `PutObject` that `use_lockfile` needs.
-
-Once the plan is clean and the records are imported, move to the R2 remote
-backend described in [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md)
-before letting CI apply:
-
-```sh
-terraform init -migrate-state
-```
-
-The backend needs a private `herkules-tfstate` bucket and an R2 API token scoped
-to that bucket alone (Object Read & Write). Those are **not** the backup
-credentials in `.env.backup`. The S3 backend reads the standard `AWS_*` names, so
-export them from out-of-checkout files the same way as the API token:
+The S3 backend reads the standard `AWS_*` names. They must hold an R2 API token
+scoped to that bucket alone (Object Read & Write) — **not** the backup credentials
+in `.env.backup` — exported from out-of-checkout files the same way as the API
+token:
 
 ```sh
 export AWS_ACCESS_KEY_ID="$(cat ~/.config/herkules/terraform/r2-access-key-id)"
 export AWS_SECRET_ACCESS_KEY="$(cat ~/.config/herkules/terraform/r2-secret-access-key)"
 ```
 
-The commit that adds the backend block is the one that should flip
-`TERRAFORM_ENABLED`. Local state is not acceptable once both a human and CI can
-apply. The state file contains no secrets at this scope (no certs, no R2 keys, no
-tokens), but it does contain every managed record and must not be committed. The
-root `.gitignore` covers `*.tfstate`, `*.tfstate.*`, `**/.terraform/*`, and
-`*.tfvars`; the `.terraform.lock.hcl` dependency lock file is deliberately **not**
-ignored and is committed, since it pins the provider version and its checksums,
-so `init` on a covered platform leaves it unchanged).
+Locking needs no DynamoDB: `use_lockfile` relies on the conditional `PutObject` that
+R2 implements. R2 has no bucket versioning, so there is no undo for a corrupted
+state object. That is acceptable only while the managed scope holds no secrets,
+which is why the Access identity provider and service token stay out of Terraform.
+
+The state contains no secrets at this scope (no certs, no R2 keys, no tokens), but
+it does contain every managed record and must not be committed. The root
+`.gitignore` covers `*.tfstate`, `*.tfstate.*`, `**/.terraform/*`, and `*.tfvars`.
+A `terraform.tfstate` left in this directory is the empty placeholder a remote
+backend leaves behind, and `terraform.tfstate.backup` the pre-migration copy; both
+can be deleted. The `.terraform.lock.hcl` dependency lock file is deliberately
+**not** ignored and is committed, since it pins the provider version and its
+checksums, so `init` on a covered platform leaves it unchanged.

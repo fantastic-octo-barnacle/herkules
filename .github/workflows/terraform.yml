@@ -1,21 +1,21 @@
 name: Terraform
 
 # Cloudflare-as-code for the herkules.dev zone and the Zero Trust account that
-# fronts it (tools/deploy/cloudflare/terraform): the DNS records, and the Access
-# applications and policies.
+# fronts it (tools/deploy/cloudflare/terraform): the DNS records, the zone TLS and
+# security settings, the www redirect ruleset, and the Access applications and
+# policies.
 #
-# This workflow is INERT until the repository variable TERRAFORM_ENABLED is set
-# to 'true'. It is now enabled. Enablement required:
-#   1. the records import cleanly with an empty plan (tools/deploy/cloudflare/terraform/README.md),
-#   2. state has been moved to the R2 remote backend (the same commit that adds
-#      the backend block should flip the flag), and
-#   3. the production environment has TF_VAR_api_token and the backend credentials.
+# Every job is gated on the repository variable TERRAFORM_ENABLED, which is set.
+# Unsetting it pauses plans, applies and the drift check without touching this
+# file. It was flipped once state was on the R2 backend and the production
+# environment held TF_VAR_api_token plus the backend credentials.
 #
 # The plan/apply mechanics are dflook/terraform-github-actions: the plan is posted
 # on the PR as a comment, and the apply on main re-plans and refuses to run if
 # the result differs from the plan that was reviewed. The plan file never leaves
-# the runner (a saved plan holds variable values, including the token, in clear).
-# Terraform itself is installed from required_version in versions.tf.
+# the runner: the token is an ephemeral variable and is not in it, but the other
+# variable values and the full diff are. Terraform itself is installed from
+# required_version in versions.tf.
 #
 # Credential-free checks (fmt, validate, terraform test) run in ci.yml on every
 # PR and are not gated. This workflow never touches Worker routes or uploads;
