@@ -30,3 +30,8 @@ output "ruleset_ids" {
     redirect = cloudflare_ruleset.redirect.id
   }
 }
+
+output "dnssec_ds" {
+  description = "The DS record Cloudflare expects at the registrar. Compare against the registrar's DNSSEC page after any key change."
+  value       = cloudflare_zone_dnssec.this.ds
+}

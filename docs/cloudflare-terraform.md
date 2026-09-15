@@ -219,9 +219,9 @@ adopted them, and the lists below record what that changed.
 1. **Zone TLS/security settings** — **done 2026-09-14**, see §8 Phase C. Ten settings
    are managed, headed by the ones that encode the "Full (strict)" contract the VPS
    and the Origin CA cert depend on. The survey found the contract weaker than the
-   docs assumed in two places and this pass preserved both, deliberately: TLS 1.0 is
-   still accepted, and no HSTS is sent. Both are recorded as hardening changes rather
-   than adoption.
+   docs assumed in two places and this pass preserved both, deliberately: TLS 1.0 was
+   still accepted, and no HSTS was sent. Both were hardened afterwards as their own
+   reviewed change (2026-09-15, Phase C).
 2. **Cloudflare Access** — **done 2026-09-14**, see §8 Phase B. The live account
    held exactly two applications, `capability-map.herkules.dev` and
    `gpu-4090.herkules.dev`, plus two reusable policies attached to them. The IdP
@@ -625,15 +625,17 @@ live authentication path rather than an adoption:
   ([issue #5693](https://github.com/cloudflare/terraform-provider-cloudflare/issues/5693)),
   so removing it would be a deliberate one-off hand change.
 - The organization's `session_duration`, `mfa_configuration`, and `is_ui_read_only`
-  are all unset. Both applications also carry `http_only_cookie_attribute = false`
-  and `enable_binding_cookie = false`, which the config now preserves deliberately:
-  the session cookie Access issues is readable from JavaScript, and it cannot be
-  tied to the browser that obtained it. Flipping either is a hardening candidate in
-  its own right — `enable_binding_cookie = true` on `capability-map` in particular,
-  since it is browser-only, and the Cloudflare docs recommend the binding cookie
-  precisely against replay of a stolen `CF_Authorization` cookie — but both change
-  behaviour for whatever reads that cookie, so neither belongs in an adoption.
-  `ai-portal.herkules.dev` has no Zero Trust layer at all.
+  are all unset. Both applications also carried `http_only_cookie_attribute = false`
+  and `enable_binding_cookie = false`, which the adoption preserved: the session
+  cookie Access issued was readable from JavaScript, and it could not be tied to the
+  browser that obtained it. Neither belonged in an adoption because both change
+  behaviour for whatever reads that cookie. **Hardened 2026-09-15**, once a search of
+  this repository found nothing reading `CF_Authorization`: `capability-map`, the
+  browser-only application, now sets HttpOnly, the binding cookie and
+  `same_site_cookie_attribute = "lax"` (Cloudflare warns Strict loops on the login
+  hop); `gpu-4090` sets HttpOnly only, because Cloudflare says not to enable the
+  binding cookie for non-browser clients and its only client is the gateway's
+  service-token headers. `ai-portal.herkules.dev` still has no Zero Trust layer.
 - The Terraform token carries `Access: Organizations, Identity Providers, and Groups`
   → **Read**, which the current configuration does not use: a traced plan calls only
   `access/apps`, `access/policies`, and `access/service_tokens`, because the IdP is
@@ -664,22 +666,26 @@ plan in four ways:
   the HSTS object is its own resource. Adopting `browser_cache_ttl` or
   `challenge_ttl` later means adding a number-valued group, and `ciphers` a
   list-valued one.
-- **The contract is weaker than this document assumed, and the pass preserves it.**
-  `min_tls_version` is `"1.0"`, and a TLS 1.0 handshake to the apex completes today;
-  `security_header` has `enabled = false`, so no HSTS is sent. Both are hardening
+- **The contract was weaker than this document assumed, and the pass preserved it.**
+  `min_tls_version` was `"1.0"`, and a TLS 1.0 handshake to the apex completed;
+  `security_header` had `enabled = false`, so no HSTS was sent. Both were hardening
   changes rather than adoption — raising the floor locks out old clients, and HSTS is
-  sticky in browsers for as long as its `max_age` says — so they are recorded here
-  instead of applied:
+  sticky in browsers for as long as its `max_age` says — so the adoption pass
+  recorded them and a separate reviewed change applied them on **2026-09-15**:
 
-  - **`min_tls_version`: `"1.0"` → `"1.2"`.** One value change, and the handshake
-    probe in the Terraform README is what catches a regression. Today the zone still
-    accepts TLS 1.0 and 1.1, which is below what any current guidance asks for.
-  - **`security_header`: `enabled = false` → `true`.** Not a one-field change: it
-    needs a `max_age` answer (`86400` for a trial, a year for real), an
-    `include_subdomains` decision — which commits `gpu-4090` and `capability-map`
-    too — and `preload` only if every subdomain is HTTPS-only forever. Both
-    applications are behind Access over HTTPS, so nothing here breaks on paper; the
-    reason to be careful is that browsers remember it.
+  - **`min_tls_version`: `"1.0"` → `"1.2"`.** One value change. The zone accepted
+    TLS 1.0 and 1.1 until then, below what any current guidance asks for; the
+    README's probes now include a capped-at-1.1 client that must be refused.
+  - **`security_header`: enabled, `max_age = 15552000` (six months),
+    `include_subdomains = true`, `preload = false`, `nosniff = false`.** Six months
+    rather than a one-day trial because there was nothing to trial: every hostname on
+    the zone is proxied and `always_use_https` already redirects plain HTTP, so the
+    header changes what browsers _attempt_, not what is served. `include_subdomains`
+    commits `gpu-4090` and `capability-map`, both behind Access over HTTPS, and any
+    future grey-cloud hostname that wanted plain HTTP. `preload` stays off: it needs
+    a year's `max_age`, a submission to the browser lists, and months to undo, so it
+    is its own decision. `nosniff` stays off because Caddy already sends
+    `X-Content-Type-Options`.
 
 - **`Delete` on this resource is a no-op** in provider 5.25.0 (read from
   `internal/services/zone_setting/resource.go`): destroying one removes it from state
@@ -699,10 +705,11 @@ before and after and is identical: apex `200`, plain HTTP `301` to HTTPS, no HST
 header, TLS 1.2 and 1.3 both handshaking, `www` still `301`, `bbs` `200`.
 
 `terraform test` asserts the ten, `ssl = "strict"`, TLS 1.3 and the HTTPS-rewrite
-family on, `min_tls_version` one of the versions Cloudflare accepts, `http2` absent,
-and the HSTS object field for field. It deliberately does **not** assert a TLS floor
-yet: the adopted value is `1.0`, so a floor assertion would fail against the config
-this pass was reviewed with.
+family on, `http2` absent, `min_tls_version` at or above `1.2`, and HSTS enabled
+with `include_subdomains`, a 30-day minimum `max_age` and `preload` off. The
+adoption pass could only assert that `min_tls_version` was a value Cloudflare
+accepts, because a floor would have failed against the `1.0` it was reviewed with;
+the hardening change is what turned it into a real floor.
 
 Token: Zone Settings Read/Write added, and the probe matrix re-run — settings answer
 `200`, `rulesets` still `403` (Phase D).
@@ -762,14 +769,60 @@ part of an adoption pass:
   challenge policy, in exchange for an API client never being handed a challenge
   page. The worker's Access policy on `gpu-4090` stays untouched — it lives in
   `access.tf`, so a plan would notice.
-- **The TLS floor and HSTS** (Phase C's two preserved findings): `min_tls_version`
-  from `1.0` to `1.2`, and `security_header` enabled with deliberate `max_age`,
-  `include_subdomains` and `preload` answers. The README's handshake probes are what
-  catch a regression.
-- **Access hardening:** narrow the deliberately wide `Herkules team` policy, remove
-  the built-in OTP login method, set the organization's `session_duration`,
-  `mfa_configuration` and `is_ui_read_only`, turn on `http_only_cookie_attribute`
-  and `enable_binding_cookie`, and put `ai-portal.herkules.dev` behind Access.
+- ~~**The TLS floor and HSTS**~~ Done 2026-09-15; the values and the reasons are
+  under Phase C above.
+- **Access hardening.** ~~Turn on `http_only_cookie_attribute` and
+  `enable_binding_cookie`~~ done 2026-09-15 (Phase B, above). Still open, each with
+  its trade-off written up in the Terraform README under "Zero Trust settings that
+  stay hand-set": removing the OTP login method (it is the break-glass route),
+  the organization's `session_duration` and `is_ui_read_only` (the latter would
+  also lock the hand-managed IdP and service token), narrowing the `Herkules team`
+  policy (needs a claim the provider does not send), and `ai-portal.herkules.dev`
+  behind Access (pointless until the VPS refuses non-Cloudflare traffic).
+
+### Phase E — zone hardening
+
+**Done 2026-09-15**, as the follow-up to the TLS floor and HSTS. A read of the live
+settings and DNS found the zone already better than assumed — DNSSEC active,
+Encrypted Client Hello and post-quantum key exchange on, 0-RTT off — and four gaps:
+
+- **CAA records: none existed**, so any public CA could issue for the domain. Eight
+  were added in `dns.tf`: `issue` and `issuewild` for each of the four CAs Cloudflare
+  lists for Universal SSL (`pki.goog` with `cansignhttpexchanges=yes`,
+  `letsencrypt.org`, `ssl.com`, `sectigo.com`). Both tags because the Universal
+  certificate covers the apex and the wildcard; all four because Cloudflare rotates
+  among them and a missing one would block a renewal. No `iodef`: the zone has no MX.
+  CAA is the first record type here that uses `data` rather than `content`, so the
+  record resource now sets whichever of the two the entry carries.
+- **DNSSEC was active but unmanaged.** `cloudflare_zone_dnssec` is declared with
+  `status = "active"` and no import: the provider's Create is a PATCH of the status,
+  which is a no-op against the live value, so the plan reads `1 to add` and applies
+  without changing anything. Its Delete, by contrast, disables signing and removes
+  the keys while the DS record is still at the registrar — an outage for the whole
+  zone — so `prevent_destroy` is load-bearing. The DS value is exported as
+  `dnssec_ds`.
+- **Certificate Transparency alerting.** CAA says which CAs may issue for the zone;
+  CT alerting is how a certificate logged anyway is noticed, so the two are one
+  control. `zone-ct.tf` manages it as `cloudflare_ct_alerting` with the alerts going
+  to the account's security contact. This is the one resource here behind
+  Cloudflare's **SSL and Certificates** Read/Write rather than the `Zone Settings`
+  and DNS permissions the rest of the directory uses, so the Terraform token carries
+  that scope as well.
+
+One item this pass did not take:
+
+- **Cipher suites cannot be restricted on this plan.** The API reports `ciphers` as
+  editable, but zone-level customization needs an Advanced Certificate Manager
+  subscription, so the intended "modern" list (the ECDHE AES-GCM and ChaCha20
+  suites) was not adopted. Deferred by decision rather than by cost: ACM is not
+  wanted yet. The reason to record where it would land is that the work is small and
+  the prerequisite is not the subscription — it is the token. Adopting it means a
+  list-valued group in `zone-settings.tf`, and `ciphers` sits under `SSL and
+Certificates` too, the same scope CT alerting needed. So the token change above is
+  the real cost of this item, and it is paid once that scope is added.
+
+Certificate Transparency monitoring used to be a dashboard toggle; it is managed
+here now, and the README's guard list says so.
 
 ### Later, if it earns its place
 

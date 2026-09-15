@@ -1,7 +1,12 @@
 variable "api_token" {
-  description = "Terraform-scoped Cloudflare API token. Set TF_VAR_api_token in the shell; never committed."
+  description = "Terraform-scoped Cloudflare API token. Set TF_VAR_api_token in the shell; never committed. README.md, \"Prerequisites\", lists the exact permissions."
   type        = string
   sensitive   = true
+
+  # Ephemeral (Terraform >= 1.10): the value is used only to configure the provider
+  # and is never written to the plan file or to state. Without this, a saved plan
+  # carries every variable value in clear, the token included.
+  ephemeral = true
 }
 
 variable "root_domain" {
@@ -10,10 +15,8 @@ variable "root_domain" {
   default     = "herkules.dev"
 
   validation {
-    # Lowercase labels, at least one dot, and a letters-only final label. The old
-    # check only rejected a trailing dot, so the empty string, "api..example",
-    # spaces and uppercase all passed and then reached the zone lookup and the
-    # record-name suffix.
+    # Lowercase labels, at least one dot, a letters-only final label, no trailing
+    # dot. Anything else would reach the zone lookup and the record-name suffix.
     condition     = can(regex("^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$", var.root_domain))
     error_message = "Use a lowercase apex domain with no trailing dot, e.g. \"herkules.dev\"."
   }
@@ -23,6 +26,11 @@ variable "origin_ipv4" {
   description = "The HK VPS. All proxied A records point here. The box has no IPv6, so there are deliberately no AAAA records."
   type        = string
   default     = "124.156.183.221"
+
+  validation {
+    condition     = can(cidrnetmask("${var.origin_ipv4}/32"))
+    error_message = "origin_ipv4 must be a dotted-quad IPv4 address."
+  }
 }
 
 variable "account_id" {

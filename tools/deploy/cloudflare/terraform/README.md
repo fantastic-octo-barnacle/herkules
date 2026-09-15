@@ -1,17 +1,17 @@
 # Cloudflare configuration as code
 
 Terraform for the `herkules.dev` zone and the Zero Trust account that fronts it.
-**Managed today: the twelve DNS records, ten zone-level TLS and security settings,
-the `www` → apex redirect rule, and the Cloudflare Access applications and
-policies.** That completes the agreed phase order; what is still hand-set, and why,
+**Managed today: twenty DNS records (twelve adopted, eight CAA added), DNSSEC, ten
+zone-level TLS and security settings, the `www` → apex redirect rule, and the
+Cloudflare Access applications and policies.** That completes the agreed phase order; what is still hand-set, and why,
 is under "Deliberately not managed" below, with
 [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md) §8 as the
 record of the decisions.
 
 **Status: adopted, on remote state, live in CI.** Twelve records, ten zone settings,
 one redirect ruleset, and two Access applications with their two reusable policies
-are imported, state lives in the R2 backend (`backend.tf`), and `terraform plan`
-reports "No changes".
+are imported; eight CAA records and the DNSSEC resource were added afterwards. State
+lives in the R2 backend (`backend.tf`), and `terraform plan` reports "No changes".
 `TERRAFORM_ENABLED` is set, so a PR touching this directory gets a plan comment and a
 merge to `main` applies it; the `production` environment holds `TF_VAR_api_token`,
 `TF_STATE_ACCESS_KEY_ID` and `TF_STATE_SECRET_ACCESS_KEY`. The zone and the Access
@@ -22,34 +22,46 @@ of it.
 
 Managed here:
 
-| Record                                           | Type  | Points at                                  |
-| ------------------------------------------------ | ----- | ------------------------------------------ |
-| `herkules.dev` (apex)                            | A     | VPS, proxied                               |
-| `www`, `bbs`, `status`, `ops`, `ai`, `ai-portal` | A     | VPS, proxied                               |
-| `gpu-4090`, `capability-map`                     | CNAME | Cloudflare Tunnel on the GPU host, proxied |
-| `herkules.dev` (SPF)                             | TXT   | `v=spf1 -all`                              |
-| `_dmarc`                                         | TXT   | `v=DMARC1; p=reject; sp=reject; ...`       |
-| `*._domainkey`                                   | TXT   | `v=DKIM1; p=` (empty key, intentional)     |
+| Record                                           | Type  | Points at                                                                         |
+| ------------------------------------------------ | ----- | --------------------------------------------------------------------------------- |
+| `herkules.dev` (apex)                            | A     | VPS, proxied                                                                      |
+| `www`, `bbs`, `status`, `ops`, `ai`, `ai-portal` | A     | VPS, proxied                                                                      |
+| `gpu-4090`, `capability-map`                     | CNAME | Cloudflare Tunnel on the GPU host, proxied                                        |
+| `herkules.dev` (SPF)                             | TXT   | `v=spf1 -all`                                                                     |
+| `_dmarc`                                         | TXT   | `v=DMARC1; p=reject; sp=reject; ...`                                              |
+| `*._domainkey`                                   | TXT   | `v=DKIM1; p=` (empty key, intentional)                                            |
+| `herkules.dev` (CAA, eight records)              | CAA   | `issue` + `issuewild` for `pki.goog`, `letsencrypt.org`, `ssl.com`, `sectigo.com` |
+
+The CAA set is exactly the four CAs Cloudflare lists for Universal SSL (the edge
+certificate is Google Trust Services today; Cloudflare may rotate among the four).
+Both tags are needed because the Universal certificate covers the apex and `*`. There
+is no `iodef` record because the zone has no MX and nothing would receive the report.
+
+DNSSEC is declared in `dnssec.tf` as `status = "active"`. It was enabled by hand and
+the DS record is at the registrar; the resource exists so the drift job notices if
+signing is switched off. Its `Delete` disables DNSSEC and removes the keys, which
+with the DS still published is an outage for every hostname, so `prevent_destroy`
+there is not optional.
 
 Access objects, adopted 2026-09-14 and described in `access.tf`:
 
-| Object              | Kind            | Where it applies                                            |
-| ------------------- | --------------- | ----------------------------------------------------------- |
-| `Herkules team`     | reusable policy | attached to `Capability Map` at precedence 1                |
-| `AI Gateway only`   | reusable policy | attached to `Herkules GPU 4090` at precedence 1             |
-| `Capability Map`    | self-hosted app | `capability-map.herkules.dev`, OIDC-only, 24h sessions      |
-| `Herkules GPU 4090` | self-hosted app | `gpu-4090.herkules.dev`, service-token only (no login page) |
+| Object              | Kind            | Where it applies                                                                                |
+| ------------------- | --------------- | ----------------------------------------------------------------------------------------------- |
+| `Herkules team`     | reusable policy | attached to `Capability Map` at precedence 1                                                    |
+| `AI Gateway only`   | reusable policy | attached to `Herkules GPU 4090` at precedence 1                                                 |
+| `Capability Map`    | self-hosted app | `capability-map.herkules.dev`, OIDC-only, 24h sessions, HttpOnly + binding cookie, SameSite=lax |
+| `Herkules GPU 4090` | self-hosted app | `gpu-4090.herkules.dev`, service-token only (no login page), HttpOnly, no binding cookie        |
 
 Zone settings, adopted 2026-09-14 and described in `zone-settings.tf`:
 
-| Setting                                                                    | Live value | Why it is here                        |
-| -------------------------------------------------------------------------- | ---------- | ------------------------------------- |
-| `ssl`                                                                      | `"strict"` | the Origin CA contract                |
-| `min_tls_version`                                                          | `"1.0"`    | adopted as-is; raising it is a change |
-| `tls_1_3`                                                                  | `"on"`     | keep TLS 1.3 offered                  |
-| `always_use_https`, `automatic_https_rewrites`, `opportunistic_encryption` | `"on"`     | no plain-HTTP or mixed content        |
-| `brotli`, `http3`, `browser_check`                                         | `"on"`     | transport and origin challenge        |
-| `security_header` (HSTS)                                                   | disabled   | adopted as-is; see the hardening note |
+| Setting                                                                    | Live value | Why it is here                     |
+| -------------------------------------------------------------------------- | ---------- | ---------------------------------- |
+| `ssl`                                                                      | `"strict"` | the Origin CA contract             |
+| `min_tls_version`                                                          | `"1.2"`    | the floor; 1.0 and 1.1 are refused |
+| `tls_1_3`                                                                  | `"on"`     | keep TLS 1.3 offered               |
+| `always_use_https`, `automatic_https_rewrites`, `opportunistic_encryption` | `"on"`     | no plain-HTTP or mixed content     |
+| `brotli`, `http3`, `browser_check`                                         | `"on"`     | transport and origin challenge     |
+| `security_header` (HSTS)                                                   | 6 months   | with subdomains; preload off       |
 
 Zone rules, adopted 2026-09-14 and described in `zone-rules.tf`:
 
@@ -68,10 +80,15 @@ Deliberately not managed here, and why:
   delegation for no benefit.
 - **The other zone settings.** 56 exist and 44 are editable; the ten above are the
   contract, not the tuning. Left hand-set: `browser_cache_ttl`, `challenge_ttl`,
-  `cache_level`, `security_level`, `development_mode`, `ciphers`, `ipv6`,
-  `websockets`, `0rtt`, `early_hints` and the image/performance features that are
-  not editable on this plan. `http2` is not editable at all, so it cannot be
-  managed. See `zone-settings.tf` for the full list with the values read live.
+  `cache_level`, `security_level`, `development_mode`, `ipv6`, `websockets`,
+  `0rtt`, `early_hints` and the image/performance features that are not editable
+  on this plan. `http2` is not editable at all, so it cannot be managed. See
+  `zone-settings.tf` for the full list with the values read live.
+- **`ciphers`.** The API reports it editable and the zone-hardening pass meant to
+  pin Cloudflare's "modern" list once the floor was 1.2, but restricting cipher
+  suites at the zone level needs an Advanced Certificate Manager subscription. On
+  the current plan the setting stays `[]` (Cloudflare's defaults). Adopt it as a
+  list-valued group if ACM is ever bought.
 - **Cloudflare-managed rulesets.** Three appear in the zone's ruleset list — the DDoS
   L7 entry point, the Cloudflare Managed Free Ruleset, and the URL normalization
   ruleset — all `kind = "managed"`. They are Cloudflare's to version, so nothing here
@@ -246,10 +263,9 @@ rather than hand-copied, so the IDs in Git are provably the ones Cloudflare
 holds. `cf-terraforming` reads the provider schema from an initialised working
 directory, so init first.
 
-Since `backend.tf` now exists, `terraform init` initializes the R2 backend and
-therefore needs the state credentials — and `cf-terraforming` inherits that
-requirement. The original adoption could run without them because the backend
-block did not exist yet.
+`terraform init` initializes the R2 backend (`backend.tf`) and therefore needs the
+state credentials; `cf-terraforming` reads the initialized directory, so it inherits
+that requirement.
 
 ```sh
 cd tools/deploy/cloudflare/terraform
@@ -376,11 +392,14 @@ shape. Four fields decide whether the plan is empty:
 - `connection_rules = { rdp = {} }` must be present on each policy. Cloudflare
   reports it for account-level policies with no connection restrictions, and
   omitting it makes every plan propose an in-place update.
-- `http_only_cookie_attribute = false` must be stated. The provider defaults it to
-  `true`, so omitting it silently changes the cookie Access hands the origin.
+- Every cookie flag must be stated. At adoption both applications had
+  `http_only_cookie_attribute = false` while the provider defaults it to `true`, so
+  omitting it would have silently changed the cookie Access hands the origin; the
+  Access hardening pass later set it to `true` on both, and turned on the binding
+  cookie and `same_site_cookie_attribute = "lax"` on `capability-map` only.
   `enable_binding_cookie`, `options_preflight_bypass`, and
   `auto_redirect_to_identity = false` on the service-token application are the same
-  trap.
+  trap in the other direction.
 - `allowed_idps` is left unset on the service-token application: the API reports an
   empty list, and an explicit `[]` plans as a change against it.
 
@@ -523,16 +542,19 @@ token and no network access to Cloudflare:
 
 - `terraform fmt -check`
 - `terraform validate`
-- `terraform test` — four files under a mocked provider. `tests/records.tftest.hcl`
+- `terraform test` — five files under a mocked provider. `tests/records.tftest.hcl`
   pins the record set, the mail TXT contents, that every A record is the proxied
-  VPS, that there are no AAAA records, and the automatic TTL.
+  VPS, that there are no AAAA records, the automatic TTL, and that CAA allows both
+  tags for each of the four Universal SSL CAs. `tests/dnssec.tftest.hcl` pins
+  `status = "active"`.
   `tests/access.tftest.hcl` pins the Access set, that every application reaches its
   destination through `destinations`, that each attached policy is a _reference_
   with an id rather than an inline copy, that `capability-map` stays OIDC-only, and
   that `gpu-4090` stays service-token-only. `tests/zone-settings.tftest.hcl` pins the
   ten managed settings, that `ssl` is `strict`, that TLS 1.3 and the HTTPS-rewrite
-  family stay on, that `min_tls_version` stays a version Cloudflare accepts, that
-  `http2` is absent, and that the HSTS object matches the adopted one field for field.
+  family stay on, that `min_tls_version` stays at or above 1.2, that `http2` is
+  absent, and that HSTS stays enabled for every subdomain with at least a 30-day
+  `max_age` and `preload` off.
   `tests/zone-rules.tftest.hcl` pins the redirect: one zone-kind ruleset in the one
   populated phase, HTTPS-only matching on the full URI, a target that still carries
   the path and query through `wildcard_replace` + `${1}`, and
@@ -556,12 +578,15 @@ Run the same locally with `terraform fmt -check -recursive && terraform validate
 
 ## Plans and applies in CI
 
-`.github/workflows/terraform.yml` is inert until the repository variable
-`TERRAFORM_ENABLED` is `true`. Once it is: a PR touching this directory gets its
-plan posted as a comment by `dflook/terraform-plan`; the merge to main runs
-`dflook/terraform-apply`, which re-plans and refuses if the result differs from
-the plan that was commented and approved. The plan file never leaves the runner —
-a saved plan contains variable values, the token included, in clear.
+`.github/workflows/terraform.yml` is gated on the repository variable
+`TERRAFORM_ENABLED`, which is set: a PR touching this directory gets its plan posted
+as a comment by `dflook/terraform-plan`; the merge to main runs
+`dflook/terraform-apply`, which re-plans and refuses if the result differs from the
+plan that was commented and approved. The plan file never leaves the runner. It does
+not hold the token — `api_token` is an ephemeral variable, used to configure the
+provider and written to neither the plan nor state — but it does hold every other
+variable value and the full resource diff. Unsetting the variable pauses the
+workflow; the credential-free checks in `ci.yml` keep running regardless.
 
 A weekly scheduled run generates the same plan without a comment and **fails the
 workflow when the plan is non-empty**, so a hand-made dashboard change is noticed
@@ -605,6 +630,77 @@ dig +short TXT herkules.dev
 dig +short TXT _dmarc.herkules.dev
 ```
 
+And the zone-level DNS guards. CAA must list all four CAs with both tags, or the
+next Universal SSL renewal can fail if Cloudflare rotates to a CA that is missing;
+DNSSEC must still validate, or the zone stops resolving for validating resolvers.
+
+```sh
+# Eight matches: issue + issuewild for each CA. Cloudflare may serve extra CAA lines
+# of its own alongside these, so check for the four CAs, not for an exact count.
+dig +short CAA herkules.dev | grep -cE 'issue(wild)? "(pki\.goog|letsencrypt\.org|ssl\.com|sectigo\.com)'
+dig +dnssec +short A herkules.dev | grep -c RRSIG   # at least 1
+delv @1.1.1.1 herkules.dev A | head -1        # "; fully validated"
+```
+
+And the Certificate Transparency guard, which is the other half of CAA: CAA says
+which CAs may issue for the zone, CT alerting is how a certificate logged anyway is
+noticed.
+
+```sh
+# enabled must be true and the recipient list non-empty.
+terraform state show cloudflare_ct_alerting.this
+```
+
+Note the permission it needs. `zone-ct.tf` is the only resource here behind
+Cloudflare's **SSL and Certificates** Read/Write, not the `Zone Settings` and DNS
+permissions everything else uses, so the token carries that scope too.
+
+## Hand-set, by design
+
+One guard on this zone is a dashboard toggle with no Terraform resource, so it is
+recorded here instead:
+
+- **The registrar's DS record.** Terraform manages Cloudflare's half of DNSSEC; the
+  registrar's half is the DS record, and `terraform output dnssec_ds` prints what it
+  should be.
+
+CAA, DNSSEC and CT alerting used to be on the hand-set list as well. All three are
+Terraform-managed now, so a change to any of them is drift rather than a note.
+
+### Zero Trust settings that stay hand-set
+
+The Access hardening pass (2026-09-15) changed the cookie flags in `access.tf`. The
+rest of the list in `docs/cloudflare-terraform.md` §8 is either a dashboard setting
+the Terraform token cannot write, or a decision that needs an owner. Each is
+recorded here so it is a choice and not an oversight:
+
+- **The one-time PIN identity provider.** It exists, unnamed, and no application
+  offers it: `capability-map` allows only the OIDC provider and `gpu-4090` has no
+  login page. It is reachable only from the App Launcher sign-in. Deleting it closes
+  that path; keeping it is the break-glass route if the OIDC provider is ever
+  broken, since re-adding OTP by hand is the first step of recovery. If it is
+  deleted, delete it in the dashboard (Zero Trust → Settings → Authentication) and
+  note the date here.
+- **Organization `session_duration`.** Unset, so Cloudflare's default applies. The
+  applications already cap their own sessions at 24h; set the organization value
+  only if a shorter global ceiling is wanted.
+- **Organization `is_ui_read_only`.** Off. Turning it on stops dashboard edits to
+  everything Zero Trust, including the identity provider and service token that
+  are deliberately hand-managed, so it trades dashboard drift for API-only edits of
+  those two. Not recommended until they are either managed here or never expected
+  to change. Managing the organization from this directory would need the token
+  widened to `Access: Organizations, Identity Providers, and Groups` → **Edit**.
+- **Narrowing the `Herkules team` policy.** The rule is "anyone the Herkules OIDC
+  provider signs in", which is exactly the auth service's registration policy. A
+  narrower rule needs a claim the provider does not send today (a group or role)
+  or an email list, which would go stale. Leave it unless the auth service grows
+  a role claim.
+- **`ai-portal.herkules.dev` behind Access.** Would put an OIDC login in front of
+  the portal's own OIDC login for every user, and is only meaningful once the VPS
+  refuses traffic that did not come through Cloudflare, because unlike the two
+  tunnel-hosted applications the portal's origin is reachable by IP. Decide the
+  origin lockdown first.
+
 And the Access contract, which is what an adoption of `access.tf` can actually
 break. Capture these **before** an Access apply as well as after — the point is that
 they are unchanged:
@@ -637,23 +733,29 @@ these **before** the apply as well as after, and compare:
 curl -s -o /dev/null -w 'apex: %{http_code}\n' https://herkules.dev/
 curl -sI http://herkules.dev/ | grep -iE '^(HTTP|location)'
 
-# HSTS is *absent* while `security_header` says enabled = false. If this starts
-# returning a header, something turned HSTS on for a year.
-curl -sI https://herkules.dev/ | grep -i strict-transport-security || echo "no HSTS, as adopted"
+# HSTS is sent for six months with includeSubDomains and without preload. A
+# missing header means something disabled it; a `preload` token means someone
+# took the one-way door without the review it needs.
+curl -sI https://herkules.dev/ | grep -i strict-transport-security
 
-# Both protocol versions still complete a handshake through the Origin CA cert.
+# TLS 1.2 and 1.3 complete a handshake at the Cloudflare edge, and a client capped
+# at 1.1 is refused there (curl exits 35 with no HTTP status). These probes never
+# reach the origin: the Origin CA certificate is checked by Cloudflare, not by them.
 openssl s_client -connect herkules.dev:443 -servername herkules.dev -tls1_2 </dev/null 2>/dev/null | grep -m1 'Cipher is'
 openssl s_client -connect herkules.dev:443 -servername herkules.dev -tls1_3 </dev/null 2>/dev/null | grep -m1 'Cipher is'
+curl --tls-max 1.1 -s -o /dev/null https://herkules.dev/ && echo "TLS 1.1 ACCEPTED: the floor is not 1.2" || echo "TLS 1.1 refused"
 
 # The two records that depend on the settings: redirect and an ordinary app.
 curl -sI https://www.herkules.dev/ | grep -iE '^(HTTP|location)'
 curl -s -o /dev/null -w 'bbs: %{http_code}\n' https://bbs.herkules.dev/
 ```
 
-Expected on 2026-09-14: `200`, a `301` to `https://herkules.dev/`, no HSTS header, a
-`Cipher is` line for each of TLS 1.2 and 1.3, a `301` from `www` to the apex, and
-`200` from `bbs`. A TLS handshake failure is the one that matters most: it means the
-Origin CA certificate and the zone's TLS settings no longer agree.
+Expected: `200`, a `301` to `https://herkules.dev/`,
+`strict-transport-security: max-age=15552000; includeSubDomains`, a `Cipher is` line
+for each of TLS 1.2 and 1.3, "TLS 1.1 refused", a `301` from `www` to the apex, and
+`200` from `bbs`. A TLS 1.2 or 1.3 handshake failure is an edge problem, since the
+probes stop at Cloudflare. An Origin CA certificate that no longer satisfies
+`ssl = "strict"` shows up instead as a `526` on the HTTP requests above.
 
 And the redirect contract, which is what `zone-rules.tf` can break. The last two lines
 are the subtle ones: the rule matches the **full URI** and only `https://www.*`, so a
@@ -679,40 +781,30 @@ HTTPS-upgrade hop and change which request does the work.
 
 ## State
 
-State is **local** for the adoption pass on purpose: it keeps the first import a
-solo, reviewable operation with no new infrastructure (no bucket, no token, no
-workflow) created before the config is proven.
+State lives in the private `herkules-tfstate` R2 bucket (`backend.tf`), migrated
+there on 2026-09-14 with `terraform init -migrate-state` once the adoption plan was
+clean. Local state is not acceptable when both a human and CI can apply.
 
-**Done on 2026-09-14:** the twelve records were imported, and state has since
-migrated to the R2 backend below (`backend.tf`). The local `terraform.tfstate` is
-now the empty placeholder a remote backend leaves behind, and
-`terraform.tfstate.backup` is the pre-migration copy. `terraform plan` reports
-"No changes" against the remote state, and the lock works — R2 implements the
-conditional `PutObject` that `use_lockfile` needs.
-
-Once the plan is clean and the records are imported, move to the R2 remote
-backend described in [`docs/cloudflare-terraform.md`](../../../../docs/cloudflare-terraform.md)
-before letting CI apply:
-
-```sh
-terraform init -migrate-state
-```
-
-The backend needs a private `herkules-tfstate` bucket and an R2 API token scoped
-to that bucket alone (Object Read & Write). Those are **not** the backup
-credentials in `.env.backup`. The S3 backend reads the standard `AWS_*` names, so
-export them from out-of-checkout files the same way as the API token:
+The S3 backend reads the standard `AWS_*` names. They must hold an R2 API token
+scoped to that bucket alone (Object Read & Write) — **not** the backup credentials
+in `.env.backup` — exported from out-of-checkout files the same way as the API
+token:
 
 ```sh
 export AWS_ACCESS_KEY_ID="$(cat ~/.config/herkules/terraform/r2-access-key-id)"
 export AWS_SECRET_ACCESS_KEY="$(cat ~/.config/herkules/terraform/r2-secret-access-key)"
 ```
 
-The commit that adds the backend block is the one that should flip
-`TERRAFORM_ENABLED`. Local state is not acceptable once both a human and CI can
-apply. The state file contains no secrets at this scope (no certs, no R2 keys, no
-tokens), but it does contain every managed record and must not be committed. The
-root `.gitignore` covers `*.tfstate`, `*.tfstate.*`, `**/.terraform/*`, and
-`*.tfvars`; the `.terraform.lock.hcl` dependency lock file is deliberately **not**
-ignored and is committed, since it pins the provider version and its checksums,
-so `init` on a covered platform leaves it unchanged).
+Locking needs no DynamoDB: `use_lockfile` relies on the conditional `PutObject` that
+R2 implements. R2 has no bucket versioning, so there is no undo for a corrupted
+state object. That is acceptable only while the managed scope holds no secrets,
+which is why the Access identity provider and service token stay out of Terraform.
+
+The state contains no secrets at this scope (no certs, no R2 keys, no tokens), but
+it does contain every managed record and must not be committed. The root
+`.gitignore` covers `*.tfstate`, `*.tfstate.*`, `**/.terraform/*`, and `*.tfvars`.
+A `terraform.tfstate` left in this directory is the empty placeholder a remote
+backend leaves behind, and `terraform.tfstate.backup` the pre-migration copy; both
+can be deleted. The `.terraform.lock.hcl` dependency lock file is deliberately
+**not** ignored and is committed, since it pins the provider version and its
+checksums, so `init` on a covered platform leaves it unchanged.

@@ -1,15 +1,11 @@
-# The herkules.dev DNS records, imported from the live zone.
-#
-# Source of truth for adoption is the zone export dated 2026-09-14 (A records to
-# 124.156.183.221, two tunnel CNAMEs, three TXT records). Nothing here was
-# hand-written from memory before checking that export; see README.md for the
+# The herkules.dev DNS records: the twelve imported from the live zone on 2026-09-14
+# (A records to 124.156.183.221, two tunnel CNAMEs, three TXT records) and the CAA
+# records added by the zone-hardening pass on 2026-09-15. See README.md for the
 # import procedure, which must produce an empty plan before anything is applied.
 #
-# Deliberately NOT managed here:
-#   - SOA and NS records. Cloudflare owns these; managing them is a way to break
-#     the zone's delegation.
-#   - Zone-level SSL/TLS settings. Not here: `zone-settings.tf` owns the ten that
-#     encode the contract (ssl, min_tls_version, HSTS, ...); the rest stay hand-set.
+# Deliberately NOT managed: SOA and NS records. Cloudflare owns these; managing
+# them is a way to break the zone's delegation. The zone-level TLS and security
+# settings are not records and live in `zone-settings.tf`.
 #
 # `private_routing` is intentionally left unset on every record. Terraform would
 # otherwise assert its default (false) against records we have not read in full,
@@ -46,6 +42,24 @@ locals {
     # Wildcard DKIM selector. Empty `p=` revokes the key: any DKIM signature for
     # this domain must fail. Keep the empty value -- it is intentional.
     dkim = { type = "TXT", name = "*._domainkey", content = "v=DKIM1; p=", proxied = false }
+
+    # --- CAA: which public CAs may issue for this zone ------------------------
+    # Without CAA any CA may issue. These are exactly the four Cloudflare lists for
+    # Universal SSL (the edge certificate is Google Trust Services today, and
+    # Cloudflare may rotate among the four for operational reasons), each as `issue`
+    # and `issuewild` because the Universal certificate covers the apex and `*`.
+    # The Origin CA certificate on the VPS is not publicly trusted and is unaffected.
+    # `cansignhttpexchanges` is a Cloudflare requirement for Google, not a choice.
+    # No `iodef` record: the zone has no MX, so nowhere would receive the report.
+    # CAA records are never proxied and carry `data`, not `content`.
+    caa_google_issue          = { type = "CAA", name = "@", proxied = false, data = { flags = 0, tag = "issue", value = "pki.goog; cansignhttpexchanges=yes" } }
+    caa_google_issuewild      = { type = "CAA", name = "@", proxied = false, data = { flags = 0, tag = "issuewild", value = "pki.goog; cansignhttpexchanges=yes" } }
+    caa_letsencrypt_issue     = { type = "CAA", name = "@", proxied = false, data = { flags = 0, tag = "issue", value = "letsencrypt.org" } }
+    caa_letsencrypt_issuewild = { type = "CAA", name = "@", proxied = false, data = { flags = 0, tag = "issuewild", value = "letsencrypt.org" } }
+    caa_sslcom_issue          = { type = "CAA", name = "@", proxied = false, data = { flags = 0, tag = "issue", value = "ssl.com" } }
+    caa_sslcom_issuewild      = { type = "CAA", name = "@", proxied = false, data = { flags = 0, tag = "issuewild", value = "ssl.com" } }
+    caa_sectigo_issue         = { type = "CAA", name = "@", proxied = false, data = { flags = 0, tag = "issue", value = "sectigo.com" } }
+    caa_sectigo_issuewild     = { type = "CAA", name = "@", proxied = false, data = { flags = 0, tag = "issuewild", value = "sectigo.com" } }
   }
 
   fqdn = {
@@ -60,8 +74,12 @@ resource "cloudflare_dns_record" "record" {
   zone_id = local.zone_id
   name    = local.fqdn[each.key]
   type    = each.value.type
-  content = each.value.content
   proxied = each.value.proxied
+
+  # A, CNAME and TXT records are a single `content` string; CAA is structured and
+  # goes through `data`. Each record sets exactly one of the two.
+  content = lookup(each.value, "content", null)
+  data    = lookup(each.value, "data", null)
 
   # Cloudflare reports TTL 1 ("automatic") for all of these, including the
   # proxied records, so match the live value rather than asserting a custom TTL.
