@@ -645,8 +645,9 @@ curl -sI http://herkules.dev/ | grep -iE '^(HTTP|location)'
 # took the one-way door without the review it needs.
 curl -sI https://herkules.dev/ | grep -i strict-transport-security
 
-# TLS 1.2 and 1.3 complete a handshake through the Origin CA cert, and a client
-# capped at 1.1 is refused at the edge (curl exits 35 with no HTTP status).
+# TLS 1.2 and 1.3 complete a handshake at the Cloudflare edge, and a client capped
+# at 1.1 is refused there (curl exits 35 with no HTTP status). These probes never
+# reach the origin: the Origin CA certificate is checked by Cloudflare, not by them.
 openssl s_client -connect herkules.dev:443 -servername herkules.dev -tls1_2 </dev/null 2>/dev/null | grep -m1 'Cipher is'
 openssl s_client -connect herkules.dev:443 -servername herkules.dev -tls1_3 </dev/null 2>/dev/null | grep -m1 'Cipher is'
 curl --tls-max 1.1 -s -o /dev/null https://herkules.dev/ && echo "TLS 1.1 ACCEPTED: the floor is not 1.2" || echo "TLS 1.1 refused"
@@ -659,8 +660,9 @@ curl -s -o /dev/null -w 'bbs: %{http_code}\n' https://bbs.herkules.dev/
 Expected: `200`, a `301` to `https://herkules.dev/`,
 `strict-transport-security: max-age=15552000; includeSubDomains`, a `Cipher is` line
 for each of TLS 1.2 and 1.3, "TLS 1.1 refused", a `301` from `www` to the apex, and
-`200` from `bbs`. A TLS 1.2 or 1.3 handshake failure is the one that matters most:
-it means the Origin CA certificate and the zone's TLS settings no longer agree.
+`200` from `bbs`. A TLS 1.2 or 1.3 handshake failure is an edge problem, since the
+probes stop at Cloudflare. An Origin CA certificate that no longer satisfies
+`ssl = "strict"` shows up instead as a `526` on the HTTP requests above.
 
 And the redirect contract, which is what `zone-rules.tf` can break. The last two lines
 are the subtle ones: the rule matches the **full URI** and only `https://www.*`, so a
