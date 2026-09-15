@@ -54,13 +54,11 @@ run "settings" {
     error_message = "Plain-HTTP requests and mixed content must keep being rewritten or redirected."
   }
 
-  # The floor is the *adopted* value, which is 1.0 and is not good enough: raising
-  # it to 1.2 is a documented hardening change, not part of an adoption pass. This
-  # assertion exists so that a silent downgrade to something below 1.0 -- which the
-  # API would accept -- is not possible; it is deliberately not a floor test yet.
+  # A real floor: the API accepts 1.0 and 1.1, so this is what stops a quiet
+  # downgrade of the handshake the Origin CA contract runs over.
   assert {
-    condition     = contains(["1.0", "1.1", "1.2", "1.3"], cloudflare_zone_setting.string["min_tls_version"].value)
-    error_message = "min_tls_version must stay one of the versions Cloudflare accepts."
+    condition     = contains(["1.2", "1.3"], cloudflare_zone_setting.string["min_tls_version"].value)
+    error_message = "min_tls_version must stay at or above 1.2."
   }
 
   assert {
@@ -78,20 +76,18 @@ run "settings" {
     error_message = "http2 is not editable on this plan and must not be managed."
   }
 
-  # HSTS is off live and the config preserves that, with every field stated: a
-  # dropped `enabled = false` or a defaulted `max_age` would change what browsers
-  # remember for a year or more.
+  # HSTS is on, for every subdomain, and browsers remember it for max_age. The
+  # floor guards against a token value that would make the header decorative;
+  # `preload` is pinned off because submitting the domain to the browser preload
+  # lists is a one-way door that needs its own review.
   assert {
     condition = (
       cloudflare_zone_setting.hsts.setting_id == "security_header" &&
-      cloudflare_zone_setting.hsts.value.strict_transport_security == {
-        enabled            = false
-        max_age            = 0
-        include_subdomains = false
-        preload            = false
-        nosniff            = false
-      }
+      cloudflare_zone_setting.hsts.value.strict_transport_security.enabled &&
+      cloudflare_zone_setting.hsts.value.strict_transport_security.include_subdomains &&
+      cloudflare_zone_setting.hsts.value.strict_transport_security.max_age >= 2592000 &&
+      !cloudflare_zone_setting.hsts.value.strict_transport_security.preload
     )
-    error_message = "security_header must stay the adopted (disabled) object, with every field stated."
+    error_message = "HSTS must stay enabled with include_subdomains, a max_age of at least 30 days, and preload off."
   }
 }

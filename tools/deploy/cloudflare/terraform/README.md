@@ -42,14 +42,14 @@ Access objects, adopted 2026-09-14 and described in `access.tf`:
 
 Zone settings, adopted 2026-09-14 and described in `zone-settings.tf`:
 
-| Setting                                                                    | Live value | Why it is here                        |
-| -------------------------------------------------------------------------- | ---------- | ------------------------------------- |
-| `ssl`                                                                      | `"strict"` | the Origin CA contract                |
-| `min_tls_version`                                                          | `"1.0"`    | adopted as-is; raising it is a change |
-| `tls_1_3`                                                                  | `"on"`     | keep TLS 1.3 offered                  |
-| `always_use_https`, `automatic_https_rewrites`, `opportunistic_encryption` | `"on"`     | no plain-HTTP or mixed content        |
-| `brotli`, `http3`, `browser_check`                                         | `"on"`     | transport and origin challenge        |
-| `security_header` (HSTS)                                                   | disabled   | adopted as-is; see the hardening note |
+| Setting                                                                    | Live value | Why it is here                     |
+| -------------------------------------------------------------------------- | ---------- | ---------------------------------- |
+| `ssl`                                                                      | `"strict"` | the Origin CA contract             |
+| `min_tls_version`                                                          | `"1.2"`    | the floor; 1.0 and 1.1 are refused |
+| `tls_1_3`                                                                  | `"on"`     | keep TLS 1.3 offered               |
+| `always_use_https`, `automatic_https_rewrites`, `opportunistic_encryption` | `"on"`     | no plain-HTTP or mixed content     |
+| `brotli`, `http3`, `browser_check`                                         | `"on"`     | transport and origin challenge     |
+| `security_header` (HSTS)                                                   | 6 months   | with subdomains; preload off       |
 
 Zone rules, adopted 2026-09-14 and described in `zone-rules.tf`:
 
@@ -530,8 +530,9 @@ token and no network access to Cloudflare:
   with an id rather than an inline copy, that `capability-map` stays OIDC-only, and
   that `gpu-4090` stays service-token-only. `tests/zone-settings.tftest.hcl` pins the
   ten managed settings, that `ssl` is `strict`, that TLS 1.3 and the HTTPS-rewrite
-  family stay on, that `min_tls_version` stays a version Cloudflare accepts, that
-  `http2` is absent, and that the HSTS object matches the adopted one field for field.
+  family stay on, that `min_tls_version` stays at or above 1.2, that `http2` is
+  absent, and that HSTS stays enabled for every subdomain with at least a 30-day
+  `max_age` and `preload` off.
   `tests/zone-rules.tftest.hcl` pins the redirect: one zone-kind ruleset in the one
   populated phase, HTTPS-only matching on the full URI, a target that still carries
   the path and query through `wildcard_replace` + `${1}`, and
@@ -639,23 +640,27 @@ these **before** the apply as well as after, and compare:
 curl -s -o /dev/null -w 'apex: %{http_code}\n' https://herkules.dev/
 curl -sI http://herkules.dev/ | grep -iE '^(HTTP|location)'
 
-# HSTS is *absent* while `security_header` says enabled = false. If this starts
-# returning a header, something turned HSTS on for a year.
-curl -sI https://herkules.dev/ | grep -i strict-transport-security || echo "no HSTS, as adopted"
+# HSTS is sent for six months with includeSubDomains and without preload. A
+# missing header means something disabled it; a `preload` token means someone
+# took the one-way door without the review it needs.
+curl -sI https://herkules.dev/ | grep -i strict-transport-security
 
-# Both protocol versions still complete a handshake through the Origin CA cert.
+# TLS 1.2 and 1.3 complete a handshake through the Origin CA cert, and a client
+# capped at 1.1 is refused at the edge (curl exits 35 with no HTTP status).
 openssl s_client -connect herkules.dev:443 -servername herkules.dev -tls1_2 </dev/null 2>/dev/null | grep -m1 'Cipher is'
 openssl s_client -connect herkules.dev:443 -servername herkules.dev -tls1_3 </dev/null 2>/dev/null | grep -m1 'Cipher is'
+curl --tls-max 1.1 -s -o /dev/null https://herkules.dev/ && echo "TLS 1.1 ACCEPTED: the floor is not 1.2" || echo "TLS 1.1 refused"
 
 # The two records that depend on the settings: redirect and an ordinary app.
 curl -sI https://www.herkules.dev/ | grep -iE '^(HTTP|location)'
 curl -s -o /dev/null -w 'bbs: %{http_code}\n' https://bbs.herkules.dev/
 ```
 
-Expected on 2026-09-14: `200`, a `301` to `https://herkules.dev/`, no HSTS header, a
-`Cipher is` line for each of TLS 1.2 and 1.3, a `301` from `www` to the apex, and
-`200` from `bbs`. A TLS handshake failure is the one that matters most: it means the
-Origin CA certificate and the zone's TLS settings no longer agree.
+Expected: `200`, a `301` to `https://herkules.dev/`,
+`strict-transport-security: max-age=15552000; includeSubDomains`, a `Cipher is` line
+for each of TLS 1.2 and 1.3, "TLS 1.1 refused", a `301` from `www` to the apex, and
+`200` from `bbs`. A TLS 1.2 or 1.3 handshake failure is the one that matters most:
+it means the Origin CA certificate and the zone's TLS settings no longer agree.
 
 And the redirect contract, which is what `zone-rules.tf` can break. The last two lines
 are the subtle ones: the rule matches the **full URI** and only `https://www.*`, so a

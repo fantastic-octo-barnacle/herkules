@@ -219,9 +219,9 @@ adopted them, and the lists below record what that changed.
 1. **Zone TLS/security settings** — **done 2026-09-14**, see §8 Phase C. Ten settings
    are managed, headed by the ones that encode the "Full (strict)" contract the VPS
    and the Origin CA cert depend on. The survey found the contract weaker than the
-   docs assumed in two places and this pass preserved both, deliberately: TLS 1.0 is
-   still accepted, and no HSTS is sent. Both are recorded as hardening changes rather
-   than adoption.
+   docs assumed in two places and this pass preserved both, deliberately: TLS 1.0 was
+   still accepted, and no HSTS was sent. Both were hardened afterwards as their own
+   reviewed change (2026-09-15, Phase C).
 2. **Cloudflare Access** — **done 2026-09-14**, see §8 Phase B. The live account
    held exactly two applications, `capability-map.herkules.dev` and
    `gpu-4090.herkules.dev`, plus two reusable policies attached to them. The IdP
@@ -664,22 +664,26 @@ plan in four ways:
   the HSTS object is its own resource. Adopting `browser_cache_ttl` or
   `challenge_ttl` later means adding a number-valued group, and `ciphers` a
   list-valued one.
-- **The contract is weaker than this document assumed, and the pass preserves it.**
-  `min_tls_version` is `"1.0"`, and a TLS 1.0 handshake to the apex completes today;
-  `security_header` has `enabled = false`, so no HSTS is sent. Both are hardening
+- **The contract was weaker than this document assumed, and the pass preserved it.**
+  `min_tls_version` was `"1.0"`, and a TLS 1.0 handshake to the apex completed;
+  `security_header` had `enabled = false`, so no HSTS was sent. Both were hardening
   changes rather than adoption — raising the floor locks out old clients, and HSTS is
-  sticky in browsers for as long as its `max_age` says — so they are recorded here
-  instead of applied:
+  sticky in browsers for as long as its `max_age` says — so the adoption pass
+  recorded them and a separate reviewed change applied them on **2026-09-15**:
 
-  - **`min_tls_version`: `"1.0"` → `"1.2"`.** One value change, and the handshake
-    probe in the Terraform README is what catches a regression. Today the zone still
-    accepts TLS 1.0 and 1.1, which is below what any current guidance asks for.
-  - **`security_header`: `enabled = false` → `true`.** Not a one-field change: it
-    needs a `max_age` answer (`86400` for a trial, a year for real), an
-    `include_subdomains` decision — which commits `gpu-4090` and `capability-map`
-    too — and `preload` only if every subdomain is HTTPS-only forever. Both
-    applications are behind Access over HTTPS, so nothing here breaks on paper; the
-    reason to be careful is that browsers remember it.
+  - **`min_tls_version`: `"1.0"` → `"1.2"`.** One value change. The zone accepted
+    TLS 1.0 and 1.1 until then, below what any current guidance asks for; the
+    README's probes now include a capped-at-1.1 client that must be refused.
+  - **`security_header`: enabled, `max_age = 15552000` (six months),
+    `include_subdomains = true`, `preload = false`, `nosniff = false`.** Six months
+    rather than a one-day trial because there was nothing to trial: every hostname on
+    the zone is proxied and `always_use_https` already redirects plain HTTP, so the
+    header changes what browsers _attempt_, not what is served. `include_subdomains`
+    commits `gpu-4090` and `capability-map`, both behind Access over HTTPS, and any
+    future grey-cloud hostname that wanted plain HTTP. `preload` stays off: it needs
+    a year's `max_age`, a submission to the browser lists, and months to undo, so it
+    is its own decision. `nosniff` stays off because Caddy already sends
+    `X-Content-Type-Options`.
 
 - **`Delete` on this resource is a no-op** in provider 5.25.0 (read from
   `internal/services/zone_setting/resource.go`): destroying one removes it from state
@@ -699,10 +703,11 @@ before and after and is identical: apex `200`, plain HTTP `301` to HTTPS, no HST
 header, TLS 1.2 and 1.3 both handshaking, `www` still `301`, `bbs` `200`.
 
 `terraform test` asserts the ten, `ssl = "strict"`, TLS 1.3 and the HTTPS-rewrite
-family on, `min_tls_version` one of the versions Cloudflare accepts, `http2` absent,
-and the HSTS object field for field. It deliberately does **not** assert a TLS floor
-yet: the adopted value is `1.0`, so a floor assertion would fail against the config
-this pass was reviewed with.
+family on, `http2` absent, `min_tls_version` at or above `1.2`, and HSTS enabled
+with `include_subdomains`, a 30-day minimum `max_age` and `preload` off. The
+adoption pass could only assert that `min_tls_version` was a value Cloudflare
+accepts, because a floor would have failed against the `1.0` it was reviewed with;
+the hardening change is what turned it into a real floor.
 
 Token: Zone Settings Read/Write added, and the probe matrix re-run — settings answer
 `200`, `rulesets` still `403` (Phase D).
@@ -762,10 +767,8 @@ part of an adoption pass:
   challenge policy, in exchange for an API client never being handed a challenge
   page. The worker's Access policy on `gpu-4090` stays untouched — it lives in
   `access.tf`, so a plan would notice.
-- **The TLS floor and HSTS** (Phase C's two preserved findings): `min_tls_version`
-  from `1.0` to `1.2`, and `security_header` enabled with deliberate `max_age`,
-  `include_subdomains` and `preload` answers. The README's handshake probes are what
-  catch a regression.
+- ~~**The TLS floor and HSTS**~~ Done 2026-09-15; the values and the reasons are
+  under Phase C above.
 - **Access hardening:** narrow the deliberately wide `Herkules team` policy, remove
   the built-in OTP login method, set the organization's `session_duration`,
   `mfa_configuration` and `is_ui_read_only`, turn on `http_only_cookie_attribute`

@@ -16,13 +16,17 @@
 #     `0rtt` (off), `early_hints` (off), and the image features that are not
 #     editable on this plan. Caching is owned by Caddy and the asset Workers.
 #
-# Two live values this file deliberately *preserves*, both recorded in
-# docs/cloudflare-terraform.md §8 as hardening changes rather than adoption:
-#   - `min_tls_version = "1.0"`. A TLS 1.0 handshake to the apex completes today;
-#     raising the floor to 1.2 is a behaviour change for old clients.
-#   - `security_header` has `enabled = false`: no HSTS is sent, and HSTS is sticky
-#     in browsers once it is, so switching it on is a decision with its own
-#     max-age/include_subdomains/preload answers.
+# Two values were adopted weaker than the contract wants and hardened afterwards, as
+# their own reviewed change (docs/cloudflare-terraform.md §8, Phase C):
+#   - `min_tls_version` was `"1.0"` live and is now `"1.2"`. TLS 1.0 and 1.1
+#     handshakes are refused at the edge; every current client speaks 1.2 or 1.3.
+#   - `security_header` was disabled and HSTS is now sent for six months with
+#     `include_subdomains`. Every hostname on the zone is proxied and
+#     `always_use_https` already redirects plain HTTP, so nothing served changes;
+#     what changes is that browsers refuse to *try* plain HTTP for that long.
+#     `preload` stays off: it is a one-way door (removal from the browser lists
+#     takes months) and needs a year's max_age, so it is a separate decision.
+#     `nosniff` stays off because Caddy already sends X-Content-Type-Options.
 #
 # `value` is `Dynamic` in provider 5.25 and Terraform needs one element type per
 # map, so the settings are grouped by value shape: the nine strings in one
@@ -40,7 +44,7 @@ locals {
   string_settings = {
     # The contract itself: encrypt everything, strictly, and never downgrade.
     ssl              = "strict"
-    min_tls_version  = "1.0"
+    min_tls_version  = "1.2"
     tls_1_3          = "on"
     always_use_https = "on"
 
@@ -71,13 +75,15 @@ resource "cloudflare_zone_setting" "hsts" {
   zone_id    = local.zone_id
   setting_id = "security_header"
 
-  # Matches the live object key for key, including `nosniff`. `enabled = false` is
-  # the live value; see the header above before changing it.
+  # Every field is stated, including `nosniff`, so a dropped attribute cannot fall
+  # back to a provider default. See the header above before changing any of them:
+  # browsers remember max_age, so shortening it does not take effect for anyone
+  # who has already visited.
   value = {
     strict_transport_security = {
-      enabled            = false
-      max_age            = 0
-      include_subdomains = false
+      enabled            = true
+      max_age            = 15552000 # six months
+      include_subdomains = true
       preload            = false
       nosniff            = false
     }
