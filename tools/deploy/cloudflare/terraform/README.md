@@ -45,12 +45,12 @@ there is not optional.
 
 Access objects, adopted 2026-09-14 and described in `access.tf`:
 
-| Object              | Kind            | Where it applies                                            |
-| ------------------- | --------------- | ----------------------------------------------------------- |
-| `Herkules team`     | reusable policy | attached to `Capability Map` at precedence 1                |
-| `AI Gateway only`   | reusable policy | attached to `Herkules GPU 4090` at precedence 1             |
-| `Capability Map`    | self-hosted app | `capability-map.herkules.dev`, OIDC-only, 24h sessions      |
-| `Herkules GPU 4090` | self-hosted app | `gpu-4090.herkules.dev`, service-token only (no login page) |
+| Object              | Kind            | Where it applies                                                                                |
+| ------------------- | --------------- | ----------------------------------------------------------------------------------------------- |
+| `Herkules team`     | reusable policy | attached to `Capability Map` at precedence 1                                                    |
+| `AI Gateway only`   | reusable policy | attached to `Herkules GPU 4090` at precedence 1                                                 |
+| `Capability Map`    | self-hosted app | `capability-map.herkules.dev`, OIDC-only, 24h sessions, HttpOnly + binding cookie, SameSite=lax |
+| `Herkules GPU 4090` | self-hosted app | `gpu-4090.herkules.dev`, service-token only (no login page), HttpOnly, no binding cookie        |
 
 Zone settings, adopted 2026-09-14 and described in `zone-settings.tf`:
 
@@ -392,11 +392,14 @@ shape. Four fields decide whether the plan is empty:
 - `connection_rules = { rdp = {} }` must be present on each policy. Cloudflare
   reports it for account-level policies with no connection restrictions, and
   omitting it makes every plan propose an in-place update.
-- `http_only_cookie_attribute = false` must be stated. The provider defaults it to
-  `true`, so omitting it silently changes the cookie Access hands the origin.
+- Every cookie flag must be stated. At adoption both applications had
+  `http_only_cookie_attribute = false` while the provider defaults it to `true`, so
+  omitting it would have silently changed the cookie Access hands the origin; the
+  Access hardening pass later set it to `true` on both, and turned on the binding
+  cookie and `same_site_cookie_attribute = "lax"` on `capability-map` only.
   `enable_binding_cookie`, `options_preflight_bypass`, and
   `auto_redirect_to_identity = false` on the service-token application are the same
-  trap.
+  trap in the other direction.
 - `allowed_idps` is left unset on the service-token application: the API reports an
   empty list, and an explicit `[]` plans as a change against it.
 
@@ -650,6 +653,40 @@ are recorded here instead:
 - **The registrar's DS record.** Terraform manages Cloudflare's half of DNSSEC; the
   registrar's half is the DS record, and `terraform output dnssec_ds` prints what it
   should be.
+
+### Zero Trust settings that stay hand-set
+
+The Access hardening pass (2026-09-15) changed the cookie flags in `access.tf`. The
+rest of the list in `docs/cloudflare-terraform.md` §8 is either a dashboard setting
+the Terraform token cannot write, or a decision that needs an owner. Each is
+recorded here so it is a choice and not an oversight:
+
+- **The one-time PIN identity provider.** It exists, unnamed, and no application
+  offers it: `capability-map` allows only the OIDC provider and `gpu-4090` has no
+  login page. It is reachable only from the App Launcher sign-in. Deleting it closes
+  that path; keeping it is the break-glass route if the OIDC provider is ever
+  broken, since re-adding OTP by hand is the first step of recovery. If it is
+  deleted, delete it in the dashboard (Zero Trust → Settings → Authentication) and
+  note the date here.
+- **Organization `session_duration`.** Unset, so Cloudflare's default applies. The
+  applications already cap their own sessions at 24h; set the organization value
+  only if a shorter global ceiling is wanted.
+- **Organization `is_ui_read_only`.** Off. Turning it on stops dashboard edits to
+  everything Zero Trust, including the identity provider and service token that
+  are deliberately hand-managed, so it trades dashboard drift for API-only edits of
+  those two. Not recommended until they are either managed here or never expected
+  to change. Managing the organization from this directory would need the token
+  widened to `Access: Organizations, Identity Providers, and Groups` → **Edit**.
+- **Narrowing the `Herkules team` policy.** The rule is "anyone the Herkules OIDC
+  provider signs in", which is exactly the auth service's registration policy. A
+  narrower rule needs a claim the provider does not send today (a group or role)
+  or an email list, which would go stale. Leave it unless the auth service grows
+  a role claim.
+- **`ai-portal.herkules.dev` behind Access.** Would put an OIDC login in front of
+  the portal's own OIDC login for every user, and is only meaningful once the VPS
+  refuses traffic that did not come through Cloudflare, because unlike the two
+  tunnel-hosted applications the portal's origin is reachable by IP. Decide the
+  origin lockdown first.
 
 And the Access contract, which is what an adoption of `access.tf` can actually
 break. Capture these **before** an Access apply as well as after — the point is that

@@ -625,15 +625,17 @@ live authentication path rather than an adoption:
   ([issue #5693](https://github.com/cloudflare/terraform-provider-cloudflare/issues/5693)),
   so removing it would be a deliberate one-off hand change.
 - The organization's `session_duration`, `mfa_configuration`, and `is_ui_read_only`
-  are all unset. Both applications also carry `http_only_cookie_attribute = false`
-  and `enable_binding_cookie = false`, which the config now preserves deliberately:
-  the session cookie Access issues is readable from JavaScript, and it cannot be
-  tied to the browser that obtained it. Flipping either is a hardening candidate in
-  its own right — `enable_binding_cookie = true` on `capability-map` in particular,
-  since it is browser-only, and the Cloudflare docs recommend the binding cookie
-  precisely against replay of a stolen `CF_Authorization` cookie — but both change
-  behaviour for whatever reads that cookie, so neither belongs in an adoption.
-  `ai-portal.herkules.dev` has no Zero Trust layer at all.
+  are all unset. Both applications also carried `http_only_cookie_attribute = false`
+  and `enable_binding_cookie = false`, which the adoption preserved: the session
+  cookie Access issued was readable from JavaScript, and it could not be tied to the
+  browser that obtained it. Neither belonged in an adoption because both change
+  behaviour for whatever reads that cookie. **Hardened 2026-09-15**, once a search of
+  this repository found nothing reading `CF_Authorization`: `capability-map`, the
+  browser-only application, now sets HttpOnly, the binding cookie and
+  `same_site_cookie_attribute = "lax"` (Cloudflare warns Strict loops on the login
+  hop); `gpu-4090` sets HttpOnly only, because Cloudflare says not to enable the
+  binding cookie for non-browser clients and its only client is the gateway's
+  service-token headers. `ai-portal.herkules.dev` still has no Zero Trust layer.
 - The Terraform token carries `Access: Organizations, Identity Providers, and Groups`
   → **Read**, which the current configuration does not use: a traced plan calls only
   `access/apps`, `access/policies`, and `access/service_tokens`, because the IdP is
@@ -769,10 +771,14 @@ part of an adoption pass:
   `access.tf`, so a plan would notice.
 - ~~**The TLS floor and HSTS**~~ Done 2026-09-15; the values and the reasons are
   under Phase C above.
-- **Access hardening:** narrow the deliberately wide `Herkules team` policy, remove
-  the built-in OTP login method, set the organization's `session_duration`,
-  `mfa_configuration` and `is_ui_read_only`, turn on `http_only_cookie_attribute`
-  and `enable_binding_cookie`, and put `ai-portal.herkules.dev` behind Access.
+- **Access hardening.** ~~Turn on `http_only_cookie_attribute` and
+  `enable_binding_cookie`~~ done 2026-09-15 (Phase B, above). Still open, each with
+  its trade-off written up in the Terraform README under "Zero Trust settings that
+  stay hand-set": removing the OTP login method (it is the break-glass route),
+  the organization's `session_duration` and `is_ui_read_only` (the latter would
+  also lock the hand-managed IdP and service token), narrowing the `Herkules team`
+  policy (needs a claim the provider does not send), and `ai-portal.herkules.dev`
+  behind Access (pointless until the VPS refuses non-Cloudflare traffic).
 
 ### Phase E — zone hardening
 

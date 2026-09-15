@@ -27,8 +27,10 @@
 #     without removing a manual step. The service token is read through a data
 #     source, which exposes no secret; the IdP is referenced by variable id.
 #   - The Zero Trust organization (`cloudflare_zero_trust_organization`). The
-#     provider cannot import it, so `is_ui_read_only` -- the setting that would
-#     actually stop dashboard drift -- stays a documented manual step.
+#     token has no organization write scope, and `is_ui_read_only` -- the setting
+#     that would actually stop dashboard drift -- would also lock the identity
+#     provider and service token that are deliberately hand-managed. README.md
+#     records the organization settings as manual steps with that trade-off.
 
 locals {
   # Cloudflare reports `connection_rules = { rdp = {} }` on account-level policies
@@ -104,11 +106,16 @@ resource "cloudflare_zero_trust_access_application" "capability_map" {
   auto_redirect_to_identity = true
   app_launcher_visible      = true
 
-  # All three are `false` on the live application. They must be stated:
-  # `http_only_cookie_attribute` in particular defaults to `true` in the provider,
-  # so omitting it silently changes the Access cookie the origin receives.
-  enable_binding_cookie      = false
-  http_only_cookie_attribute = false
+  # Cookie hardening, applied 2026-09-15 (all three were false as adopted). The
+  # Access cookie is HttpOnly so page scripts cannot read it -- nothing in this
+  # repository reads CF_Authorization -- and it is bound to a second cookie only
+  # Cloudflare can read, so a stolen CF_Authorization is useless on its own.
+  # SameSite is Lax: Cloudflare warns that Strict produces redirect loops on the
+  # hop back from the login page. Every value is stated so a dropped attribute
+  # cannot fall back to a provider default.
+  enable_binding_cookie      = true
+  http_only_cookie_attribute = true
+  same_site_cookie_attribute = "lax"
   options_preflight_bypass   = false
 
   policies = [{ id = cloudflare_zero_trust_access_policy.herkules_team.id, precedence = 1 }]
@@ -137,8 +144,12 @@ resource "cloudflare_zero_trust_access_application" "gpu_4090" {
   auto_redirect_to_identity = false
   app_launcher_visible      = true
 
+  # HttpOnly is harmless here and now matches the provider default. The binding
+  # cookie stays OFF on purpose: Cloudflare says not to enable it for non-browser
+  # clients, and the only client is the gateway presenting service-token headers
+  # on every request. No SameSite either, for the same reason.
   enable_binding_cookie      = false
-  http_only_cookie_attribute = false
+  http_only_cookie_attribute = true
   options_preflight_bypass   = false
 
   policies = [{ id = cloudflare_zero_trust_access_policy.ai_gateway.id, precedence = 1 }]

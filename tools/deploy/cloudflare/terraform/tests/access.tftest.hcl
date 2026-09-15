@@ -127,13 +127,25 @@ run "access" {
     error_message = "The Herkules team policy must stay an allow on the Herkules OIDC login method."
   }
 
-  # The live value is false while the provider's default is true, so a dropped
-  # attribute would silently change the cookie Access issues to the origin.
+  # Cookie hardening on the browser application: HttpOnly, bound to a Cloudflare-
+  # only second cookie, SameSite Lax (never Strict, which loops on the login hop).
   assert {
     condition = (
-      !cloudflare_zero_trust_access_application.capability_map.http_only_cookie_attribute &&
-      !cloudflare_zero_trust_access_application.gpu_4090.http_only_cookie_attribute
+      cloudflare_zero_trust_access_application.capability_map.http_only_cookie_attribute &&
+      cloudflare_zero_trust_access_application.capability_map.enable_binding_cookie &&
+      cloudflare_zero_trust_access_application.capability_map.same_site_cookie_attribute == "lax"
     )
-    error_message = "http_only_cookie_attribute must stay explicitly false, matching the live applications."
+    error_message = "capability-map must keep HttpOnly, the binding cookie, and SameSite=lax."
+  }
+
+  # The service-token application has no browser client. HttpOnly is harmless;
+  # the binding cookie must stay off, per Cloudflare's guidance for non-browser
+  # clients, or the gateway's header-authenticated requests are at risk.
+  assert {
+    condition = (
+      cloudflare_zero_trust_access_application.gpu_4090.http_only_cookie_attribute &&
+      !cloudflare_zero_trust_access_application.gpu_4090.enable_binding_cookie
+    )
+    error_message = "gpu-4090 keeps HttpOnly on and the binding cookie off (service-token client only)."
   }
 }
