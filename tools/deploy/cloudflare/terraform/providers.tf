@@ -19,12 +19,18 @@
 #                                   and Groups -> Read
 #                        Account -> Access: Service Tokens -> Read
 #                        Zone    -> Zone Settings -> Edit        (Phase C's ten settings)
+#                        Zone    -> Single Redirect -> Edit       (Phase D's redirect rule)
+#                        Zone    -> Cache Rules -> Edit           (Phase D survey; unused)
+#                        Zone    -> Zone WAF -> Edit              (Phase D survey; unused)
 #
-#                      The IdP/organization read is granted but not called by this
-#                      configuration: a traced plan touches only access/apps,
-#                      access/policies, and access/service_tokens. It is kept for
-#                      the org/IdP hardening pass in docs/cloudflare-terraform.md
-#                      §8; README.md records it as the first thing to drop.
+#                      The IdP/organization read and the Cache Rules / Zone WAF pair
+#                      are granted but not called by this configuration: a traced plan
+#                      touches only access/apps, access/policies, and
+#                      access/service_tokens, and the Phase D survey proved no ruleset
+#                      exists in the cache or custom-WAF phases at all. They are kept
+#                      for the org/IdP hardening pass and the ai.herkules.dev proposal
+#                      in docs/cloudflare-terraform.md §8; README.md records all three
+#                      as the first things to drop at the next rotation.
 #
 # It must not carry Workers, R2, or billing permissions. Cloudflare API tokens are
 # the supported credential; API keys are legacy. Each phase widens the token on

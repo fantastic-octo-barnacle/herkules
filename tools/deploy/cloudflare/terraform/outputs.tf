@@ -23,3 +23,10 @@ output "access_policy_ids" {
     ai_gateway    = cloudflare_zero_trust_access_policy.ai_gateway.id
   }
 }
+
+output "ruleset_ids" {
+  description = "Managed zone ruleset IDs, after import. A ruleset imports as zones/<zone_id>/<ruleset_id>, so this is the recovery path if state has to be rebuilt."
+  value = {
+    redirect = cloudflare_ruleset.redirect.id
+  }
+}

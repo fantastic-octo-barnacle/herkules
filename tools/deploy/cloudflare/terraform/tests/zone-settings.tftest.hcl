@@ -7,7 +7,17 @@
 # refactor could quietly drop -- which for a TLS setting means an outage or a
 # downgrade nobody notices.
 
-mock_provider "cloudflare" {}
+# `cloudflare_ruleset.zone_id` is validated as 32 hexadecimal characters, and a mock
+# provider hands a data source a short random string instead. Every test file plans
+# the whole configuration, so pin the zone id here too or the redirect ruleset in
+# zone-rules.tf fails the plan. Nothing in this file reads the value.
+mock_provider "cloudflare" {
+  mock_data "cloudflare_zone" {
+    defaults = {
+      id = "0123456789abcdef0123456789abcdef"
+    }
+  }
+}
 
 variables {
   api_token = "unused-under-mock-provider"

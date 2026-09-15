@@ -66,22 +66,22 @@ should try to lift.
 
 ### Resources that cover our surface
 
-| Need                         | Resource                                                           | Accepted permissions                    |
-| ---------------------------- | ------------------------------------------------------------------ | --------------------------------------- |
-| Proxied A/CNAME records      | `cloudflare_dns_record`                                            | DNS Read, DNS Write                     |
-| Full (strict), TLS settings  | `cloudflare_zone_setting` (`setting_id` + `value`)                 | Zone Settings Read/Write                |
-| Access apps                  | `cloudflare_zero_trust_access_application`                         | Access: Apps and Policies Read/Write    |
-| Access policies (reusable)   | `cloudflare_zero_trust_access_policy` (account-level)              | Access: Apps and Policies Read/Write    |
-| Access OIDC IdP              | `cloudflare_zero_trust_access_identity_provider` (`type = "oidc"`) | Access: Organizations, IdPs, and Groups |
-| Access service tokens        | `cloudflare_zero_trust_access_service_token`                       | Access: Service Tokens Read/Write       |
-| Zero Trust account settings  | `cloudflare_zero_trust_organization`                               | Access: Organizations, IdPs, and Groups |
-| R2 buckets                   | `cloudflare_r2_bucket` (+ `_cors`, `_lifecycle`, `_lock`)          | R2 Write                                |
-| R2 custom domain             | `cloudflare_r2_custom_domain`                                      | R2 Write                                |
-| WAF / cache / redirect rules | `cloudflare_ruleset` (+ `cloudflare_filter`)                       | Zone WAF / Cache Rules Write            |
-| Account API tokens           | `cloudflare_account_token`                                         | API Tokens Write                        |
-| Turnstile                    | `cloudflare_turnstile_widget`                                      | Turnstile Write                         |
-| Zone lists                   | `cloudflare_list`, `cloudflare_list_item`                          | Account Lists Write                     |
-| Origin CA issuance           | `cloudflare_origin_ca_certificate`                                 | Origin CA Write                         |
+| Need                                      | Resource                                                           | Accepted permissions                                         |
+| ----------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Proxied A/CNAME records                   | `cloudflare_dns_record`                                            | DNS Read, DNS Write                                          |
+| Full (strict), TLS settings               | `cloudflare_zone_setting` (`setting_id` + `value`)                 | Zone Settings Read/Write                                     |
+| Access apps                               | `cloudflare_zero_trust_access_application`                         | Access: Apps and Policies Read/Write                         |
+| Access policies (reusable)                | `cloudflare_zero_trust_access_policy` (account-level)              | Access: Apps and Policies Read/Write                         |
+| Access OIDC IdP                           | `cloudflare_zero_trust_access_identity_provider` (`type = "oidc"`) | Access: Organizations, IdPs, and Groups                      |
+| Access service tokens                     | `cloudflare_zero_trust_access_service_token`                       | Access: Service Tokens Read/Write                            |
+| Zero Trust account settings               | `cloudflare_zero_trust_organization`                               | Access: Organizations, IdPs, and Groups                      |
+| R2 buckets                                | `cloudflare_r2_bucket` (+ `_cors`, `_lifecycle`, `_lock`)          | R2 Write                                                     |
+| R2 custom domain                          | `cloudflare_r2_custom_domain`                                      | R2 Write                                                     |
+| Zone rules (redirect, cache, config, WAF) | `cloudflare_ruleset`                                               | Single Redirect / Cache Rules / Config Rules / Zone WAF Edit |
+| Account API tokens                        | `cloudflare_account_token`                                         | API Tokens Write                                             |
+| Turnstile                                 | `cloudflare_turnstile_widget`                                      | Turnstile Write                                              |
+| Zone lists                                | `cloudflare_list`, `cloudflare_list_item`                          | Account Lists Write                                          |
+| Origin CA issuance                        | `cloudflare_origin_ca_certificate`                                 | Origin CA Write                                              |
 
 `cloudflare_zone_setting` is the right resource for TLS policy. It is one
 resource per setting, addressed by `setting_id` with the value under `value`:
@@ -196,7 +196,8 @@ Three things only became visible from the export and are worth recording:
 
 - `www` was created by a Cloudflare **Redirect Rule template**, and its redirect
   is a zone ruleset, not a DNS record. Adopting the record does not touch the
-  rule, but deleting the record would break it.
+  rule, but deleting the record would break it. **Both are managed now** — the rule
+  by §8 Phase D — so the pair can no longer drift apart silently.
 - `capability-map` was not previously documented anywhere in the repo. It is
   another service on the same GPU host, published through the same tunnel and
   placed behind **Cloudflare Access with the Herkules OIDC login method**, so it
@@ -209,9 +210,9 @@ Three things only became visible from the export and are worth recording:
 Zone-level TLS settings remain **hand-set** for now, and so do the three Access
 objects this pass deliberately does not own — the identity provider, the service
 token, and the organization. The config deliberately asserts nothing about any of
-them. The Access **applications and policies** and the zone's **TLS/security
-settings** are the exception: §8 Phases B and C adopted them, and the lists below
-record what that changed.
+them. The Access **applications and policies**, the zone's **TLS/security
+settings**, and the **`www` redirect rule** are the exception: §8 Phases B, C and D
+adopted them, and the lists below record what that changed.
 
 ### Adopt next
 
@@ -229,12 +230,18 @@ record what that changed.
    `ai-portal.herkules.dev`; the portal is **not** behind Access, and §8 records
    the evidence. See §2 for the policy-reference rule.
 
+Nothing is left in this list: Phase D was the last phase on the agreed plan, and the
+survey behind it found less to adopt than §8 expected (one ruleset, not three phases
+of rules). What remains is the hardening and new-behaviour work listed in §8, which
+is deliberately _not_ adoption.
+
 ### Adopt later, if it earns its place
 
 3. **R2 bucket** (bucket definition only, no credentials) and `r2_custom_domain`.
-4. **Zone rules** (`cloudflare_ruleset`) — cache rules, redirect rules, and any
-   WAF/rate-limit policy. The `www` → apex redirect is one of these and is not
-   managed today. This is Phase D, and it is the last phase on the plan.
+4. **Zone rules** — **done 2026-09-14**, see §8 Phase D. The `www` → apex redirect is
+   the only user-owned (`kind = "zone"`) ruleset on the zone: the other three in the
+   list are Cloudflare-managed, and the cache, configuration and custom-WAF phases
+   have no entry point ruleset at all. There is nothing else to adopt.
 
 ### Explicitly out of scope
 
@@ -460,18 +467,21 @@ encryption or a versioned backend first.
 
 Decided:
 
-- **Scope:** DNS records (Phase A), Access applications and policies (Phase B), and
-  the zone's TLS/security settings (Phase C) are adopted. Zone rules (Phase D) are
-  next, and deliberately not in yet; the cache, speed and challenge tuning inside the
-  settings API stays hand-set by decision (§8).
+- **Scope:** DNS records (Phase A), Access applications and policies (Phase B), the
+  zone's TLS/security settings (Phase C), and the `www` redirect ruleset (Phase D)
+  are adopted. The cache, speed and challenge tuning inside the settings API stays
+  hand-set by decision, as does the `ai.herkules.dev` cache/challenge exception,
+  which the Phase D survey found had never been implemented at all (§8).
 - **State:** R2 via the S3 backend (see §4). Local state is used for the adoption
   pass, then migrated before CI is allowed to apply.
 - **Token:** a dedicated Terraform token, exposed as `TF_VAR_api_token` so it
   cannot be confused with the Workers release job's `CLOUDFLARE_API_TOKEN`. The
   zone ID is resolved from the domain name at plan time, so it is the only value
   a shell or CI has to carry. It gained account-scoped Access permissions in
-  Phase B and Zone Settings in Phase C; the probe matrix is re-run after every
-  widening, and a permission edit takes minutes to propagate at the edge (§8).
+  Phase B, Zone Settings in Phase C, and Zone rules in Phase D; the probe matrix is
+  re-run after every widening, and a permission edit takes minutes to propagate at
+  the edge (§8). Two of the Phase D scopes turned out to be unnecessary and are
+  recorded as the first things to drop when the token is next rotated.
 - **Access objects that carry secrets stay hand-made.** The OIDC identity provider
   is referenced by id and the service token through a data source that exposes no
   secret, so state never holds a `client_secret` (§2, §8). CI fails if either is
@@ -491,9 +501,11 @@ record set is the twelve records listed in §3 — including `www` and
 
 The three questions that were open before the first apply are settled:
 
-1. **What the token can reach** is now measured rather than assumed: the 2026-09-14
-   probe shows DNS and Access answering `200` while every other zone and API surface
-   answers `403` (`tools/deploy/cloudflare/terraform/README.md` carries the matrix).
+1. **What the token can reach** is measured rather than assumed: the probe matrix in
+   `tools/deploy/cloudflare/terraform/README.md` is re-run after every widening, and
+   what it mostly proves is what the token _cannot_ reach. The original 2026-09-14
+   probe found DNS and Access answering `200` while every other zone and API surface
+   answered `403`.
 2. **A read taken at apply time** happens on every plan, since each one reads the
    live objects; the import script additionally fails loudly if a declared record is
    missing or ambiguous.
@@ -697,15 +709,67 @@ Token: Zone Settings Read/Write added, and the probe matrix re-run — settings 
 
 ### Phase D — zone rules
 
-- Adopt the `www` → apex redirect as an `http_request_dynamic_redirect` ruleset:
-  the record is managed but the redirect it feeds is not.
-- Codify the `ai.herkules.dev` exception that
-  [`tools/ai/README.md`](../tools/ai/README.md) requires by hand — bypass caching
-  and interactive browser challenges on the API hostname — while leaving the
-  worker's Access policy on `gpu-4090` untouched (it lives in `access.tf` now, so a
-  plan will notice if this pass touches it).
+**Done 2026-09-14.** §8 expected three phases of rules here; the survey found one,
+and the second half of the phase turned out never to have been implemented.
 
-Token: add Zone WAF / Cache Rules Write.
+1. ~~Adopt the `www` → apex redirect~~ Done, in `zone-rules.tf`. The ruleset is
+   `default` in `http_request_dynamic_redirect` and holds a single rule matching
+   `http.request.full_uri wildcard r"https://www.*"`, redirecting `301` to a
+   `wildcard_replace` of the same URI. `preserve_query_string` is `false` live and
+   stays `false`: the path _and the query_ travel inside `full_uri`, so the obvious
+   "fix" of enabling it would append the query a second time. The import read
+   `1 to import, 0 to add, 0 to change, 0 to destroy` and the follow-up plan was empty.
+
+   Matching on the full URI is also what keeps the rule from competing with
+   `always_use_https`: a plain-HTTP `www` request is answered by that zone setting
+   with a `301` to `https://www...`, and only the second hop reaches the rule.
+
+2. **The `ai.herkules.dev` exception is not implemented, and this pass did not
+   invent it.** [`tools/ai/README.md`](../tools/ai/README.md) asks for caching and
+   interactive browser challenges to be bypassed on the API hostname. The survey
+   found no ruleset in any phase that could do it:
+   - `GET /zones/<zone>/rulesets` lists **four** rulesets. Three are
+     `kind = "managed"` — Cloudflare's DDoS L7 entry point, its Managed Free
+     Ruleset, and its URL normalization ruleset — and are not ours to declare. The
+     fourth is the redirect above.
+   - `GET /zones/<zone>/rulesets/phases/<phase>/entrypoint` answers `404` code
+     `10003` ("could not find entrypoint ruleset") for
+     `http_request_cache_settings`, `http_config_settings`, and
+     `http_request_firewall_custom`.
+
+   So the requirement is met today by default behaviour rather than by a rule: the
+   API's responses are dynamic (`cf-cache-status: DYNAMIC`) and an ordinary request
+   reaches the origin's own `401` with no challenge. That is an observation about
+   today's traffic, not a guarantee — which is why writing the exception is a real
+   decision rather than a tidy-up.
+
+Token: `Zone` → `Single Redirect` → Edit was the one scope the phase needed.
+`Cache Rules` and `Zone WAF` were granted for the survey and proved unnecessary;
+`Config Rules` was never granted and is not needed, because the zone ruleset list is
+readable without it. The probe matrix records all of it, and the two unused scopes
+join the unused Access IdP/organization read as the first things to drop when the
+token is next rotated.
+
+#### Proposed next, not adopted
+
+Each of these changes live behaviour, so each is its own reviewed change rather than
+part of an adoption pass:
+
+- **The `ai.herkules.dev` exception itself.** A cache rule bypassing cache on the API
+  hostname, plus a configuration rule taking `security_level` to `essentially_off`
+  (and possibly `bic` off) for it. It needs `Zone` → `Cache Rules` / `Config Rules` →
+  Edit. The trade is explicit: a public hostname becomes exempt from the zone's
+  challenge policy, in exchange for an API client never being handed a challenge
+  page. The worker's Access policy on `gpu-4090` stays untouched — it lives in
+  `access.tf`, so a plan would notice.
+- **The TLS floor and HSTS** (Phase C's two preserved findings): `min_tls_version`
+  from `1.0` to `1.2`, and `security_header` enabled with deliberate `max_age`,
+  `include_subdomains` and `preload` answers. The README's handshake probes are what
+  catch a regression.
+- **Access hardening:** narrow the deliberately wide `Herkules team` policy, remove
+  the built-in OTP login method, set the organization's `session_duration`,
+  `mfa_configuration` and `is_ui_read_only`, turn on `http_only_cookie_attribute`
+  and `enable_binding_cookie`, and put `ai-portal.herkules.dev` behind Access.
 
 ### Later, if it earns its place
 
