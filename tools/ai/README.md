@@ -156,10 +156,13 @@ After deploying this branch's auth image and release configuration on `tencent_h
 6. Proxy DNS for `ai.herkules.dev` and `ai-portal.herkules.dev` to the VPS through
    Cloudflare Full (strict); both A records are Terraform-managed in
    `tools/deploy/cloudflare/terraform/dns.tf`. Caddy validates both names against the
-   existing Origin CA certificate. Bypass caching and interactive browser challenges
-   on the API hostname; clients authenticate using API keys. Keep the worker's Access
-   policy — it is Terraform-managed too, as `AI Gateway only` in
-   `tools/deploy/cloudflare/terraform/access.tf`.
+   existing Origin CA certificate. Clients authenticate using API keys, and the
+   intent is to bypass caching and interactive browser challenges on the API
+   hostname. As of 2026-09-14 **no zone rule implements that bypass**: the Phase D
+   survey in `docs/cloudflare-terraform.md` §8 found the cache, configuration and
+   custom-WAF phases empty, so the API is simply dynamic and unchallenged today.
+   Keep the worker's Access policy — it is Terraform-managed too, as `AI Gateway
+only` in `tools/deploy/cloudflare/terraform/access.tf`.
 
 The break-glass root login is blocked at the public portal. Reach it with
 `ssh -L 4014:127.0.0.1:4014 tencent_hk` and http://localhost:4014. Use it to promote a
