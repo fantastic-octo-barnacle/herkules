@@ -10,7 +10,7 @@ const headers = `/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  X-Herkules-Delivery: cloudflare-assets-experiment
+  X-Herkules-Delivery: cloudflare-assets
 `;
 
 // Stage only public frontend output. Never upload the BBS server bundle.
@@ -22,9 +22,9 @@ await mkdir(output, { recursive: true });
 await cp(platformSource, join(output, "platform"), { recursive: true });
 // Allowlist the browser build and known public files, rather than copying an
 // arbitrary directory from an old release image. Server bundles stay excluded.
-await mkdir(join(output, "bbs-assets"));
+await mkdir(join(output, "bbs"));
 for (const file of ["index.html", "assets", "favicon.svg", "robots.txt"]) {
-  await cp(join(bbsSource, file), join(output, "bbs-assets", file), { recursive: true });
+  await cp(join(bbsSource, file), join(output, "bbs", file), { recursive: true });
 }
 await writeFile(
   join(output, "platform/_headers"),
@@ -36,7 +36,7 @@ await writeFile(
 `,
 );
 await writeFile(
-  join(output, "bbs-assets/_headers"),
+  join(output, "bbs/_headers"),
   `${headers}  Cache-Control: no-cache
 
 /assets/*
@@ -71,7 +71,7 @@ async function inventory(directory) {
   return files;
 }
 
-for (const name of ["platform", "bbs-assets"]) {
+for (const name of ["platform", "bbs"]) {
   const files = await inventory(join(output, name));
   if (files.length > 20_000) throw new Error(`${name} exceeds Workers Free file count`);
   console.log(

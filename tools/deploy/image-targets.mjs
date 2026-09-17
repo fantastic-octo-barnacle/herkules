@@ -17,7 +17,7 @@ const deploymentFiles = new Set([
   "tools/deploy/cloudflare/assets.mjs",
   "tools/deploy/cloudflare/prepare.mjs",
   "tools/deploy/cloudflare/platform.json",
-  "tools/deploy/cloudflare/bbs-assets.json",
+  "tools/deploy/cloudflare/bbs.json",
 ]);
 const backupImageFiles = new Set([
   "tools/deploy/backup/backup.sh",

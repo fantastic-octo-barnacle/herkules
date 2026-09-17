@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { routes, attach, detach, activate, imageAssets } from "./release.mjs";
+import { routes, retiredRoutes, attach, detach, activate, imageAssets } from "./release.mjs";
 
 function mock(initial = [], fail = () => false) {
   let records = structuredClone(initial);
@@ -10,6 +10,8 @@ function mock(initial = [], fail = () => false) {
     if (fail(method, body)) throw new Error("simulated API failure");
     if (method === "GET") return structuredClone(records);
     if (method === "POST") records.push({ ...body, id: `id-${calls.length}` });
+    if (method === "PUT")
+      records = records.map((r) => (`/${r.id}` === suffix ? { ...body, id: r.id } : r));
     if (method === "DELETE") records = records.filter((r) => `/${r.id}` !== suffix);
   };
   return { api, calls, records: () => records };
@@ -51,13 +53,37 @@ test("conflicting application routes stop before mutation", async () => {
   }
 });
 
-test("legacy-only deployments detach without requiring new routes", async () => {
-  const m = mock([
-    { id: "platform", pattern: "herkules.dev/*", script: "herkules-platform" },
-    { id: "legacy", pattern: "bbs.herkules.dev/assets/*", script: "herkules-bbs-assets" },
-  ]);
+const legacyDeployment = () => [
+  ...routes.filter((r) => !r.script).map((r, i) => ({ ...r, id: `bypass-${i}` })),
+  { id: "platform", pattern: "herkules.dev/*", script: "herkules-platform" },
+  ...retiredRoutes.map((r, i) => ({ ...r, id: `retired-${i}` })),
+];
+
+test("legacy deployments detach, including retired Worker routes", async () => {
+  const m = mock(legacyDeployment());
   await detach(m.api);
-  assert.deepEqual(m.records(), []);
+  assert.ok(m.records().every((r) => !r.script));
+});
+
+test("attach migrates retired routes: catch-all re-pointed in place, legacy assets route removed", async () => {
+  const m = mock(legacyDeployment());
+  await attach(m.api);
+  assert.ok(!m.calls.some((c) => c.method === "POST"), "no new routes needed");
+  assert.deepEqual(
+    m.calls.filter((c) => c.method === "PUT").map((c) => [c.suffix, c.body]),
+    [["/retired-1", { pattern: "bbs.herkules.dev/*", script: "herkules-bbs" }]],
+  );
+  // The catch-all already serves /assets/*, so the retired route goes only after re-pointing.
+  const put = m.calls.findIndex((c) => c.method === "PUT");
+  const del = m.calls.findIndex((c) => c.method === "DELETE");
+  assert.ok(put < del);
+  assert.deepEqual(
+    m
+      .records()
+      .filter((r) => r.script)
+      .map(({ pattern, script }) => ({ pattern, script })),
+    routes.filter((r) => r.script),
+  );
 });
 
 test("BBS wildcard specificity preserves broad origin prefixes and frontend delivery", () => {
@@ -73,7 +99,7 @@ test("BBS wildcard specificity preserves broad origin prefixes and frontend deli
     }
   }
   for (const path of ["/", "/search?q=edge", "/assets/main.js", "/favicon.svg", "/settings"]) {
-    assert.equal(destination(path), "herkules-bbs-assets", path);
+    assert.equal(destination(path), "herkules-bbs", path);
   }
 });
 
@@ -90,12 +116,8 @@ test("upload failure keeps the committed origin release available", async () => 
   assert.equal(m.records().length, 0);
 });
 
-test("failed BBS bypass, legacy route or catchall activation restores origin delivery", async () => {
-  for (const pattern of [
-    "bbs.herkules.dev/kb*",
-    "bbs.herkules.dev/assets/*",
-    "bbs.herkules.dev/*",
-  ]) {
+test("failed BBS bypass or catchall activation restores origin delivery", async () => {
+  for (const pattern of ["bbs.herkules.dev/kb*", "bbs.herkules.dev/*"]) {
     const m = mock([], (method, body) => method === "POST" && body?.pattern === pattern);
     assert.equal(
       await activate({ api: m.api, upload: async () => {}, verify: async () => assert.fail() }),
@@ -192,7 +214,7 @@ test("public verification checks nested assets and probes the actual POST-only i
   try {
     for (const [name, host] of [
       ["platform", "herkules.dev"],
-      ["bbs-assets", "bbs.herkules.dev"],
+      ["bbs", "bbs.herkules.dev"],
     ]) {
       await mkdir(join(output, name, "assets/fonts"), { recursive: true });
       for (const file of ["main.js", "fonts/team font.woff2"]) {
@@ -212,7 +234,7 @@ test("public verification checks nested assets and probes the actual POST-only i
       '<html><script src="/assets/platform-a1.js"></script></html>',
     );
     await writeFile(
-      join(output, "bbs-assets/index.html"),
+      join(output, "bbs/index.html"),
       '<html><script src="/assets/bbs-b2.js"></script><link href="/assets/bbs-c3.css"></html>',
     );
     // Zone-injected analytics must not fail an otherwise matching document.
@@ -232,7 +254,7 @@ test("public verification checks nested assets and probes the actual POST-only i
       if (bytes.has(url))
         return new Response(bytes.get(url), {
           headers: {
-            "x-herkules-delivery": "cloudflare-assets-experiment",
+            "x-herkules-delivery": "cloudflare-assets",
             "content-type": "text/html; charset=utf-8",
             "cache-control": "no-cache",
             "x-content-type-options": "nosniff",
@@ -267,9 +289,9 @@ test("public verification checks nested assets and probes the actual POST-only i
       const url = `https://bbs.herkules.dev${path}`;
       for (const headers of [
         {},
-        { "x-herkules-delivery": "cloudflare-assets-experiment" },
+        { "x-herkules-delivery": "cloudflare-assets" },
         {
-          "x-herkules-delivery": "cloudflare-assets-experiment",
+          "x-herkules-delivery": "cloudflare-assets",
           "content-type": "text/html",
           "cache-control": "public, max-age=3600",
           "x-content-type-options": "nosniff",
@@ -300,7 +322,7 @@ test("public verification checks nested assets and probes the actual POST-only i
       overrides.set(url, () =>
         Response.json(body, {
           status,
-          headers: { "x-herkules-delivery": "cloudflare-assets-experiment" },
+          headers: { "x-herkules-delivery": "cloudflare-assets" },
         }),
       );
       await assert.rejects(verifyPublic(output, fetchImpl), /BBS .*bypass failed/);
