@@ -25,14 +25,14 @@ run "records" {
   command = plan
 
   # The twelve records captured from the zone export on 2026-09-14 plus the eight
-  # CAA records added on 2026-09-15. A missing entry would drop a live record out of
+  # CAA records added on 2026-09-15, plus `lark` (larkstack) on 2026-09-17. A missing entry would drop a live record out of
   # management without deleting it, which is the quiet kind of drift; make it loud.
   assert {
     condition = keys(cloudflare_dns_record.record) == [
       "ai", "ai_portal", "apex", "bbs", "caa_google_issue", "caa_google_issuewild",
       "caa_letsencrypt_issue", "caa_letsencrypt_issuewild", "caa_sectigo_issue",
       "caa_sectigo_issuewild", "caa_sslcom_issue", "caa_sslcom_issuewild",
-      "capability_map", "dkim", "dmarc", "gpu_4090", "ops", "spf", "status", "www",
+      "capability_map", "dkim", "dmarc", "gpu_4090", "lark", "ops", "spf", "status", "www",
     ]
     error_message = "The managed record set changed. Update this list only alongside a reviewed zone change."
   }

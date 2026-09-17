@@ -20,6 +20,7 @@ services:
       # Monitoring hosts (gatus / beszel below). Defaults keep the Caddyfile valid in dev.
       STATUS_HOST: ${STATUS_HOST:-status.localhost}
       OPS_HOST: ${OPS_HOST:-ops.localhost}
+      LARKSTACK_HOST: ${LARKSTACK_HOST:-lark.localhost}
     volumes:
       - ${DEPLOY_CONFIG_DIR:-.}/Caddyfile:/etc/caddy/Caddyfile:ro
       - ${DEPLOY_CONFIG_DIR:-.}/caddy/services:/etc/caddy/services:ro
@@ -237,6 +238,28 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
 
+  # larkstack (github.com/fantastic-octo-barnacle/larkstack, a fork of arcboxlabs/larkstack):
+  # the GitHub org webhook → Feishu cards, with an admin console at https://${LARKSTACK_HOST}.
+  # Off until provisioned (README "larkstack"): the console is open to anyone until a Feishu app
+  # is bound under [console], so config.toml is seeded into the volume before the first start.
+  # The image comes from the fork's "Herkules image" workflow, pinned here by digest; bump the
+  # pin to take a fork sync. Routing rules and the user map live in larkstack_data (SQLite),
+  # which the backup service does not cover.
+  larkstack:
+    profiles: [larkstack]
+    image: ghcr.io/fantastic-octo-barnacle/larkstack:sha-371a7ed@sha256:1e262230cc339c0d7e99cc38ce033440f1c903d780b94b8d115d8b5faf4018c9
+    env_file:
+      - path: .env.larkstack
+        required: false
+    environment:
+      CONSOLE_DATA_DIR: /data
+      CONSOLE_PORT: "8080"
+      RUST_LOG: info
+    volumes:
+      - larkstack_data:/data
+    mem_limit: 128m
+    restart: unless-stopped
+
   # Nightly pg_dump to R2 (tools/deploy/backup). Manual run: sh compose.sh run --rm backup backup
   # env_file is .env.backup: the R2 credentials live there and nowhere else.
   backup:
@@ -322,3 +345,4 @@ volumes:
   beszel_data:
   beszel_socket:
   beszel_agent_data:
+  larkstack_data:

@@ -3,8 +3,8 @@
 One HK VPS (2 vCPU / 4 GB), Docker Compose, one container per service, one
 platform origin plus the bbs, status and ops subdomains. Four containers serve
 traffic: `caddy`, `auth`, `bbs` and `postgres`, plus `bbs-worker` (the crawler), `bbs-bot`,
-`backup`, and the monitoring trio `gatus`, `beszel`, `beszel-agent` (see
-"Monitoring"). GitHub Actions builds images and complete OCI release bundles in
+`backup`, the monitoring trio `gatus`, `beszel`, `beszel-agent` (see
+"Monitoring"), and `larkstack` behind its own Compose profile (see "larkstack"). GitHub Actions builds images and complete OCI release bundles in
 GHCR, then applies an exact release digest to the box. The box keeps
 `~/herkules/{docker-compose.yml,images.env,compose.sh,current-release,active-config,
 releases/,incoming/}`, the four server-owned env files, `import/`, and its volumes
@@ -24,6 +24,7 @@ release applicator recreates Caddy when that configuration digest changes.
                        │ bbs.herkules.dev/*         → bbs       │
                        │ status.herkules.dev/*      → gatus     │
                        │ ops.herkules.dev/*         → beszel    │  ◄── team NUCs/Jetsons (agents, WebSocket)
+                       │ lark.herkules.dev/*        → larkstack │  ◄── GitHub org webhook
                        └────────────────────────────────────────┘
                    auth, bbs ──► postgres (herkules, bbs) ◄── backup (03:00 HKT pg_dump → R2)
                    bbs ──► auth (JWKS, token, user-info; in-network)
@@ -426,6 +427,54 @@ For a server that lives in this repository:
    `/.well-known/oauth-protected-resource/mcp/<name>`, which auth now serves.
 
 A server hosted in another repository skips steps 2 and 3 and points `image:` at its own registry.
+
+## larkstack
+
+[larkstack](https://github.com/fantastic-octo-barnacle/larkstack) turns the GitHub org webhook
+into Feishu cards (PRs, review requests as DMs, issues, failed workflow runs, secret-scanning and
+Dependabot alerts). It is a Rust binary with an embedded React console, from our fork of
+`arcboxlabs/larkstack`; the fork's "Herkules image" workflow publishes
+`ghcr.io/fantastic-octo-barnacle/larkstack`, and `docker-compose.yml` pins it by digest.
+
+Its console signs in with a Feishu app, not the herkules auth service, and is **open to anyone
+until that app is bound**. So the service is in the `larkstack` profile, and `config.toml` is
+written into the volume before it first starts.
+
+1. **Feishu app** (open.feishu.cn, internal app): enable Bot; grant `im:message:send_as_bot`,
+   `im:chat:readonly`, `contact:user.email:readonly`; add the redirect URL
+   `https://lark.herkules.dev/auth/callback` under Security Settings; publish a version; add the
+   bot to each target group. No event subscription is needed for GitHub.
+2. **Box**: `LARKSTACK_HOST=lark.herkules.dev` in `.env`, `.env.larkstack` from `.env.example`,
+   then seed the config (`scope` is pinned to the one granted contact scope; the default asks for
+   four and Feishu rejects the authorize page with 20027):
+   ```sh
+   docker volume create herkules_larkstack_data
+   docker run --rm -i -v herkules_larkstack_data:/data alpine:3.23 sh -c 'cat > /data/config.toml && chmod 600 /data/config.toml' <<'TOML'
+   [lark-apps.main]
+   app_id = "cli_..."
+   app_secret = "..."
+   base_url = "https://open.feishu.cn"
+
+   [console]
+   lark_app = "main"
+   admins = ["you@example.com"]
+   scope = "contact:user.email:readonly"
+
+   [github]
+   enabled = true
+   lark_app = "main"
+   TOML
+   ```
+   Add `larkstack` to `COMPOSE_PROFILES` in `.env` (comma-separated), then
+   `sh compose.sh up -d larkstack`. Sign in at `https://lark.herkules.dev`.
+3. **GitHub** (org Settings → Webhooks): payload URL
+   `https://lark.herkules.dev/webhooks/github/webhook`, `application/json`, the
+   `GITHUB_WEBHOOK_SECRET`, events Pull requests, Issues, Workflow runs, Secret scanning alerts,
+   Dependabot alerts. Then map repositories to chats and GitHub logins to Feishu emails in the
+   console's GitHub tab.
+
+Locked out (admins list is wrong): edit `/data/config.toml` in the volume the same way and restart.
+Updating: sync the fork, let its workflow publish, and bump the digest in `docker-compose.yml`.
 
 ## Optional AI hosting
 
