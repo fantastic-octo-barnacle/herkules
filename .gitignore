@@ -52,3 +52,6 @@ override.tf.json
 !.vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
+
+# direnv flake cache (nix store material; never source)
+.direnv/
