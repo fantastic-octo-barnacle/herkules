@@ -8,6 +8,6 @@
   "assets": {
     "directory": "./dist/bbs-assets",
     "html_handling": "none",
-    "not_found_handling": "none"
+    "not_found_handling": "single-page-application"
   }
 }

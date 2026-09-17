@@ -101,7 +101,8 @@ the production requirement.
 ## Deploy
 
 The optional [Cloudflare static asset delivery](cloudflare/README.md) serves the
-platform SPA and BBS JS/CSS on Workers Free. CI validates it, and production
+platform SPA and BBS ordinary SPA documents/public files on Workers Free; BBS
+API/OAuth and article/KB metadata documents stay at origin. CI validates it, and production
 deploys/rollbacks synchronize assets from the selected immutable images when
 `CLOUDFLARE_ASSETS_ENABLED=true`. The runbook covers credentials, route ownership,
 origin fallback and disabling delivery. Local `vp run dev` is unchanged.

@@ -7,12 +7,32 @@ import { setTimeout } from "node:timers/promises";
 import { assetFiles } from "./assets.mjs";
 import { validateRelease } from "../release.mjs";
 
+// Backend bypass prefixes are installed before either BBS catch-all becomes
+// reachable. Broad prefixes cover bare paths, descendants and query strings;
+// the entire /kb prefix is deliberately conservative so knowledge-base
+// documents always keep origin-injected link-preview metadata and 404
+// semantics. Article/KB metadata therefore stays on the origin even though the
+// catch-all Worker now serves the whole public client and SPA fallback.
+export const bbsBypassPrefixes = [
+  "/api*",
+  "/login*",
+  "/callback*",
+  "/logout*",
+  "/healthz*",
+  "/mcp*",
+  "/articles*",
+  "/kb*",
+];
+
 export const routes = [
   { pattern: "herkules.dev/auth*" },
   { pattern: "herkules.dev/.well-known*" },
   { pattern: "herkules.dev/mcp*" },
+  ...bbsBypassPrefixes.map((prefix) => ({ pattern: `bbs.herkules.dev${prefix}` })),
   { pattern: "herkules.dev/*", script: "herkules-platform" },
+  // Kept for backward compatibility with the legacy asset-only deployment.
   { pattern: "bbs.herkules.dev/assets/*", script: "herkules-bbs-assets" },
+  { pattern: "bbs.herkules.dev/*", script: "herkules-bbs-assets" },
 ];
 
 // Never replace a route owned by another application. Bypass rules are retained
@@ -52,7 +72,7 @@ export async function detach(api) {
 export async function attach(api) {
   const existing = await api("GET", "");
   checkRoutes(existing);
-  // Auth/MCP exceptions must exist before the catch-all becomes reachable.
+  // All backend/document exceptions must exist before either catch-all is activated.
   for (const desired of routes) {
     if (!existing.some((route) => route.pattern === desired.pattern)) {
       await api("POST", "", desired);
@@ -131,6 +151,59 @@ export async function verifyPublic(output, fetchImpl = fetch) {
     (await document.text()) !== (await readFile(join(output, "platform/index.html"), "utf8"))
   ) {
     throw new Error("Platform document does not match release");
+  }
+  for (const path of ["/", "/search?q=edge"]) {
+    const response = await fetchImpl(`https://bbs.herkules.dev${path}`, {
+      headers: { accept: "text/html" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(15000),
+    });
+    if (
+      response.status !== 200 ||
+      response.headers.get("x-herkules-delivery") !== "cloudflare-assets-experiment" ||
+      !response.headers.get("content-type")?.startsWith("text/html") ||
+      response.headers.get("cache-control") !== "no-cache" ||
+      response.headers.get("x-content-type-options") !== "nosniff" ||
+      !Buffer.from(await response.arrayBuffer()).equals(
+        await readFile(join(output, "bbs-assets/index.html")),
+      )
+    ) {
+      throw new Error(`BBS document does not match release: ${path}`);
+    }
+  }
+  for (const [path, valid] of [
+    ["/api/viewer", (body) => body?.viewer === null],
+    ["/healthz", (body) => body?.ok === true],
+  ]) {
+    const response = await fetchImpl(`https://bbs.herkules.dev${path}`, {
+      headers: { accept: "application/json" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(15000),
+    });
+    if (
+      response.status !== 200 ||
+      response.headers.has("x-herkules-delivery") ||
+      !response.headers.get("content-type")?.startsWith("application/json") ||
+      !valid(await response.json())
+    ) {
+      throw new Error(`BBS bypass failed: ${path}`);
+    }
+  }
+  // Not a ULID: guaranteed invalid without looking up or touching a real article.
+  const missingArticle = await fetchImpl(
+    "https://bbs.herkules.dev/articles/release-check-invalid",
+    {
+      headers: { accept: "text/html" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(15000),
+    },
+  );
+  if (
+    missingArticle.status !== 404 ||
+    missingArticle.headers.has("x-herkules-delivery") ||
+    !missingArticle.headers.get("content-type")?.startsWith("text/html")
+  ) {
+    throw new Error("BBS article document bypass failed");
   }
   const health = await fetchImpl("https://herkules.dev/auth/healthz", {
     signal: AbortSignal.timeout(15000),

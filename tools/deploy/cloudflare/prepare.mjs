@@ -15,14 +15,17 @@ const headers = `/*
 
 // Stage only public frontend output. Never upload the BBS server bundle.
 await stat(join(platformSource, "index.html"));
+await stat(join(bbsSource, "index.html"));
 await stat(join(bbsSource, "assets"));
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await cp(platformSource, join(output, "platform"), { recursive: true });
+// Allowlist the browser build and known public files, rather than copying an
+// arbitrary directory from an old release image. Server bundles stay excluded.
 await mkdir(join(output, "bbs-assets"));
-await cp(join(bbsSource, "assets"), join(output, "bbs-assets/assets"), {
-  recursive: true,
-});
+for (const file of ["index.html", "assets", "favicon.svg", "robots.txt"]) {
+  await cp(join(bbsSource, file), join(output, "bbs-assets", file), { recursive: true });
+}
 await writeFile(
   join(output, "platform/_headers"),
   `${headers}  Cache-Control: no-cache
@@ -34,9 +37,19 @@ await writeFile(
 );
 await writeFile(
   join(output, "bbs-assets/_headers"),
-  `${headers}
+  `${headers}  Cache-Control: no-cache
+
 /assets/*
+  ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
+
+/favicon.svg
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
+
+/robots.txt
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
 `,
 );
 // Keep the origin's convenience redirect when the platform is activated.

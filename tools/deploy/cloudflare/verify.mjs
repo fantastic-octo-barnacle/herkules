@@ -4,7 +4,22 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
 import { assetFiles } from "./assets.mjs";
+import { routes } from "./release.mjs";
 import { createApi } from "../../../services/web/src/api.ts";
+
+/** Which production route a URL would match first, most-specific prefix first. */
+function matchRoute(url) {
+  const { host, pathname } = new URL(url);
+  const candidates = routes
+    .filter((route) => {
+      const [patternHost] = route.pattern.split("/");
+      if (patternHost !== host) return false;
+      const prefix = route.pattern.slice(patternHost.length).replace(/\*$/, "");
+      return pathname.startsWith(prefix);
+    })
+    .sort((a, b) => b.pattern.length - a.pattern.length);
+  return candidates[0];
+}
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const directory = new URL("./dist/", import.meta.url);
@@ -97,15 +112,79 @@ await verify("platform", 18787, async (origin) => {
 
 await verify("bbs-assets", 18788, async (origin) => {
   await verifyAsset(origin, "bbs-assets");
+  const document = await readFile(new URL("bbs-assets/index.html", directory), "utf8");
   for (const path of [
     "/",
     "/index.html",
-    "/articles/1",
-    "/api/status",
-    "/main.mjs",
-    "/assets/missing.js",
+    "/search?q=edge",
+    "/tags",
+    "/status",
+    "/about",
+    "/account",
   ]) {
     const response = await fetch(`${origin}${path}`);
-    assert.equal(response.status, 404, `BBS asset preview must not serve ${path}`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-herkules-delivery"), "cloudflare-assets-experiment");
+    assert.equal(response.headers.get("cache-control"), "no-cache");
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(await response.text(), document);
   }
+  for (const file of ["favicon.svg", "robots.txt"]) {
+    const response = await fetch(`${origin}/${file}`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "public, max-age=3600");
+    assert.deepEqual(
+      Buffer.from(await response.arrayBuffer()),
+      await readFile(new URL(`bbs-assets/${file}`, directory)),
+    );
+  }
+  const head = await fetch(`${origin}/about`, { method: "HEAD" });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+  // Production routes: BBS dynamic prefixes bypass the Worker (origin), while
+  // everything else on the BBS host rides the asset-only Worker. Matched against
+  // the real route table this upload ships with, including wildcards and
+  // query strings.
+  const edge = ["/", "/search?q=edge", "/tags", "/about", "/assets/missing.js", "/anything/else"];
+  for (const path of edge) {
+    const match = matchRoute(`https://bbs.herkules.dev${path}`);
+    assert.ok(match?.script, `${path} must reach the BBS Worker`);
+  }
+  const originOnly = [
+    "/api/status",
+    "/api/articles?page=2",
+    "/login?next=%2Faccount",
+    "/callback?code=x",
+    "/logout",
+    "/healthz",
+    "/mcp/bbs",
+    "/articles/RM2025-001",
+    "/articles/RM2025-001/content",
+    "/kb",
+    "/kb/some-entity",
+  ];
+  for (const path of originOnly) {
+    const match = matchRoute(`https://bbs.herkules.dev${path}`);
+    assert.equal(match?.script ?? undefined, undefined, `${path} must bypass the BBS Worker`);
+  }
+  // Platform bypasses keep their origin routing.
+  for (const path of [
+    "/auth/healthz",
+    "/.well-known/oauth-authorization-server/auth",
+    "/mcp/bbs",
+  ]) {
+    const match = matchRoute(`https://herkules.dev${path}`);
+    assert.equal(match?.script ?? undefined, undefined, `${path} must bypass the platform Worker`);
+  }
+  // An asset-only preview has no zone bypasses: fallback can return HTML for
+  // API/metadata paths too. Production route tests pin those to the origin.
+  // Assert the upload inventory itself, not a misleading fallback HTTP status.
+  const files = await assetFiles(fileURLToPath(new URL("bbs-assets/", directory)));
+  assert.ok(
+    files.every(
+      (file) =>
+        file.startsWith("assets/") ||
+        ["index.html", "favicon.svg", "robots.txt", "_headers"].includes(file),
+    ),
+  );
 });

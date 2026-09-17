@@ -1,7 +1,8 @@
 # Cloudflare static asset delivery
 
-Two asset-only Workers test offloading the platform SPA and BBS hashed JS/CSS on
-Workers Free. There is no application Worker handler, database binding, ACM,
+Two asset-only Workers offload the platform SPA and BBS ordinary SPA documents
+plus public files on Workers Free. BBS API, OAuth, health, MCP, and article/KB
+metadata documents remain on the origin through explicit zone route bypasses. There is no application Worker handler, database binding, ACM,
 paid subscription, or production route in these configurations. The regular
 Docker images retain their frontend files.
 
@@ -18,13 +19,14 @@ vp install
 vp run build:edge
 vp run test:edge
 vp run dev:edge:platform  # http://localhost:8787
-vp run dev:edge:bbs       # http://localhost:8788/assets/<built filename>
+vp run dev:edge:bbs       # http://localhost:8788/about (static frontend preview)
 ```
 
 Run the two dev commands in separate terminals. `test:edge` starts its own local
 Wrangler processes on ports 18787/18788 and stops them afterwards. It checks SPA
 deep links, the AI redirect, response headers, byte-for-byte JS/CSS delivery,
-and that the BBS upload exposes neither API/document routes nor server bundles.
+BBS ordinary documents and public files, and that the BBS upload contains no server bundles.
+Route tests separately pin the production origin bypasses and failure recovery.
 
 The standalone platform preview shows the frontend shell only: it has no auth or
 API backend. Sign-in and authenticated screens must be tested through the normal
@@ -32,10 +34,19 @@ Vite stack, or after same-origin production routing is attached. Never configure
 OAuth callbacks against the experiment's workers.dev address.
 
 `prepare.mjs` stages public files under ignored `dist/`: the platform build, and
-only BBS's `dist/client/assets/`. It enforces Workers Free file-size/count limits.
-The platform gets SPA fallback; BBS deliberately returns 404 for missing files
-and has no SPA fallback. Headers preserve security policy and immutable hashed
-assets; platform documents revalidate. `X-Herkules-Delivery` identifies edge assets.
+an allowlist from BBS's `dist/client/`: `index.html`, `assets/`, `favicon.svg`, and
+`robots.txt`. It enforces Workers Free file-size/count limits. Both uploads use
+SPA fallback. Headers preserve security policy and immutable hashed assets;
+documents revalidate and BBS favicon/robots cache for one hour.
+`X-Herkules-Delivery` identifies edge responses. The `bbs-assets` directory and
+Worker name are retained for compatibility with existing releases.
+
+BBS's standalone preview has **no API or origin bypasses**: API and metadata
+paths can return the plain SPA shell, not real data or injected link metadata.
+Use `/about` to inspect the frontend without a backend; data-driven screens need
+the normal local stack. Never test OAuth against this preview. Production keeps
+same-origin API/OAuth URLs and routes them to the existing backend. No database,
+authentication, API caching, or crawler behavior changes in this stage.
 
 ## Publish standalone previews
 
@@ -85,7 +96,7 @@ manually attach the experiment Workers to production routes.
    so a Cloudflare failure cannot leave the server and GitHub release cursor apart.
 4. Pull the exact `caddy` and `bbs` image digests in that release on the CI runner.
    Copy `/srv` and `/app/dist/client` out of stopped containers; do not run them or
-   rebuild assets from the checkout. Only BBS's `assets/` directory is uploaded.
+   rebuild assets from the checkout. BBS's allowlisted public client files are uploaded.
 5. Upload both asset-only Workers, install backend bypasses, then attach the asset
    routes. Check every uploaded JS/CSS file against its bytes and delivery header,
    platform HTML, auth health, the internal-auth block, OAuth discovery and the MCP
@@ -115,25 +126,38 @@ No separate Worker deploy should run outside the shared production lock.
 
 ## Route ownership
 
-| Pattern                             | Destination           |
-| ----------------------------------- | --------------------- |
-| `herkules.dev/*`                    | `herkules-platform`   |
-| `herkules.dev/auth*`                | no Worker; origin     |
-| `herkules.dev/.well-known*`         | no Worker; origin     |
-| `herkules.dev/mcp*`                 | no Worker; origin     |
-| `bbs.herkules.dev/assets/*`         | `herkules-bbs-assets` |
-| Other BBS paths and other hostnames | existing origin       |
+| Pattern                      | Destination                                   |
+| ---------------------------- | --------------------------------------------- |
+| `herkules.dev/*`             | `herkules-platform`                           |
+| `herkules.dev/auth*`         | no Worker; origin                             |
+| `herkules.dev/.well-known*`  | no Worker; origin                             |
+| `herkules.dev/mcp*`          | no Worker; origin                             |
+| `bbs.herkules.dev/assets/*`  | `herkules-bbs-assets` (retained legacy route) |
+| `bbs.herkules.dev/*`         | `herkules-bbs-assets`                         |
+| `bbs.herkules.dev/api*`      | no Worker; origin                             |
+| `bbs.herkules.dev/login*`    | no Worker; origin                             |
+| `bbs.herkules.dev/callback*` | no Worker; origin                             |
+| `bbs.herkules.dev/logout*`   | no Worker; origin                             |
+| `bbs.herkules.dev/healthz*`  | no Worker; origin                             |
+| `bbs.herkules.dev/mcp*`      | no Worker; origin                             |
+| `bbs.herkules.dev/articles*` | no Worker; origin (metadata/404s)             |
+| `bbs.herkules.dev/kb*`       | no Worker; origin (metadata/404s)             |
+| Other hostnames              | existing origin                               |
 
 Backend exceptions are installed before the platform catch-all. Broad prefixes
 cover bare paths, descendants and query strings and preserve `/auth/internal/*`
-blocking. BBS documents retain origin-injected link-preview metadata. The platform
+blocking. BBS article/entity documents retain origin-injected link-preview metadata and missing-ID 404s.
+The whole `/kb*` prefix stays at origin deliberately (including the `/kb` browse
+shell); `/`, `/search`, `/tags`, `/status`, `/about`, and `/account` now load their
+shell from the edge. Data still needs the VPS. The asset-only catch-all mirrors
+the existing generic SPA fallback for other paths. The platform
 `/ai` redirect still targets `https://ai-portal.herkules.dev`. This deployment
 configuration is intentionally specific to `herkules.dev`.
 
 An exact managed pattern belonging to another Worker is a conflict and stops the
 operation. Before first activation, audit overlapping wildcard/more-specific routes,
 redirect/cache rules and custom domains in the dashboard; this script does not
-rewrite them. Future Terraform must not also own these five route resources or
+rewrite them. Future Terraform must not also own these managed route resources or
 Worker uploads. It can own DNS, Cloudflare Access, and unrelated zone configuration
 separately.
 
