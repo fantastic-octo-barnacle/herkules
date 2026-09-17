@@ -21,7 +21,22 @@ export default defineConfig({
       "/mcp/bbs": BBS,
     },
   },
-  build: { sourcemap: false },
+  build: {
+    sourcemap: false,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            // Keep the shared React runtime cacheable across application changes.
+            {
+              name: "react-vendor",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
   test: {
     // Pure modules only (api client, dev-token flow, formatting); the flow test runs the real auth service on PGlite.
     include: ["tests/**/*.test.ts"],

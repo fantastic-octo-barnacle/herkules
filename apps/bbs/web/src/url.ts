@@ -3,16 +3,19 @@
  * and nothing builds a query string by hand: the route schemas below are what
  * `validateSearch` runs, and `<Link search>` is typed off their outputs.
  */
-import { z } from "zod";
+import * as z from "zod/mini";
 
-export const scope = z.enum(["all", "title", "kb"]).default("all");
+export const scope = z._default(z.enum(["all", "title", "kb"]), "all");
 
 /** The filter vocabulary `/`, `/search` and `/kb`'s `q` share. Plain object: both route schemas project it. */
+/** Zod Mini, not full `zod`: the SPA only needs these few checks, and full zod is ~75 kB of the entry chunk. */
+const str = (max: number) => z.optional(z.string().check(z.maxLength(max)));
+
 const filter = z.object({
-  q: z.string().trim().max(200).optional(),
+  q: z.optional(z.string().check(z.trim(), z.maxLength(200))),
   scope,
-  tag: z.string().max(120).optional(),
-  group: z.string().max(120).optional(),
+  tag: str(120),
+  group: str(120),
 });
 
 /** `group` defaults to `groupOf(tag)` when only `tag` is present — in one place. */
@@ -22,22 +25,22 @@ const withGroup = <T extends { tag?: string; group?: string }>(s: T): T => ({
 });
 
 /** `/` — every field optional. */
-export const feedSearch = filter.transform(withGroup);
+export const feedSearch = z.pipe(filter, z.transform(withGroup));
 export type FeedSearch = z.output<typeof feedSearch>;
 
 /** `/search` — `q` optional at the type level; the route's `beforeLoad` redirects a blank one to `/`. */
-export const rankedSearch = filter.transform(withGroup);
+export const rankedSearch = z.pipe(filter, z.transform(withGroup));
 export type RankedSearch = z.output<typeof rankedSearch>;
 
 export const kbSearch = z.object({
-  q: z.string().trim().max(200).optional(),
-  domain: z.string().max(64).optional(),
-  robot: z.string().max(64).optional(),
-  genre: z.string().max(64).optional(),
+  q: z.optional(z.string().check(z.trim(), z.maxLength(200))),
+  domain: str(64),
+  robot: str(64),
+  genre: str(64),
 });
 export type KbSearch = z.output<typeof kbSearch>;
 
-export const accountSearch = z.object({ login_error: z.string().max(64).optional() });
+export const accountSearch = z.object({ login_error: str(64) });
 export type AccountSearch = z.output<typeof accountSearch>;
 
 /**
