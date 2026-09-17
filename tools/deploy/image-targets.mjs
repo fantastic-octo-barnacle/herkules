@@ -35,7 +35,7 @@ export function selectImageTargets(paths, { all = false } = {}) {
   for (const path of paths) {
     if (!path) continue;
     if (path === "README.md" || path.endsWith("/README.md")) continue;
-    if (path === "Dockerfile") add(...allTargets);
+    if (path === "Dockerfile" || path === "tools/deploy/docker-bake.hcl") add(...allTargets);
     if (nodeBuildInputs.has(path) || path.startsWith("tsconfig")) add("auth", "bbs", "caddy");
     if (isBuildInput(path, "services/auth", ["src", "drizzle"])) add("auth");
     if (

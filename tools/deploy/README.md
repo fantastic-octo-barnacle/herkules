@@ -108,12 +108,15 @@ deploys/rollbacks synchronize assets from the selected immutable images when
 `CLOUDFLARE_ASSETS_ENABLED=true`. The runbook covers credentials, route ownership,
 origin fallback and disabling delivery. Local `vp run dev` is unchanged.
 
-Push to `main` and wait for CI. `images.yml` runs only after that commit's `CI`
-workflow succeeds. It diffs the commit against the source of the active
-production release and builds the affected `linux/amd64` images, so a failed
-release is retried by the next push whether or not that push touches the same
-files. A manual run rebuilds all four. A CI run that finishes after a newer
-commit has already been released is skipped.
+Push to `main`. The `CI` run for that push also calls `image-build.yml`, which
+diffs the commit against the source of the active production release and builds
+the affected `linux/amd64` images in one BuildKit graph (`docker-bake.hcl`) while
+the checks run, so a failed release is retried by the next push whether or not
+that push touches the same files. `release.yml` starts only after every CI check
+and the image build have passed; pushed images that never pass CI are never
+released. A manual run of **Images** (`images.yml`) rebuilds and releases all
+four. A CI run whose release starts after a newer commit has already been
+released is skipped.
 
 Every built image gets a readable `sha-<commit>` tag. The build digest is the
 version used in production. The serialized release job reads the latest successful

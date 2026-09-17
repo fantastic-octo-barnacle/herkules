@@ -1,0 +1,308 @@
+name: Release
+
+# Called by ci.yml once every CI check and the image build passed for a push to main, and by
+# images.yml for a manual run. The serialized release job patches the digests image-build.yml
+# built into the active image tuple, publishes a complete OCI release bundle, and applies that
+# exact bundle over SSH. Selection is against the source of the active production release, so a
+# failed release is retried by the next push. The attempted-release cursor (CI's run number)
+# only guards against an older CI run finishing after a newer one has already deployed.
+on:
+  workflow_call:
+    inputs:
+      targets:
+        description: JSON array of the image targets the calling run built
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  BUILD_SHA: ${{ github.sha }}
+  # A called workflow sees its caller's github context: CI's run number on push, 0 for a manual run.
+  CI_RUN_NUMBER: ${{ github.event_name == 'push' && github.run_number || 0 }}
+  RELEASE_REPOSITORY: ghcr.io/${{ github.repository }}/release
+
+jobs:
+  release:
+    permissions:
+      actions: read
+      contents: read
+      deployments: write
+      packages: write
+    timeout-minutes: 30
+    # Callers gate on CI, the image build and the deploy decision; production scripts must
+    # still come from main.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://herkules.dev
+    concurrency: deploy-production
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.BUILD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        if: inputs.targets != '[]'
+        with:
+          pattern: image-*
+          path: image-updates
+          merge-multiple: true
+      - uses: voidzero-dev/setup-vp@v1
+        if: vars.CLOUDFLARE_ASSETS_ENABLED == 'true'
+        with:
+          cache: true
+          run-install: true
+      - uses: docker/login-action@v4
+        if: vars.CLOUDFLARE_ASSETS_ENABLED == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: oras-project/setup-oras@v1
+        with:
+          version: 1.3.0
+      - name: Log in to the release registry
+        run: printf '%s' "$GH_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve active production release
+        id: active
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          state=$(bash tools/deploy/deployment-state.sh active)
+          attempted=$(bash tools/deploy/deployment-state.sh cursor)
+          release=$(jq -r '.release // ""' <<<"$state")
+          source=$(jq -r '.sourceSha // ""' <<<"$state")
+          cursor=$(jq -r '.ciCursor // 0' <<<"$state")
+          attempted_cursor=$(jq -r '.ciCursor // 0' <<<"$attempted")
+          stale=false
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$attempted_cursor" -gt "$CI_RUN_NUMBER" ]]; then
+            stale=true
+          fi
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "source=$source" >> "$GITHUB_OUTPUT"
+          echo "cursor=$cursor" >> "$GITHUB_OUTPUT"
+          echo "stale=$stale" >> "$GITHUB_OUTPUT"
+      - name: Pull active release bundle
+        if: steps.active.outputs.stale != 'true' && steps.active.outputs.release != ''
+        env:
+          ACTIVE_RELEASE: ${{ steps.active.outputs.release }}
+        run: |
+          mkdir -p active-artifact active-release
+          oras pull "$ACTIVE_RELEASE" --output active-artifact
+          tar -xzf active-artifact/release.tar.gz -C active-release
+          node tools/deploy/release.mjs verify \
+            --release active-release/release.json \
+            --bundle active-release
+      - name: Assemble and publish release
+        id: candidate
+        if: steps.active.outputs.stale != 'true'
+        env:
+          ACTIVE_RELEASE: ${{ steps.active.outputs.release }}
+          ACTIVE_SOURCE: ${{ steps.active.outputs.source }}
+        run: |
+          mkdir -p bundle/caddy candidate-updates image-updates
+
+          # The active release may have moved since the changes job ran (another release or a
+          # rollback landed in between), so select again against what is active now.
+          if [[ "$GITHUB_EVENT_NAME" == "push" && -n "$ACTIVE_SOURCE" ]] \
+            && git cat-file -e "$ACTIVE_SOURCE^{commit}" 2>/dev/null; then
+            git diff --name-only "$ACTIVE_SOURCE" "$BUILD_SHA" > release-paths
+            selected=$(node tools/deploy/image-targets.mjs < release-paths)
+            selection_all=false
+          else
+            selected=$(node tools/deploy/image-targets.mjs --all)
+            selection_all=true
+            : > release-paths
+          fi
+
+          if [[ -n "$ACTIVE_RELEASE" ]]; then
+            cp active-release/docker-compose.yml bundle/docker-compose.yml
+            cp active-release/Caddyfile bundle/Caddyfile
+            cp active-release/gatus.yaml bundle/gatus.yaml
+            cp active-release/apply-release.sh bundle/apply-release.sh
+            cp active-release/compose.sh bundle/compose.sh
+            cp -R active-release/caddy/services bundle/caddy/services
+          else
+            cp tools/deploy/docker-compose.yml bundle/docker-compose.yml
+            cp tools/deploy/Caddyfile bundle/Caddyfile
+            cp tools/deploy/gatus.yaml bundle/gatus.yaml
+            cp tools/deploy/apply-release.sh bundle/apply-release.sh
+            cp tools/deploy/compose.sh bundle/compose.sh
+            cp -R tools/deploy/caddy/services bundle/caddy/services
+          fi
+          if [[ "$selection_all" == "true" || -z "$ACTIVE_RELEASE" ]]; then
+            refresh_all=true
+          else
+            refresh_all=false
+          fi
+          if [[ "$refresh_all" == "true" ]] || grep -qx 'tools/deploy/docker-compose.yml' release-paths; then
+            cp tools/deploy/docker-compose.yml bundle/docker-compose.yml
+          fi
+          if [[ "$refresh_all" == "true" ]] || grep -Eq '^tools/deploy/(Caddyfile|caddy/services/)' release-paths; then
+            cp tools/deploy/Caddyfile bundle/Caddyfile
+            rm -rf bundle/caddy/services
+            cp -R tools/deploy/caddy/services bundle/caddy/services
+          fi
+          if [[ "$refresh_all" == "true" ]] || grep -qx 'tools/deploy/gatus.yaml' release-paths; then
+            cp tools/deploy/gatus.yaml bundle/gatus.yaml
+          fi
+          if [[ "$refresh_all" == "true" ]] || grep -Eq '^tools/deploy/(apply-release|compose)\.sh$' release-paths; then
+            cp tools/deploy/apply-release.sh bundle/apply-release.sh
+            cp tools/deploy/compose.sh bundle/compose.sh
+          fi
+          for update in image-updates/*.json; do
+            [[ -f "$update" ]] || continue
+            target=$(jq -r '.target' "$update")
+            if jq -e --arg target "$target" '.targets | index($target) != null' <<<"$selected" >/dev/null; then
+              cp "$update" candidate-updates/
+            fi
+          done
+          # Every image this selection needs must have been built by this run; otherwise the
+          # release would pair a newer source SHA with an older image. Nothing has been
+          # published yet, so the next push simply selects again.
+          for target in $(jq -r '.targets[]' <<<"$selected"); do
+            if [[ ! -f "candidate-updates/$target.json" ]]; then
+              echo "the active release changed while building: $target was not rebuilt; re-run all jobs of this run" >&2
+              exit 1
+            fi
+          done
+
+          create=(node tools/deploy/release.mjs create
+            --bundle bundle
+            --source "$BUILD_SHA"
+            --updates candidate-updates
+            --output bundle/release.json)
+          if [[ -n "$ACTIVE_RELEASE" ]]; then
+            create+=(--base active-release/release.json --base-ref "$ACTIVE_RELEASE")
+          fi
+          "${create[@]}"
+          node tools/deploy/release.mjs env \
+            --release bundle/release.json \
+            --output bundle/images.env
+
+          plan=(node tools/deploy/release.mjs plan --candidate bundle/release.json)
+          if [[ -n "$ACTIVE_RELEASE" ]]; then plan+=(--current active-release/release.json); fi
+          "${plan[@]}" > release-plan.json
+          recreate=$(jq -r '.recreate | join(",")' release-plan.json)
+
+          tar -czf release.tar.gz -C bundle .
+          short=${BUILD_SHA:0:7}
+          tag="sha-$short-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          digest=$(oras push \
+            --artifact-type application/vnd.herkules.release.v1 \
+            --annotation "org.opencontainers.image.revision=$BUILD_SHA" \
+            "$RELEASE_REPOSITORY:$tag" \
+            release.tar.gz:application/vnd.herkules.release.bundle.v1+tar+gzip \
+            --format go-template --template '{{.digest}}')
+          echo "release=$RELEASE_REPOSITORY@$digest" >> "$GITHUB_OUTPUT"
+          echo "recreate=$recreate" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            echo "cursor=$CI_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+          else
+            echo "cursor=${{ steps.active.outputs.cursor }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Skip stale release
+        if: steps.active.outputs.stale == 'true'
+        run: echo "A newer CI run is already active; skipping this stale release." >> "$GITHUB_STEP_SUMMARY"
+      - name: Install SSH key
+        if: steps.active.outputs.stale != 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy ~/.ssh/known_hosts
+      - name: Deploy immutable release
+        if: steps.active.outputs.stale != 'true'
+        env:
+          CLOUDFLARE_ASSETS_ENABLED: ${{ vars.CLOUDFLARE_ASSETS_ENABLED }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACTIVE_RELEASE: ${{ steps.active.outputs.release }}
+          CI_CURSOR: ${{ steps.candidate.outputs.cursor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RECREATE: ${{ steps.candidate.outputs.recreate }}
+          RELEASE_REF: ${{ steps.candidate.outputs.release }}
+          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+        run: |
+          node tools/deploy/cloudflare/release.mjs detach
+          expected=${ACTIVE_RELEASE:-none}
+          request=$(mktemp)
+          jq -n \
+            --arg ref "$BUILD_SHA" \
+            --arg release "$RELEASE_REF" \
+            --arg source "$BUILD_SHA" \
+            --argjson cursor "$CI_CURSOR" \
+            '{
+              ref: $ref,
+              task: "deploy:release",
+              auto_merge: false,
+              required_contexts: [],
+              environment: "production",
+              production_environment: true,
+              description: "Deploy an immutable Herkules OCI release",
+              payload: {release: $release, sourceSha: $source, ciCursor: $cursor}
+            }' > "$request"
+          deployment_id=$(gh api --method POST "repos/$GITHUB_REPOSITORY/deployments" \
+            --input "$request" --jq '.id')
+
+          status() {
+            state=$1
+            description=$2
+            jq -n \
+              --arg state "$state" \
+              --arg description "$description" \
+              --arg log_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+              --arg environment_url "https://herkules.dev" \
+              '{state: $state, description: $description, log_url: $log_url, environment_url: $environment_url, auto_inactive: false}' \
+              > deployment-status.json
+            # The box commits current-release before this runs, so a lost status would leave
+            # GitHub behind production and fail the next drift check. Retry before giving up;
+            # the README documents the manual repair.
+            for attempt in 1 2 3; do
+              if gh api --method POST "repos/$GITHUB_REPOSITORY/deployments/$deployment_id/statuses" \
+                --input deployment-status.json >/dev/null; then
+                return 0
+              fi
+              sleep $((attempt * 5))
+            done
+            echo "could not record deployment status: $state" >&2
+            return 1
+          }
+          failed() {
+            result=$?
+            if [[ "$result" -ne 0 ]]; then status failure "OCI release failed; the previous OCI release was restored when available"; fi
+            exit "$result"
+          }
+          trap failed EXIT
+          status in_progress "Applying immutable OCI release"
+
+          archive="release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.tar.gz"
+          ssh -i ~/.ssh/deploy "$TARGET" 'mkdir -p ~/herkules/incoming ~/herkules/import'
+          scp -i ~/.ssh/deploy release.tar.gz "$TARGET:~/herkules/incoming/$archive"
+          scp -i ~/.ssh/deploy bundle/apply-release.sh "$TARGET:~/herkules/apply-release.sh"
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy "$TARGET" \
+            'docker login ghcr.io -u "${{ github.actor }}" --password-stdin'
+          ssh -i ~/.ssh/deploy "$TARGET" \
+            "sh ~/herkules/apply-release.sh '$archive' '$RELEASE_REF' '$expected' '$RECREATE'"
+
+          status success "Immutable OCI release is active"
+          trap - EXIT
+          # Backend success is recorded first: an edge failure must not desynchronize its release cursor.
+          node tools/deploy/cloudflare/release.mjs deploy bundle/release.json
+      - uses: actions/upload-artifact@v7
+        if: always() && vars.CLOUDFLARE_ASSETS_ENABLED == 'true'
+        with:
+          name: edge-delivery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: edge-delivery.json
+          if-no-files-found: ignore

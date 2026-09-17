@@ -85,6 +85,10 @@ test("treats the shared Dockerfile and manual builds conservatively", () => {
     targets: ["auth", "bbs", "caddy", "backup"],
     deploy: true,
   });
+  assert.deepEqual(selectImageTargets(["tools/deploy/docker-bake.hcl"]), {
+    targets: ["auth", "bbs", "caddy", "backup"],
+    deploy: true,
+  });
   assert.deepEqual(selectImageTargets([], { all: true }), {
     targets: ["auth", "bbs", "caddy", "backup"],
     deploy: true,
