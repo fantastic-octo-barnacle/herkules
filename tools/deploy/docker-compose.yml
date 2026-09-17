@@ -247,7 +247,7 @@ services:
   # which the backup service does not cover.
   larkstack:
     profiles: [larkstack]
-    image: ghcr.io/fantastic-octo-barnacle/larkstack:sha-371a7ed@sha256:1e262230cc339c0d7e99cc38ce033440f1c903d780b94b8d115d8b5faf4018c9
+    image: ghcr.io/fantastic-octo-barnacle/larkstack:sha-a79820c@sha256:b7b3f067a1f7c37517bf7c6bc0d07423c50481ba3eb65f7c3574f18ef2e9dbcb
     env_file:
       - path: .env.larkstack
         required: false
