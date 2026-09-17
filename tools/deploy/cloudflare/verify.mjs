@@ -12,7 +12,7 @@ function matchRoute(url) {
   const { host, pathname } = new URL(url);
   const candidates = routes
     .filter((route) => {
-      const [patternHost, patternPath] = route.pattern.split("/");
+      const [patternHost] = route.pattern.split("/");
       if (patternHost !== host) return false;
       const prefix = route.pattern.slice(patternHost.length).replace(/\*$/, "");
       return pathname.startsWith(prefix);
