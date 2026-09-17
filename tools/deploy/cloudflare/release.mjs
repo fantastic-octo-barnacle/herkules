@@ -122,6 +122,15 @@ async function extract(image, path, target) {
   }
 }
 
+// Proxied HTML can be rewritten by zone features (e.g. the Web Analytics beacon),
+// so a document matches the release when it loads every hashed asset its
+// built index.html does, rather than byte-for-byte.
+export async function matchesReleaseDocument(html, indexPath) {
+  const expected = (await readFile(indexPath, "utf8")).match(/\/assets\/[^"'\s>]+/g) ?? [];
+  if (expected.length === 0) throw new Error(`No hashed assets referenced by ${indexPath}`);
+  return expected.every((asset) => html.includes(asset));
+}
+
 export async function verifyPublic(output, fetchImpl = fetch) {
   for (const [name, origin] of [
     ["platform", "https://herkules.dev"],
@@ -148,7 +157,7 @@ export async function verifyPublic(output, fetchImpl = fetch) {
   const document = await fetchImpl("https://herkules.dev/", { signal: AbortSignal.timeout(15000) });
   if (
     document.headers.get("x-herkules-delivery") !== "cloudflare-assets-experiment" ||
-    (await document.text()) !== (await readFile(join(output, "platform/index.html"), "utf8"))
+    !(await matchesReleaseDocument(await document.text(), join(output, "platform/index.html")))
   ) {
     throw new Error("Platform document does not match release");
   }
@@ -164,9 +173,7 @@ export async function verifyPublic(output, fetchImpl = fetch) {
       !response.headers.get("content-type")?.startsWith("text/html") ||
       response.headers.get("cache-control") !== "no-cache" ||
       response.headers.get("x-content-type-options") !== "nosniff" ||
-      !Buffer.from(await response.arrayBuffer()).equals(
-        await readFile(join(output, "bbs-assets/index.html")),
-      )
+      !(await matchesReleaseDocument(await response.text(), join(output, "bbs-assets/index.html")))
     ) {
       throw new Error(`BBS document does not match release: ${path}`);
     }

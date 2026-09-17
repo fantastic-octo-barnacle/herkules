@@ -203,11 +203,27 @@ test("public verification checks nested assets and probes the actual POST-only i
         );
       }
     }
-    await writeFile(join(output, "platform/index.html"), "<html>platform</html>");
-    bytes.set("https://herkules.dev/", "<html>platform</html>");
-    await writeFile(join(output, "bbs-assets/index.html"), "<html>bbs</html>");
-    bytes.set("https://bbs.herkules.dev/", "<html>bbs</html>");
-    bytes.set("https://bbs.herkules.dev/search?q=edge", "<html>bbs</html>");
+    await writeFile(
+      join(output, "platform/index.html"),
+      '<html><script src="/assets/platform-a1.js"></script></html>',
+    );
+    bytes.set(
+      "https://herkules.dev/",
+      '<html><script src="/assets/platform-a1.js"></script></html>',
+    );
+    await writeFile(
+      join(output, "bbs-assets/index.html"),
+      '<html><script src="/assets/bbs-b2.js"></script><link href="/assets/bbs-c3.css"></html>',
+    );
+    // Zone-injected analytics must not fail an otherwise matching document.
+    bytes.set(
+      "https://bbs.herkules.dev/",
+      '<html><script src="/assets/bbs-b2.js"></script><link href="/assets/bbs-c3.css"><script src="https://static.cloudflareinsights.com/beacon.min.js"></script></html>',
+    );
+    bytes.set(
+      "https://bbs.herkules.dev/search?q=edge",
+      '<html><script src="/assets/bbs-b2.js"></script><link href="/assets/bbs-c3.css"></html>',
+    );
     const overrides = new Map();
     let internalStatus = 404;
     const fetchImpl = async (url, init) => {
@@ -259,13 +275,21 @@ test("public verification checks nested assets and probes the actual POST-only i
           "x-content-type-options": "nosniff",
         },
       ]) {
-        overrides.set(url, () => new Response("<html>bbs</html>", { headers }));
+        overrides.set(
+          url,
+          () =>
+            new Response(
+              '<html><script src="/assets/bbs-b2.js"></script><link href="/assets/bbs-c3.css"></html>',
+              { headers },
+            ),
+        );
         await assert.rejects(verifyPublic(output, fetchImpl), /BBS document/);
       }
       overrides.delete(url);
-      bytes.set(url, "stale shell");
+      const served = bytes.get(url);
+      bytes.set(url, '<html><script src="/assets/bbs-old.js"></script></html>');
       await assert.rejects(verifyPublic(output, fetchImpl), /BBS document/);
-      bytes.set(url, "<html>bbs</html>");
+      bytes.set(url, served);
     }
     for (const [path, body, status] of [
       ["/api/viewer", { viewer: null }, 200],
