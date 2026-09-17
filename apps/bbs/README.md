@@ -127,7 +127,10 @@ Do not work around source blocking. If the deployed Hong Kong host cannot fetch 
 
 ## Page rendering
 
-The SPA is static; the server injects `<title>`, description, canonical and `og:*` for `/articles/:id` and `/kb/:name` (`src/spa/head.ts`, `src/spa/static.ts`, the marker block in `web/index.html`). That is what Feishu and WeChat link cards need; Baidu indexing of article bodies is not a goal.
+The SPA is static. Optional Cloudflare delivery serves ordinary documents and
+public client files; API/OAuth and the entire `/articles*` and `/kb*` prefixes stay
+on the origin. See [edge delivery](../../tools/deploy/cloudflare/README.md).
+The server injects `<title>`, description, canonical and `og:*` for `/articles/:id` and `/kb/:name` (`src/spa/head.ts`, `src/spa/static.ts`, the marker block in `web/index.html`). That is what Feishu and WeChat link cards need; Baidu indexing of article bodies is not a goal.
 
 TanStack Start was evaluated on 2026-08-28 and not adopted. Measured on the repo's toolchain (vite-plus 0.3.0 = Vite 8.2.2/Rolldown, Node 24, TypeScript 7): `@tanstack/react-start@1.168.49` builds and serves without Nitro, with Hono as the outer server, at about 90 MB RSS and 7 ms per server-rendered request; `vp dev` works; none of the open Vite 8 issues reproduced. It is still a release candidate patched every few days and its document handler cannot run under Vitest. Nothing the product lacks justifies that dependency.
 
