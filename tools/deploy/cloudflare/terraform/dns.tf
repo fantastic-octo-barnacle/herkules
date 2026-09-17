@@ -27,6 +27,9 @@ locals {
     ops       = { type = "A", name = "ops", content = var.origin_ipv4, proxied = true }
     ai        = { type = "A", name = "ai", content = var.origin_ipv4, proxied = true }
     ai_portal = { type = "A", name = "ai-portal", content = var.origin_ipv4, proxied = true }
+    # larkstack (GitHub → Feishu). No Access app: GitHub's webhook deliveries cannot sign in,
+    # and the console has its own Feishu sign-in.
+    lark = { type = "A", name = "lark", content = var.origin_ipv4, proxied = true }
 
     # --- Proxied CNAMEs to the Cloudflare Tunnel -----------------------------
     gpu_4090       = { type = "CNAME", name = "gpu-4090", content = local.gpu_tunnel, proxied = true }
