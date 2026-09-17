@@ -6,8 +6,15 @@ export default defineConfig({
   },
   // The workspace's only lint/format config: every package inherits these
   // settings, so per-package vite.config.ts files carry no `lint`/`fmt` blocks.
-  fmt: {},
+  //
+  // `.direnv/` is direnv's checkout of the repo flake into the nix store:
+  // host-local material, not source. Linting it produced ~285 findings that
+  // buried the nine the repo actually had, and it grows with every flake input.
+  // `dist/` is build output for the same reason. Both are gitignored too, but
+  // naming them here keeps the intent local instead of depending on that file.
+  fmt: { ignorePatterns: [".direnv/**", "dist/**"] },
   lint: {
+    ignorePatterns: [".direnv/**", "dist/**"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
     options: { typeAware: true, typeCheck: true },

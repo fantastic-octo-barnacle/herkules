@@ -6,6 +6,15 @@
 !**/.env.example
 **/data
 **/.data
+# Host-local build artifacts, never image inputs. Without these every local
+# `up --build` ships ~490 MB of Terraform provider binaries and would bake a
+# local state file into a layer.
+**/.terraform
+*.tfstate
+*.tfstate.*
+**/.wrangler
+# The repo flake's direnv checkout (nix store material).
+**/.direnv
 tools/deploy/.env
 docs
 *.md

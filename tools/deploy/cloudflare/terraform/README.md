@@ -149,6 +149,7 @@ delegated:
    - `Zone` → `Single Redirect` → **Edit**
    - `Zone` → `Cache Rules` → **Edit**
    - `Zone` → `Zone WAF` → **Edit**
+   - `Zone` → `SSL and Certificates` → **Edit** (only `zone-ct.tf` needs this)
    - `Account` → `Access: Apps and Policies` → **Edit**
    - `Account` → `Access: Organizations, Identity Providers, and Groups` → **Read**
    - `Account` → `Access: Service Tokens` → **Read**
@@ -245,11 +246,21 @@ delegated:
 
    Verified on 2026-09-14 against the production token, after the Phase D widening.
 
-2. **Terraform >= 1.10** and **cf-terraforming**:
+2. **Terraform >= 1.10** and **cf-terraforming**, both from the repo flake:
 
    ```sh
-   brew install hashicorp/tap/terraform cloudflare/cloudflare/cf-terraforming
+   nix develop
    ```
+
+   The `default` shell carries exactly these two, because Vite+ already owns Node
+   and pnpm for the rest of the workspace (`devEngines` in `package.json`). It
+   replaces the earlier
+   `brew install hashicorp/tap/terraform cloudflare/cloudflare/cf-terraforming`:
+   nix-darwin's `homebrew.onActivation.cleanup = "uninstall"` uninstalls any
+   formula its Brewfile does not name, so a brew copy would not have survived the
+   next switch. nixpkgs marks `terraform` unfree since the BUSL relicense, which
+   is why the flake names it in an `allowUnfreePredicate` rather than widening to
+   `allowUnfree = true`.
 
    OpenTofu also works with this HCL, and the CI actions have `tofu-*` twins.
 
@@ -542,7 +553,7 @@ token and no network access to Cloudflare:
 
 - `terraform fmt -check`
 - `terraform validate`
-- `terraform test` — five files under a mocked provider. `tests/records.tftest.hcl`
+- `terraform test` — six files under a mocked provider. `tests/records.tftest.hcl`
   pins the record set, the mail TXT contents, that every A record is the proxied
   VPS, that there are no AAAA records, the automatic TTL, and that CAA allows both
   tags for each of the four Universal SSL CAs. `tests/dnssec.tftest.hcl` pins
@@ -558,7 +569,9 @@ token and no network access to Cloudflare:
   `tests/zone-rules.tftest.hcl` pins the redirect: one zone-kind ruleset in the one
   populated phase, HTTPS-only matching on the full URI, a target that still carries
   the path and query through `wildcard_replace` + `${1}`, and
-  `preserve_query_string = false`. Each file also pins a well-formed mocked zone id,
+  `preserve_query_string = false`. `tests/ct-alerting.tftest.hcl` pins that CT
+  alerting stays enabled with a non-empty recipient list. Each file also pins a
+  well-formed mocked zone id,
   because `cloudflare_ruleset.zone_id` is validated as 32 hexadecimal characters
   while a mocked data source returns a short random string — and because every test
   file plans the whole configuration, one unplannable resource fails all of them.
