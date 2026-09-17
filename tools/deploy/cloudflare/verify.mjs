@@ -80,7 +80,7 @@ async function verifyAsset(origin, name) {
   for (const file of files) {
     const response = await fetch(`${origin}/assets/${file}`);
     assert.equal(response.status, 200);
-    assert.equal(response.headers.get("x-herkules-delivery"), "cloudflare-assets-experiment");
+    assert.equal(response.headers.get("x-herkules-delivery"), "cloudflare-assets");
     assert.equal(response.headers.get("cache-control"), "public, max-age=31536000, immutable");
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
     assert.deepEqual(
@@ -110,9 +110,9 @@ await verify("platform", 18787, async (origin) => {
   await verifyAsset(origin, "platform");
 });
 
-await verify("bbs-assets", 18788, async (origin) => {
-  await verifyAsset(origin, "bbs-assets");
-  const document = await readFile(new URL("bbs-assets/index.html", directory), "utf8");
+await verify("bbs", 18788, async (origin) => {
+  await verifyAsset(origin, "bbs");
+  const document = await readFile(new URL("bbs/index.html", directory), "utf8");
   for (const path of [
     "/",
     "/index.html",
@@ -124,7 +124,7 @@ await verify("bbs-assets", 18788, async (origin) => {
   ]) {
     const response = await fetch(`${origin}${path}`);
     assert.equal(response.status, 200);
-    assert.equal(response.headers.get("x-herkules-delivery"), "cloudflare-assets-experiment");
+    assert.equal(response.headers.get("x-herkules-delivery"), "cloudflare-assets");
     assert.equal(response.headers.get("cache-control"), "no-cache");
     assert.equal(response.headers.get("x-content-type-options"), "nosniff");
     assert.equal(await response.text(), document);
@@ -135,7 +135,7 @@ await verify("bbs-assets", 18788, async (origin) => {
     assert.equal(response.headers.get("cache-control"), "public, max-age=3600");
     assert.deepEqual(
       Buffer.from(await response.arrayBuffer()),
-      await readFile(new URL(`bbs-assets/${file}`, directory)),
+      await readFile(new URL(`bbs/${file}`, directory)),
     );
   }
   const head = await fetch(`${origin}/about`, { method: "HEAD" });
@@ -179,7 +179,7 @@ await verify("bbs-assets", 18788, async (origin) => {
   // An asset-only preview has no zone bypasses: fallback can return HTML for
   // API/metadata paths too. Production route tests pin those to the origin.
   // Assert the upload inventory itself, not a misleading fallback HTTP status.
-  const files = await assetFiles(fileURLToPath(new URL("bbs-assets/", directory)));
+  const files = await assetFiles(fileURLToPath(new URL("bbs/", directory)));
   assert.ok(
     files.every(
       (file) =>

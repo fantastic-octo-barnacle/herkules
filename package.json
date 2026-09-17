@@ -10,7 +10,7 @@
     "prepare": "vp config",
     "build:edge": "vp run @herkules/web#build && vp -C apps/bbs/web build && node tools/deploy/cloudflare/prepare.mjs",
     "dev:edge:platform": "wrangler dev --config tools/deploy/cloudflare/platform.json --port 8787",
-    "dev:edge:bbs": "wrangler dev --config tools/deploy/cloudflare/bbs-assets.json --port 8788",
+    "dev:edge:bbs": "wrangler dev --config tools/deploy/cloudflare/bbs.json --port 8788",
     "test:edge": "node tools/deploy/cloudflare/verify.mjs"
   },
   "devDependencies": {

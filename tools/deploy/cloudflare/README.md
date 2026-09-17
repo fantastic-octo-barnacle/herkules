@@ -31,15 +31,14 @@ Route tests separately pin the production origin bypasses and failure recovery.
 The standalone platform preview shows the frontend shell only: it has no auth or
 API backend. Sign-in and authenticated screens must be tested through the normal
 Vite stack, or after same-origin production routing is attached. Never configure
-OAuth callbacks against the experiment's workers.dev address.
+OAuth callbacks against a preview workers.dev address.
 
 `prepare.mjs` stages public files under ignored `dist/`: the platform build, and
 an allowlist from BBS's `dist/client/`: `index.html`, `assets/`, `favicon.svg`, and
 `robots.txt`. It enforces Workers Free file-size/count limits. Both uploads use
 SPA fallback. Headers preserve security policy and immutable hashed assets;
 documents revalidate and BBS favicon/robots cache for one hour.
-`X-Herkules-Delivery` identifies edge responses. The `bbs-assets` directory and
-Worker name are retained for compatibility with existing releases.
+`X-Herkules-Delivery: cloudflare-assets` identifies edge responses.
 
 BBS's standalone preview has **no API or origin bypasses**: API and metadata
 paths can return the plain SPA shell, not real data or injected link metadata.
@@ -56,15 +55,16 @@ credentials in these configurations. Then:
 
 ```sh
 vp exec wrangler deploy --dry-run --config tools/deploy/cloudflare/platform.json
-vp exec wrangler deploy --dry-run --config tools/deploy/cloudflare/bbs-assets.json
+vp exec wrangler deploy --dry-run --config tools/deploy/cloudflare/bbs.json
 vp exec wrangler deploy --config tools/deploy/cloudflare/platform.json
-vp exec wrangler deploy --config tools/deploy/cloudflare/bbs-assets.json
+vp exec wrangler deploy --config tools/deploy/cloudflare/bbs.json
 ```
 
-These publish only the two named experiment Workers on workers.dev, with no
+These publish only the two preview Workers (`herkules-platform-preview`,
+`herkules-bbs-preview`) on workers.dev, with no
 custom domains or zone routes. Public frontend assets are public on these URLs.
 Record the returned URLs and version IDs. Production uses separate Worker names;
-CI never publishes these experiment Workers.
+CI never publishes these preview Workers.
 
 ## CI and production releases
 
@@ -82,8 +82,8 @@ Enable production delivery in the GitHub `production` environment:
 
 Keep the existing proxied DNS records and Full (strict) TLS settings. This does
 not purchase a subscription or enable ACM. Production uses `herkules-platform`
-and `herkules-bbs-assets`, with workers.dev and preview URLs disabled. Do not
-manually attach the experiment Workers to production routes.
+and `herkules-bbs`, with workers.dev and preview URLs disabled. Do not
+manually attach the preview Workers to production routes.
 
 `images.yml` and `rollback.yml` both run under `deploy-production` concurrency:
 
@@ -126,23 +126,22 @@ No separate Worker deploy should run outside the shared production lock.
 
 ## Route ownership
 
-| Pattern                      | Destination                                   |
-| ---------------------------- | --------------------------------------------- |
-| `herkules.dev/*`             | `herkules-platform`                           |
-| `herkules.dev/auth*`         | no Worker; origin                             |
-| `herkules.dev/.well-known*`  | no Worker; origin                             |
-| `herkules.dev/mcp*`          | no Worker; origin                             |
-| `bbs.herkules.dev/assets/*`  | `herkules-bbs-assets` (retained legacy route) |
-| `bbs.herkules.dev/*`         | `herkules-bbs-assets`                         |
-| `bbs.herkules.dev/api*`      | no Worker; origin                             |
-| `bbs.herkules.dev/login*`    | no Worker; origin                             |
-| `bbs.herkules.dev/callback*` | no Worker; origin                             |
-| `bbs.herkules.dev/logout*`   | no Worker; origin                             |
-| `bbs.herkules.dev/healthz*`  | no Worker; origin                             |
-| `bbs.herkules.dev/mcp*`      | no Worker; origin                             |
-| `bbs.herkules.dev/articles*` | no Worker; origin (metadata/404s)             |
-| `bbs.herkules.dev/kb*`       | no Worker; origin (metadata/404s)             |
-| Other hostnames              | existing origin                               |
+| Pattern                      | Destination                       |
+| ---------------------------- | --------------------------------- |
+| `herkules.dev/*`             | `herkules-platform`               |
+| `herkules.dev/auth*`         | no Worker; origin                 |
+| `herkules.dev/.well-known*`  | no Worker; origin                 |
+| `herkules.dev/mcp*`          | no Worker; origin                 |
+| `bbs.herkules.dev/*`         | `herkules-bbs`                    |
+| `bbs.herkules.dev/api*`      | no Worker; origin                 |
+| `bbs.herkules.dev/login*`    | no Worker; origin                 |
+| `bbs.herkules.dev/callback*` | no Worker; origin                 |
+| `bbs.herkules.dev/logout*`   | no Worker; origin                 |
+| `bbs.herkules.dev/healthz*`  | no Worker; origin                 |
+| `bbs.herkules.dev/mcp*`      | no Worker; origin                 |
+| `bbs.herkules.dev/articles*` | no Worker; origin (metadata/404s) |
+| `bbs.herkules.dev/kb*`       | no Worker; origin (metadata/404s) |
+| Other hostnames              | existing origin                   |
 
 Backend exceptions are installed before the platform catch-all. Broad prefixes
 cover bare paths, descendants and query strings and preserve `/auth/internal/*`
@@ -153,6 +152,12 @@ shell from the edge. Data still needs the VPS. The asset-only catch-all mirrors
 the existing generic SPA fallback for other paths. The platform
 `/ai` redirect still targets `https://ai-portal.herkules.dev`. This deployment
 configuration is intentionally specific to `herkules.dev`.
+
+Releases before the rename attached `bbs.herkules.dev/assets/*` and
+`bbs.herkules.dev/*` to `herkules-bbs-assets`. `attach` re-points the catch-all to
+`herkules-bbs` in place, then deletes the `/assets/*` route; `detach` removes either.
+After one successful edge release, delete the idle `herkules-bbs-assets` Worker and
+the old `*-experiment` preview Workers in the dashboard.
 
 An exact managed pattern belonging to another Worker is a conflict and stops the
 operation. Before first activation, audit overlapping wildcard/more-specific routes,

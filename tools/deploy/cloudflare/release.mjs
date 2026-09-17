@@ -30,17 +30,31 @@ export const routes = [
   { pattern: "herkules.dev/mcp*" },
   ...bbsBypassPrefixes.map((prefix) => ({ pattern: `bbs.herkules.dev${prefix}` })),
   { pattern: "herkules.dev/*", script: "herkules-platform" },
-  // Kept for backward compatibility with the legacy asset-only deployment.
+  { pattern: "bbs.herkules.dev/*", script: "herkules-bbs" },
+];
+
+// Routes earlier releases attached. They are ours to replace or remove: attach
+// re-points a retired catch-all in place (no origin gap) and deletes the rest,
+// and detach removes them like any owned Worker route.
+export const retiredRoutes = [
   { pattern: "bbs.herkules.dev/assets/*", script: "herkules-bbs-assets" },
   { pattern: "bbs.herkules.dev/*", script: "herkules-bbs-assets" },
 ];
+
+const isRetired = (route) =>
+  retiredRoutes.some((r) => r.pattern === route.pattern && r.script === route.script);
+
+const isOwnedWorkerRoute = (route) =>
+  isRetired(route) ||
+  routes.some((d) => d.script && d.pattern === route.pattern && d.script === route.script);
 
 // Never replace a route owned by another application. Bypass rules are retained
 // when disabled: they are harmless and may have existed before this deployment.
 export function checkRoutes(existing) {
   for (const desired of routes) {
     const found = existing.find((route) => route.pattern === desired.pattern);
-    if (found && (found.script || undefined) !== desired.script) {
+    if (!found || isOwnedWorkerRoute(found)) continue;
+    if ((found.script || undefined) !== desired.script) {
       throw new Error(`Conflicting Cloudflare route: ${desired.pattern}`);
     }
   }
@@ -50,21 +64,10 @@ export async function detach(api) {
   const existing = await api("GET", "");
   checkRoutes(existing);
   for (const route of existing) {
-    if (
-      routes.some(
-        (desired) =>
-          desired.script && desired.pattern === route.pattern && desired.script === route.script,
-      )
-    ) {
-      await api("DELETE", `/${route.id}`);
-    }
+    if (isOwnedWorkerRoute(route)) await api("DELETE", `/${route.id}`);
   }
   const remaining = await api("GET", "");
-  if (
-    remaining.some((route) =>
-      routes.some((desired) => desired.script && desired.pattern === route.pattern),
-    )
-  ) {
+  if (remaining.some(isOwnedWorkerRoute)) {
     throw new Error("Cloudflare asset routes remain attached");
   }
 }
@@ -74,8 +77,16 @@ export async function attach(api) {
   checkRoutes(existing);
   // All backend/document exceptions must exist before either catch-all is activated.
   for (const desired of routes) {
-    if (!existing.some((route) => route.pattern === desired.pattern)) {
+    const found = existing.find((route) => route.pattern === desired.pattern);
+    if (!found) {
       await api("POST", "", desired);
+    } else if (found.script !== desired.script) {
+      await api("PUT", `/${found.id}`, desired);
+    }
+  }
+  for (const route of existing) {
+    if (isRetired(route) && !routes.some((d) => d.pattern === route.pattern)) {
+      await api("DELETE", `/${route.id}`);
     }
   }
 }
@@ -134,7 +145,7 @@ export async function matchesReleaseDocument(html, indexPath) {
 export async function verifyPublic(output, fetchImpl = fetch) {
   for (const [name, origin] of [
     ["platform", "https://herkules.dev"],
-    ["bbs-assets", "https://bbs.herkules.dev"],
+    ["bbs", "https://bbs.herkules.dev"],
   ]) {
     const files = await assetFiles(join(output, name, "assets"));
     for (const file of files) {
@@ -147,7 +158,7 @@ export async function verifyPublic(output, fetchImpl = fetch) {
       const expected = await readFile(join(output, name, "assets", file));
       if (
         !response.ok ||
-        response.headers.get("x-herkules-delivery") !== "cloudflare-assets-experiment" ||
+        response.headers.get("x-herkules-delivery") !== "cloudflare-assets" ||
         !Buffer.from(await response.arrayBuffer()).equals(expected)
       ) {
         throw new Error(`Asset verification failed: ${name}/${file}`);
@@ -156,7 +167,7 @@ export async function verifyPublic(output, fetchImpl = fetch) {
   }
   const document = await fetchImpl("https://herkules.dev/", { signal: AbortSignal.timeout(15000) });
   if (
-    document.headers.get("x-herkules-delivery") !== "cloudflare-assets-experiment" ||
+    document.headers.get("x-herkules-delivery") !== "cloudflare-assets" ||
     !(await matchesReleaseDocument(await document.text(), join(output, "platform/index.html")))
   ) {
     throw new Error("Platform document does not match release");
@@ -169,11 +180,11 @@ export async function verifyPublic(output, fetchImpl = fetch) {
     });
     if (
       response.status !== 200 ||
-      response.headers.get("x-herkules-delivery") !== "cloudflare-assets-experiment" ||
+      response.headers.get("x-herkules-delivery") !== "cloudflare-assets" ||
       !response.headers.get("content-type")?.startsWith("text/html") ||
       response.headers.get("cache-control") !== "no-cache" ||
       response.headers.get("x-content-type-options") !== "nosniff" ||
-      !(await matchesReleaseDocument(await response.text(), join(output, "bbs-assets/index.html")))
+      !(await matchesReleaseDocument(await response.text(), join(output, "bbs/index.html")))
     ) {
       throw new Error(`BBS document does not match release: ${path}`);
     }
@@ -285,7 +296,7 @@ async function main() {
           },
           stdio: "inherit",
         });
-        for (const name of ["platform", "bbs-assets"]) {
+        for (const name of ["platform", "bbs"]) {
           const config = JSON.parse(
             await readFile(join(root, "tools/deploy/cloudflare", `${name}.json`), "utf8"),
           );
