@@ -15,7 +15,7 @@
  * `redirect: "manual"` — a 3xx is http{status} and never followed.
  * Timeouts: one AbortSignal at REQUEST_TIMEOUT_MS. fetch() has no separate
  * connect timeout; rm-wenku's 10 s connect + 15 s total collapse to 15 s
- * (deviation, named in DESIGN.md).
+ * (deviation from rm-wenku, recorded in README.md §"Crawler policy").
  * Body cap: Content-Length pre-check, then a streaming read that aborts past
  * MAX_BODY_BYTES → tooLarge.
  * Settling: a failure whose breakerKind is non-null settles `failed(...)`; every

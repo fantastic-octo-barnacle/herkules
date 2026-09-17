@@ -35,7 +35,11 @@ export function selectImageTargets(paths, { all = false } = {}) {
   for (const path of paths) {
     if (!path) continue;
     if (path === "README.md" || path.endsWith("/README.md")) continue;
-    if (path === "Dockerfile") add(...allTargets);
+    // `COPY . .` means everything the build sees is an input. The Dockerfile is the
+    // obvious one; `.dockerignore` is the less obvious one and changes which files
+    // that COPY brings in, so a change to it alone must still rebuild — otherwise a
+    // commit can silently reshape every image and the next deploy is skipped.
+    if (path === "Dockerfile" || path === ".dockerignore") add(...allTargets);
     if (nodeBuildInputs.has(path) || path.startsWith("tsconfig")) add("auth", "bbs", "caddy");
     if (isBuildInput(path, "services/auth", ["src", "drizzle"])) add("auth");
     if (

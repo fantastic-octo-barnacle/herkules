@@ -16,6 +16,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { rowsOf } from "../db/index.ts";
 import { articleAi, articleImages, articleLinks, articleTags, articles } from "../db/schema.ts";
+import { truncateChars } from "../content/text.ts";
 import { parseImageCaptions, parseKbEntry, parseOverview } from "./ai-json.ts";
 import { FEED_AT, decodeCursor, encodeCursor, feedAfter } from "./cursor.ts";
 import type { LibraryDeps } from "./index.ts";
@@ -366,5 +367,7 @@ export function excerptOf(introduction: string | null, bodyHead: string | null):
   if (intro) return intro;
   const body = bodyHead?.replace(/\s+/g, " ").trim();
   if (!body) return null;
-  return body.length > EXCERPT_CHARS ? `${body.slice(0, EXCERPT_CHARS)}…` : body;
+  // Code-point truncation: a UTF-16 slice can split an emoji into a lone
+  // surrogate, which reaches the reader and the bot cards as U+FFFD.
+  return truncateChars(body, EXCERPT_CHARS);
 }

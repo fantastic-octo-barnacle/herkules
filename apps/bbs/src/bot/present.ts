@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { truncateChars } from "../content/text.ts";
 import type {
   ArticleSummary,
   LibraryStatus,
@@ -71,7 +72,7 @@ export function searchLink(appOrigin: string, query: string, scope: SearchScope)
 }
 
 function clip(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  return truncateChars(text, max - 1);
 }
 
 /**

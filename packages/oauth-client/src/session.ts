@@ -18,7 +18,12 @@ export type AnonymousReason =
   | "bad_cookie"
   /** The issuer rejected the refresh (revoked, replayed late, gate failed). Cleared. */
   | "signed_out"
-  /** Cookie auth on a non-GET request the browser marked `Sec-Fetch-Site: cross-site`. Not cleared. */
+  /**
+   * Cookie auth on a non-GET request the browser marked as anything other than
+   * `same-origin` (`same-site`, `cross-site`, `none` — see step 3). SameSite=Lax already
+   * blocks `cross-site`, so the interesting case is `same-site`: a sibling origin under the
+   * same registrable domain. Not cleared.
+   */
   | "cross_site";
 
 /**
@@ -101,8 +106,9 @@ const SAFE_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
  *     request can never mutate a browser's session.
  *  2. jar.readSession: absent → anonymous/no_cookie (no setCookie: clearing on every anonymous GET would churn
  *     headers); invalid → anonymous/bad_cookie + clearSession.
- *  3. Cross-site guard: method ∉ {GET, HEAD, OPTIONS} and `Sec-Fetch-Site: cross-site` → anonymous/cross_site.
- *     Defense in depth over SameSite=Lax; cookie untouched.
+ *  3. Cross-site guard: method ∉ {GET, HEAD, OPTIONS} and `Sec-Fetch-Site` present but not
+ *     `same-origin` → anonymous/cross_site. An absent header keeps the SameSite=Lax fallback.
+ *     Cookie untouched.
  *  4. v = auth.verifyToken(accessToken, require):
  *       ok, expiresAt − now > REFRESH_AHEAD → { ok, principal, via: "cookie" }
  *       ok but near expiry                  → step 5 with `fallback = v.principal`
@@ -160,9 +166,14 @@ export function createSessionResolver<S extends string>(
       const read = await jar.readSession(request);
       if (read.kind === "absent") return anonymous(request, "no_cookie");
       if (read.kind === "invalid") return anonymous(request, "bad_cookie", [jar.clearSession()]);
+      // Allow-list `same-origin`, not deny-list `cross-site` (see step 3 above):
+      // `same-site` is exactly the case SameSite=Lax does not cover, so treating
+      // it as trustworthy adds nothing where Lax already protects.
+      const site = request.headers.get("sec-fetch-site")?.toLowerCase();
       if (
         !SAFE_METHODS.has(request.method.toUpperCase()) &&
-        request.headers.get("sec-fetch-site")?.toLowerCase() === "cross-site"
+        site !== undefined &&
+        site !== "same-origin"
       ) {
         return anonymous(request, "cross_site");
       }

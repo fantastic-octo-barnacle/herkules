@@ -24,6 +24,7 @@
  * inside an attribute value. `escapeAttribute` is the only way text enters the head.
  */
 import { SITE_TITLE } from "../config.ts";
+import { truncateChars } from "../content/text.ts";
 import type { HeadMeta } from "../library/types.ts";
 
 export const HEAD_OPEN = "<!--bbs:head-->";
@@ -89,13 +90,22 @@ export function renderHeadTags(meta: HeadMeta, appOrigin: string): string {
 
 function cutDescription(text: string): string {
   const collapsed = text.replace(/\s+/g, " ").trim();
-  return collapsed.length > DESCRIPTION_CHARS
-    ? `${collapsed.slice(0, DESCRIPTION_CHARS - 1)}…`
-    : collapsed;
+  // Code-point, not UTF-16: a `slice` can end on a lone surrogate, which renders
+  // as U+FFFD. `truncateChars` counts code points and appends the ellipsis.
+  return truncateChars(collapsed, DESCRIPTION_CHARS - 1);
 }
 
-/** Which URLs get real metadata. Two, exactly as rm-wenku had. Everything else: `plain`. */
-export function headRouteOf(pathname: string): { kind: "article" | "entity"; id: string } | null {
+/**
+ * Which URLs get real metadata. Two, exactly as rm-wenku had. Everything else: `plain`.
+ *
+ * A `/kb/:name` that does not decode is neither: it names an id no document can
+ * match, so it reports `undefined` and the caller answers 404. Collapsing it into
+ * `null` (as this used to) made `/kb/%` a 200 with the site's own metadata — a
+ * malformed URL advertised to crawlers as an existing document.
+ */
+export function headRouteOf(
+  pathname: string,
+): { kind: "article" | "entity"; id: string } | null | undefined {
   const article = /^\/articles\/([^/]+)\/?$/.exec(pathname);
   if (article) return { kind: "article", id: article[1]! };
   const entity = /^\/kb\/([^/]+)\/?$/.exec(pathname);
@@ -103,7 +113,7 @@ export function headRouteOf(pathname: string): { kind: "article" | "entity"; id:
     try {
       return { kind: "entity", id: decodeURIComponent(entity[1]!) };
     } catch {
-      return null;
+      return undefined;
     }
   }
   return null;

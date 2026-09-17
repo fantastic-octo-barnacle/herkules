@@ -87,9 +87,10 @@ export const configSchema = z.object({
     .pipe(z.array(z.string().url()))
     .transform((urls) => urls.map((u) => new URL(u).origin)),
   /**
-   * apps/bbs's public origin, e.g. https://bbs.herkules.dev (dev: http://localhost:3003).
-   * Set: the confidential first-party `bbs` client is seeded with `${BBS_ORIGIN}/callback`.
-   * Unset (or empty): not seeded. Both BBS_* variables or neither.
+   * The Cloudflare Zero Trust team name: the label before `.cloudflareaccess.com`.
+   * Set (with CLOUDFLARE_CLIENT_SECRET): the confidential `cloudflare-access`
+   * client is seeded with callback `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`.
+   * Unset (or empty): not seeded. Both CLOUDFLARE_* variables or neither.
    */
   CLOUDFLARE_TEAM_NAME: z.preprocess(
     emptyToUndefined,
@@ -103,6 +104,11 @@ export const configSchema = z.object({
   AI_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
   /** Internal account-status checks; never a browser or inference API credential. */
   AI_SYNC_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
+  /**
+   * apps/bbs's public origin, e.g. https://bbs.herkules.dev (dev: http://localhost:3003).
+   * Set: the confidential first-party `bbs` client is seeded with `${BBS_ORIGIN}/callback`.
+   * Unset (or empty): not seeded. Both BBS_* variables or neither.
+   */
   BBS_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
   /** The `bbs` client's secret (>= 32 chars), stored hashed; the same value goes in apps/bbs's env. */
   BBS_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
@@ -133,6 +139,16 @@ export type Config = z.infer<typeof configSchema> & {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = configSchema.parse(env);
   const origin = new URL(parsed.PUBLIC_ORIGIN).origin;
+  const isProduction = parsed.NODE_ENV === "production";
+  // `useSecureCookies` follows isProduction (auth.ts), so an http origin in
+  // production marks the cookies `Secure`, the browser never sends them back, and
+  // sign-in loops with no signal at all. Fail at boot instead, where the name of
+  // the variable is still visible.
+  if (isProduction && new URL(parsed.PUBLIC_ORIGIN).protocol !== "https:") {
+    throw new TypeError(
+      "PUBLIC_ORIGIN must be https in production: useSecureCookies would make the session cookie unusable",
+    );
+  }
   if ((parsed.BBS_ORIGIN === undefined) !== (parsed.BBS_CLIENT_SECRET === undefined)) {
     throw new TypeError("BBS_ORIGIN and BBS_CLIENT_SECRET must be set together or not at all");
   }
@@ -164,6 +180,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     AI_PORTAL_ORIGIN:
       parsed.AI_PORTAL_ORIGIN === undefined ? undefined : new URL(parsed.AI_PORTAL_ORIGIN).origin,
     issuer: `${origin}/auth`,
-    isProduction: parsed.NODE_ENV === "production",
+    isProduction,
   });
 }

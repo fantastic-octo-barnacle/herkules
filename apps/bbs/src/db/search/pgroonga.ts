@@ -20,5 +20,11 @@ import type { SearchIndex, SqlRunner } from "./index.ts";
 
 export function createPgroongaIndex(run: SqlRunner): SearchIndex {
   void run;
-  throw new Error("not implemented: pgroonga is the check-5 fallback, see apps/bbs/DESIGN.md");
+  // Deliberately unimplemented: `trgm` is the stock-Postgres default and the only
+  // index this deployment builds. `SEARCH_INDEX=pgroonga` is still an accepted
+  // enum value, so this message has to tell an operator what to do rather than
+  // point at a design document that does not exist.
+  throw new Error(
+    "not implemented: the pgroonga search index is not built; use SEARCH_INDEX=trgm (see apps/bbs/README.md, Corpus and search)",
+  );
 }
