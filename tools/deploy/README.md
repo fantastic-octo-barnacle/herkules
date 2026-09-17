@@ -474,6 +474,8 @@ written into the volume before it first starts.
    console's GitHub tab.
 
 Locked out (admins list is wrong): edit `/data/config.toml` in the volume the same way and restart.
+If Feishu returns no email for an account (phone-first accounts), the denial log prints its
+`open_id`; an `ou_…` entry in `admins` matches that too (`sh compose.sh logs larkstack | grep open_id`).
 Updating: sync the fork, let its workflow publish, and bump the digest in `docker-compose.yml`.
 
 ## Optional AI hosting
