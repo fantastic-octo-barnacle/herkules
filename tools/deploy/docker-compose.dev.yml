@@ -25,6 +25,14 @@ services:
     build:
       context: ../..
       target: auth
+  new-api:
+    build:
+      context: ../..
+      target: ai
+  inference:
+    build:
+      context: ../..
+      target: ai
   bbs:
     build:
       context: ../..

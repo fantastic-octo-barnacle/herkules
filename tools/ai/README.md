@@ -124,7 +124,7 @@ executing `/ai/dist/main.mjs`; AI source changes rebuild that image automaticall
 New API is pinned to `v1.0.0-rc.37` and its immutable multi-platform digest. It is an
 upstream release candidate; upgrades require rerunning the integration tests.
 
-After deploying this branch's auth image and release configuration on `tencent_hk`:
+After deploying this branch's ai image and release configuration on `tencent_hk`:
 
 1. Run `sudo python3 tools/ai/prepare-production.py /home/<deploy-user>/herkules`
    from a checkout containing this script. It creates a dedicated `herkules_ai`

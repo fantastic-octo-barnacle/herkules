@@ -14,7 +14,7 @@ on:
         required: true
         default: none
         type: choice
-        options: [none, bbs, auth, caddy, backup]
+        options: [none, bbs, auth, caddy, backup, ai]
       release:
         description: Successful deployment ID or full source Git SHA
         required: true
@@ -127,7 +127,10 @@ jobs:
           else
             mkdir -p bundle image-updates
             cp -R current-release/. bundle/
-            image=$(jq -r --arg component "$COMPONENT" '.images[$component]' selected-release/release.json)
+            # A release from before the ai image split ran AI from its auth image.
+            image=$(jq -r --arg component "$COMPONENT" \
+              '.images[$component] // (if $component == "ai" then .images.auth else null end)' \
+              selected-release/release.json)
             jq -n --arg target "$COMPONENT" --arg image "$image" \
               '{target: $target, image: $image}' > "image-updates/$COMPONENT.json"
             source=$(jq -r '.sourceSha' current-release/release.json)

@@ -114,8 +114,8 @@ the affected `linux/amd64` images in one BuildKit graph (`docker-bake.hcl`) whil
 the checks run, so a failed release is retried by the next push whether or not
 that push touches the same files. `release.yml` starts only after every CI check
 and the image build have passed; pushed images that never pass CI are never
-released. A manual run of **Images** (`images.yml`) rebuilds and releases all
-four. A CI run whose release starts after a newer commit has already been
+released. A manual run of **Images** (`images.yml`) rebuilds and releases every
+image. A CI run whose release starts after a newer commit has already been
 released is skipped.
 
 Every built image gets a readable `sha-<commit>` tag. The build digest is the
@@ -396,7 +396,7 @@ cd tools/deploy
 # .env, .env.auth, .env.bot and .env.backup, from the blocks in .env.example.
 #   .env:       SITE_ADDRESS=http://localhost:3000, PUBLIC_ORIGIN=http://localhost:3000,
 #               BBS_SITE_ADDRESS=http://localhost:3003, BBS_ORIGIN=http://localhost:3003,
-#               any POSTGRES_PASSWORD; the four *_IMAGE_REF values can stay (the overlay builds locally)
+#               any POSTGRES_PASSWORD; the five *_IMAGE_REF values can stay (the overlay builds locally)
 #   .env.auth:  the dev GitHub app
 #   .env.backup: may be empty — the backup service is scaled to 0 in the overlay
 #   .env.bot: required by Compose, but bbs-bot is scaled to 0 in the overlay
@@ -483,7 +483,10 @@ Updating: sync the fork, let its workflow publish, and bump the digest in `docke
 
 ## Optional AI hosting
 
-The `ai` Compose profile adds New API and the inference gateway. Provisioning,
+The `ai` Compose profile adds New API and the inference gateway, both from the
+`ai` image (`AI_IMAGE_REF`), so an AI change neither rebuilds nor restarts `auth`.
+Releases from before that split carry no `ai` digest; `release.mjs` reads their
+`auth` digest in its place, which is what they ran AI from. Provisioning,
 local tests, GPU adapter installation and activation are in
 [tools/ai/README.md](../ai/README.md). AI uses a dedicated Postgres database and
 owner plus a read-only metadata role; set `AI_BACKUP_DATABASE=herkules_ai` when

@@ -15,12 +15,12 @@ variable "SHORT_SHA" {
 target "docker-metadata-action" {}
 
 group "default" {
-  targets = ["auth", "bbs", "caddy", "backup"]
+  targets = ["auth", "bbs", "caddy", "backup", "ai"]
 }
 
 target "image" {
   matrix = {
-    image = ["auth", "bbs", "caddy", "backup"]
+    image = ["auth", "bbs", "caddy", "backup", "ai"]
   }
   name       = image
   inherits   = ["docker-metadata-action"]
@@ -33,7 +33,7 @@ target "image" {
     "ghcr.io/${REPOSITORY}/${image}:sha-${SHORT_SHA}",
   ]
   # ai-backend is written by ci.yml's new-api job.
-  cache-from = [for scope in ["auth", "bbs", "caddy", "ai-backend", "backup"] : "type=gha,scope=${scope}"]
+  cache-from = [for scope in ["auth", "bbs", "caddy", "ai-backend", "backup", "ai"] : "type=gha,scope=${scope}"]
   # One scope per image: concurrent exports to a single GHA scope overwrite each other.
   cache-to = ["type=gha,scope=${image},mode=max"]
 }
