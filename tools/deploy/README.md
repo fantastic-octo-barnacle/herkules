@@ -42,8 +42,11 @@ release applicator recreates Caddy when that configuration digest changes.
    below before deploying. The box has no IPv6: origin A records only.
 3. **R2** — a bucket and an API token with object read/write; the endpoint is
    `https://<account-id>.r2.cloudflarestorage.com`.
-4. **The box** — Docker Engine with Compose v2.24+ (`!override` in the dev
-   overlay needs it; prod does not). A deploy user in the `docker` group with
+4. **The box** — Docker Engine 25+ with Compose v2.24+ (`!override` in the dev
+   overlay needs Compose 2.24). The Engine floor is for healthcheck `start_interval`
+   (Dockerfile `--start-interval`, Compose `start_interval`): containers are probed
+   every 2 s while starting, so `compose up --wait` in a release does not sit out a
+   30 s interval per service in the auth → bbs → worker/bot chain. A deploy user in the `docker` group with
    the Actions public key in `~/.ssh/authorized_keys`.
    ```sh
    mkdir -p ~/herkules && cd ~/herkules
@@ -491,3 +494,16 @@ activating it. Both AI hostnames use the required Origin CA pair. Caddy accepts
 Cloudflare client IP headers only from its published proxy ranges and overwrites
 the gateway's client-IP header. The gateway uses that address for New API's
 rate and IP restrictions. Update the checked-in ranges when Cloudflare changes them.
+
+## LarkAI dashboard (independent deployment)
+
+`dashboard.herkules.dev` routes to the `larkai:8000` network alias on
+`herkules_default`. The [LarkAI repository](https://github.com/fantastic-octo-barnacle/LarkAI)
+owns its Compose project, image pipeline, runtime env, SQLite volume and rollback.
+Only this one-time Caddy route and the shared Terraform DNS/Access objects live
+here. Ordinary LarkAI deployments do not create a Herkules release.
+
+Cloudflare Access uses the existing team policy. LarkAI validates Access JWTs at
+the origin, so connecting directly to the VPS cannot bypass authentication.
+The app exposes no host port. Feishu API authorization remains a separate app
+connection; its credentials are configured in LarkAI’s production environment.

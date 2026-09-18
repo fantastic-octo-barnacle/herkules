@@ -8,6 +8,7 @@ services:
       CADDY_TLS_MODE: local_http
       STATUS_HOST: http://status.localhost
       OPS_HOST: http://ops.localhost
+      LARKAI_HOST: http://dashboard.localhost
       AI_HOST: http://ai.localhost
       AI_PORTAL_HOST: http://ai-portal.localhost
     volumes: !override

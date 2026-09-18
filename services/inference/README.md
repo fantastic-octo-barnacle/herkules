@@ -33,6 +33,12 @@ credential setup are documented in `tools/ai/README.md`.
   reconciliation disables revoked New API accounts through its management API;
   failures close the gateway until reconciliation recovers. Re-enabling an
   account is an explicit New API administrator action.
+- Admission reads are cached in process: a membership admission for 20 seconds
+  (denials are not cached; reconciliation refreshes all entries each pass), an
+  accepted API key's account for 60 seconds, and a completed plan check for five
+  minutes (cleared by plan assignment). A revoked Herkules account is therefore
+  refused within 20 seconds. A revoked key may still queue for up to 60 seconds, but
+  New API rejects it on the proxied generation call.
 
 ## Portal assets
 

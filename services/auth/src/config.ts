@@ -91,6 +91,8 @@ export const configSchema = z.object({
    * Set: the confidential first-party `bbs` client is seeded with `${BBS_ORIGIN}/callback`.
    * Unset (or empty): not seeded. Both BBS_* variables or neither.
    */
+  LARKAI_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  LARKAI_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
   CLOUDFLARE_TEAM_NAME: z.preprocess(
     emptyToUndefined,
     z
@@ -147,6 +149,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       "CLOUDFLARE_TEAM_NAME and CLOUDFLARE_CLIENT_SECRET must be set together or not at all",
     );
   }
+  if ((parsed.LARKAI_ORIGIN === undefined) !== (parsed.LARKAI_CLIENT_SECRET === undefined)) {
+    throw new TypeError(
+      "LARKAI_ORIGIN and LARKAI_CLIENT_SECRET must be set together or not at all",
+    );
+  }
   const aiSettings = [parsed.AI_PORTAL_ORIGIN, parsed.AI_CLIENT_SECRET, parsed.AI_SYNC_SECRET];
   if (
     aiSettings.some((value) => value !== undefined) &&
@@ -160,6 +167,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     ...parsed,
     PUBLIC_ORIGIN: origin,
     BBS_ORIGIN: parsed.BBS_ORIGIN === undefined ? undefined : new URL(parsed.BBS_ORIGIN).origin,
+    LARKAI_ORIGIN:
+      parsed.LARKAI_ORIGIN === undefined ? undefined : new URL(parsed.LARKAI_ORIGIN).origin,
     OPS_ORIGIN: parsed.OPS_ORIGIN === undefined ? undefined : new URL(parsed.OPS_ORIGIN).origin,
     AI_PORTAL_ORIGIN:
       parsed.AI_PORTAL_ORIGIN === undefined ? undefined : new URL(parsed.AI_PORTAL_ORIGIN).origin,

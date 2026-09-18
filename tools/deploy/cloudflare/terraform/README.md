@@ -1,5 +1,19 @@
 # Cloudflare configuration as code
 
+**2026-09-18 update:** Feishu mail DNS changes have been adopted (three MX records,
+verification TXT and SPF, preserving live priorities and TTLs). The old DMARC and
+wildcard DKIM were already deleted by the operator and are no longer declared.
+`dashboard.herkules.dev` now has a proxied A record and an Access application using
+the existing Herkules team policy. `terraform output dashboard_access_aud` supplies
+LarkAI’s origin JWT verifier. LarkAI releases independently from its own repository;
+this directory owns only its DNS and Access configuration.
+
+The mail adoption used a refresh-only apply to record the already-deleted records,
+then import blocks for the five existing records. The reviewed plan was
+`5 to import, 2 to add, 0 to change, 0 to destroy`; import blocks were removed after
+success so mocked-provider tests remain credential-free. Older adoption details
+below describe the historical baseline.
+
 Terraform for the `herkules.dev` zone and the Zero Trust account that fronts it.
 **Managed today: twenty DNS records (twelve adopted, eight CAA added), DNSSEC, ten
 zone-level TLS and security settings, the `www` → apex redirect rule, and the

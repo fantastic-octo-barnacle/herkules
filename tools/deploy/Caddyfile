@@ -122,3 +122,12 @@
   header_up X-Herkules-Client-IP {client_ip}
  }
 }
+
+# LarkAI owns its independent Compose project and image release workflow.
+# It joins herkules_default as larkai and validates Cloudflare Access JWTs at origin.
+{$LARKAI_HOST:dashboard.localhost} {
+ import {$CADDY_TLS_MODE:origin_tls}
+ import common_headers
+ encode zstd gzip
+ reverse_proxy larkai:8000
+}

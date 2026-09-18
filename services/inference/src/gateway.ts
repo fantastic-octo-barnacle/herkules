@@ -8,6 +8,9 @@ import type { Config } from "./config.ts";
 import { AdmissionError, Scheduler, type Lease } from "./queue.ts";
 import { body, cancellation, failure, json, matches, relay } from "./http.ts";
 import type { Membership } from "./membership.ts";
+import { TtlCache } from "./ttl-cache.ts";
+
+const KEY_TTL = 60_000;
 
 export interface GatewayDeps {
   config: Config;
@@ -49,27 +52,56 @@ export function createGateway(deps: GatewayDeps) {
     headers.set("x-forwarded-proto", new URL(config.AI_PORTAL_ORIGIN).protocol.slice(0, -1));
     return transport(config.NEW_API_URL + path, { ...init, headers, redirect: "manual" });
   };
-  async function identity(req: IncomingMessage, path: string, signal: AbortSignal) {
+  /**
+   * API-key hash → account, for keys New API accepted within KEY_TTL. Generation skips the
+   * key pre-check on a hit: the proxied call carries the same bearer key, and New API's
+   * token middleware still rejects revoked, expired or restricted keys there. A hit only
+   * decides queue fairness, so a revoked key can at most wait in the queue for KEY_TTL.
+   */
+  const keys = new TtlCache<string, number>(KEY_TTL);
+  /** `listing`: the model route's upstream path; its authorized response is returned for reuse. */
+  async function identity(
+    req: IncomingMessage,
+    path: string,
+    signal: AbortSignal,
+    listing?: string,
+  ): Promise<{ id: number; role: number; models?: Response }> {
     if (path.startsWith("/v1/")) {
       const authorization = req.headers.authorization ?? "";
       if (!/^Bearer sk-[A-Za-z0-9_-]+$/.test(authorization))
         throw new AdmissionError("invalid_api_key", 401);
-      // New API remains responsible for revocation, expiry, group/model and IP restrictions.
-      const checked = await backend("/v1/models", req, { signal, headers: { cookie: "" } });
-      await checked.body?.cancel();
-      if (!checked.ok) throw new AdmissionError("invalid_api_key", checked.status);
       const hash = createHash("sha256")
         .update(authorization.slice("Bearer sk-".length))
         .digest("hex");
-      const id = await deps.identifyKey(hash);
-      if (!id) throw new AdmissionError("invalid_api_key", 401);
-      return id;
+      let models: Response | undefined;
+      const cached = keys.get(hash);
+      if (!cached || listing) {
+        // New API remains responsible for revocation, expiry, group/model and IP restrictions.
+        models = await backend(listing ?? "/v1/models", req, { signal, headers: { cookie: "" } });
+        if (!models.ok) {
+          keys.delete(hash);
+          await models.body?.cancel();
+          throw new AdmissionError("invalid_api_key", models.status);
+        }
+        if (!listing) await models.body?.cancel();
+      }
+      const id = cached ?? (await deps.identifyKey(hash));
+      if (!id) {
+        await models?.body?.cancel();
+        throw new AdmissionError("invalid_api_key", 401);
+      }
+      // Only a live acceptance starts a new window; hits must not extend it.
+      if (models) keys.set(hash, id);
+      return { id, role: 0, models: listing ? models : undefined };
     }
     const response = await backend("/api/user/self", req, { signal });
-    const value = (await response.json()) as { success?: boolean; data?: { id: number } };
+    const value = (await response.json()) as {
+      success?: boolean;
+      data?: { id: number; role?: number };
+    };
     if (!response.ok || !value.success || !Number.isInteger(value.data?.id))
       throw new AdmissionError("sign_in_required", 401);
-    return value.data!.id;
+    return { id: value.data!.id, role: value.data!.role ?? 0 };
   }
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const cancel = cancellation(req, res);
@@ -144,11 +176,25 @@ export function createGateway(deps: GatewayDeps) {
         "/api/user-agreement",
         "/api/privacy-policy",
       ]);
+      const query = new URL(req.url ?? "/", "http://gateway").search;
       let user: number | undefined;
+      let role = 0;
+      let listing: Response | undefined;
       if (generation || models || (portal && path.startsWith("/api/") && !publicAPI.has(path))) {
-        user = await identity(req, path, cancel.signal);
-        if (!(await membership.check(user))) throw new AdmissionError("membership_required", 403);
-        await deps.plans?.ensure(user);
+        const caller = await identity(
+          req,
+          path,
+          cancel.signal,
+          models ? (modelDetail ? "/v1/models" : path + query) : undefined,
+        );
+        ({ id: user, role, models: listing } = caller);
+        try {
+          if (!(await membership.check(user))) throw new AdmissionError("membership_required", 403);
+          await deps.plans?.ensure(user);
+        } catch (error) {
+          await listing?.body?.cancel();
+          throw error;
+        }
       }
       if (portal && path.startsWith("/api/herkules/")) {
         if (!deps.plans) throw new AdmissionError("plans_unavailable", 503);
@@ -158,10 +204,8 @@ export function createGateway(deps: GatewayDeps) {
         }
         const assignment = /^\/api\/herkules\/admin\/users\/([1-9][0-9]*)\/plan$/.exec(path);
         if (assignment && req.method === "PUT") {
-          const account = await backend("/api/user/self", req, { signal: cancel.signal });
-          const value = (await account.json()) as { success?: boolean; data?: { role?: number } };
-          if (!account.ok || !value.success || (value.data?.role ?? 0) < 10)
-            throw new AdmissionError("admin_required", 403);
+          // The role comes from New API's /api/user/self read in identity(), never the client.
+          if (role < 10) throw new AdmissionError("admin_required", 403);
           let input: { tier?: string };
           try {
             input = JSON.parse((await body(req)).toString());
@@ -185,14 +229,15 @@ export function createGateway(deps: GatewayDeps) {
         return;
       }
       if (!generation) {
-        const query = new URL(req.url ?? "/", "http://gateway").search;
-        const response = await backend(modelDetail && models ? "/v1/models" : path + query, req, {
-          method: req.method,
-          signal: cancel.signal,
-          body: ["GET", "HEAD"].includes(req.method ?? "GET")
-            ? undefined
-            : new Uint8Array(await body(req)),
-        });
+        const response =
+          listing ??
+          (await backend(path + query, req, {
+            method: req.method,
+            signal: cancel.signal,
+            body: ["GET", "HEAD"].includes(req.method ?? "GET")
+              ? undefined
+              : new Uint8Array(await body(req)),
+          }));
         if (models && response.ok) {
           const listing = enrichModels(await response.json(), config.modelCatalog ?? {}, [
             ...config.workers,
@@ -284,6 +329,7 @@ export function createGateway(deps: GatewayDeps) {
       tickets.set(ticket, { lease, used: false, signal: cancel.signal });
       try {
         // Recheck admission after queueing; revocation while waiting must not start a job.
+        // A verdict younger than VERDICT_TTL is reused, so only long waits go back upstream.
         if (!membership.ready || !(await membership.check(user!)))
           throw new AdmissionError("membership_required", 403);
         const response = await backend(path, req, {

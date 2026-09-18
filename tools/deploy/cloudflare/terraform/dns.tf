@@ -31,20 +31,19 @@ locals {
     # and the console has its own Feishu sign-in.
     lark = { type = "A", name = "lark", content = var.origin_ipv4, proxied = true }
 
+    dashboard = { type = "A", name = "dashboard", content = var.origin_ipv4, proxied = true }
+
     # --- Proxied CNAMEs to the Cloudflare Tunnel -----------------------------
     gpu_4090       = { type = "CNAME", name = "gpu-4090", content = local.gpu_tunnel, proxied = true }
     capability_map = { type = "CNAME", name = "capability-map", content = local.gpu_tunnel, proxied = true }
 
-    # --- Mail authentication TXT records -------------------------------------
-    # Not proxied (TXT cannot be). These are load-bearing: `-all` plus DMARC
-    # `p=reject` is what stops anyone spoofing the domain, so they carry the
-    # strongest reason to be codified and protected from an accidental delete.
-    # tests/records.tftest.hcl asserts their contents.
-    spf   = { type = "TXT", name = "@", content = "v=spf1 -all", proxied = false }
-    dmarc = { type = "TXT", name = "_dmarc", content = "v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s;", proxied = false }
-    # Wildcard DKIM selector. Empty `p=` revokes the key: any DKIM signature for
-    # this domain must fail. Keep the empty value -- it is intentional.
-    dkim = { type = "TXT", name = "*._domainkey", content = "v=DKIM1; p=", proxied = false }
+    # Feishu mail, matched to the user's live DNS changes on 2026-09-18.
+    # The former reject-all SPF, DMARC and wildcard DKIM were removed in the dashboard.
+    spf                 = { type = "TXT", name = "@", content = "\"v=spf1 +include:_netblocks.m.feishu.cn -all\"", proxied = false, ttl = 600 }
+    feishu_verification = { type = "TXT", name = "@", content = "\"verification-code-site-App_feishu=XKUZhq4QpnCq65sjXyYo\"", proxied = false, ttl = 600 }
+    mx1                 = { type = "MX", name = "@", content = "mx1.feishu.cn", priority = 1, proxied = false, ttl = 600 }
+    mx2                 = { type = "MX", name = "@", content = "mx2.feishu.cn", priority = 5, proxied = false }
+    mx3                 = { type = "MX", name = "@", content = "mx3.feishu.cn", priority = 10, proxied = false }
 
     # --- CAA: which public CAs may issue for this zone ------------------------
     # Without CAA any CA may issue. These are exactly the four Cloudflare lists for
@@ -84,9 +83,9 @@ resource "cloudflare_dns_record" "record" {
   content = lookup(each.value, "content", null)
   data    = lookup(each.value, "data", null)
 
-  # Cloudflare reports TTL 1 ("automatic") for all of these, including the
-  # proxied records, so match the live value rather than asserting a custom TTL.
-  ttl = 1
+  # Preserve live TTLs: automatic for proxied records, explicit for Feishu mail.
+  ttl      = lookup(each.value, "ttl", 1)
+  priority = lookup(each.value, "priority", null)
 
   comment = lookup(each.value, "comment", null)
 

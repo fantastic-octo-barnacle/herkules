@@ -11,6 +11,7 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   redirect,
 } from "@tanstack/react-router";
@@ -18,16 +19,29 @@ import {
 import type { Api } from "./api.ts";
 import { Empty } from "./layout.tsx";
 import { Notice } from "./notices.tsx";
-import { AdminAllowlistPage } from "./pages/AdminAllowlist.tsx";
-import { AdminAuditPage } from "./pages/AdminAudit.tsx";
-import { AdminUsersPage } from "./pages/AdminUsers.tsx";
 import { ConsentPage } from "./pages/Consent.tsx";
-import { DevTokenCallbackPage, DevTokenPage } from "./pages/DevToken.tsx";
 import { HomePage } from "./pages/Home.tsx";
 import { LoginPage } from "./pages/Login.tsx";
-import { SettingsPage } from "./pages/Settings.tsx";
 import { sessionQuery, useSession } from "./session.tsx";
 import { Shell } from "./shell.tsx";
+
+/*
+ * Login, consent and home stay in the entry chunk: they are where OAuth flows
+ * and first visits land. Everything behind the session guard loads on demand
+ * (and on hover/focus, via `defaultPreload: "intent"`).
+ */
+const SettingsPage = lazyRouteComponent(() => import("./pages/Settings.tsx"), "SettingsPage");
+const DevTokenPage = lazyRouteComponent(() => import("./pages/DevToken.tsx"), "DevTokenPage");
+const DevTokenCallbackPage = lazyRouteComponent(
+  () => import("./pages/DevToken.tsx"),
+  "DevTokenCallbackPage",
+);
+const AdminUsersPage = lazyRouteComponent(() => import("./pages/AdminUsers.tsx"), "AdminUsersPage");
+const AdminAllowlistPage = lazyRouteComponent(
+  () => import("./pages/AdminAllowlist.tsx"),
+  "AdminAllowlistPage",
+);
+const AdminAuditPage = lazyRouteComponent(() => import("./pages/AdminAudit.tsx"), "AdminAuditPage");
 
 export interface RouterContext {
   readonly queryClient: QueryClient;
@@ -156,6 +170,7 @@ export function createAppRouter(context: RouterContext) {
   return createRouter({
     routeTree,
     context,
+    defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
     defaultPendingMs: 300,
     defaultPendingMinMs: 300,
