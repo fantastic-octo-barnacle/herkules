@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Verify herkules access tokens on a resource server and answer with the correct OAuth challenge. The TypeScript convenience over docs/tokens.md.",
+  "license": "MIT OR Apache-2.0",
   "files": [
     "dist"
   ],

@@ -20,6 +20,17 @@ each workspace's `README.md` and in [`docs/`](docs/README.md).
 
 ## What is already fixed
 
+- Application Actions are pinned to commit hashes and watched by Dependabot.
+  This does not claim that infrastructure workflow pins have been updated.
+- Documentation-only application changes skip image publication; application CI
+  no longer performs production deployment after the infrastructure extraction.
+
+- OAuth client-management mutations are disabled; DCR and the audited application
+  routes remain the supported surfaces. The authenticated endpoint regression test
+  also verifies the normal consent and refresh flow remains available.
+- Login continuations reject backslashes and whitespace (fixed during Feishu work);
+  explicit redirect regression tests now cover those browser-normalization cases.
+
 Recorded so the same ground is not re-covered. Each of these shipped with a
 regression test.
 
@@ -59,29 +70,6 @@ regression test.
 ---
 
 ## Security and authorization
-
-### 1. OAuth client-management endpoints bypass the redirect allowlist and are unaudited
-
-- **Where**: `services/auth/src/auth.ts:65` (`DISABLED_PATHS`),
-  `services/auth/src/clients.ts:48` (`REDIRECT_ALLOW`),
-  `services/auth/src/audit.ts:243` (`AUDITED_PATHS`)
-- **Confidence**: confirmed (routes verified present in the installed
-  `@better-auth/oauth-provider`; `clientPrivileges` is unset, so
-  `assertClientPrivileges` reduces to "any authenticated session")
-- **What**: `/oauth2/create-client`, `/oauth2/update-client`, `/oauth2/delete-client`,
-  `/oauth2/client/rotate-secret` and `/oauth2/update-consent` are session-authenticated
-  and enabled. `checkOAuthClient` accepts any `https://` non-loopback redirect for the
-  default `application_type: "web"`, and the `REDIRECT_ALLOW` quirks run only on
-  `/oauth2/register`. A member can therefore create a client with an attacker-owned
-  redirect URI, send a colleague a consent link for a look-alike name, and receive the
-  authorization code. These paths are absent from `AUDITED_PATHS`, so no audit row is
-  written, which contradicts the README's "every authority-changing write must produce
-  an awaited audit row".
-- **Fix**: add the five paths to `DISABLED_PATHS`, exactly as `/oauth2/delete-consent`
-  already is; DCR is the documented supported path. If any must stay, run `applyQuirks`
-  for it in the `hooks.before` branch and add an extractor to `AUDITED_PATHS`.
-- **Watch out**: leave `/oauth2/public-client*`, `get-client(s)` and `get-consent(s)`
-  enabled if the consent UI reads them.
 
 ### 2. Last-admin guard is a TOCTOU race
 
@@ -141,20 +129,6 @@ ORDER BY id FOR UPDATE` and count those rows so a concurrent transaction blocks 
   `JWKSTimeout`/`JWKSInvalid`) become `jwks_unavailable`, and map everything else to
   `invalid("malformed")`. Test both directions: mis-tagging would render 401 during a
   real outage, which `docs/tokens.md` forbids.
-
-### 6. Open redirect via backslash in `safeNext`
-
-- **Where**: `services/web/src/session.tsx:53` (sinks at `session.tsx:61` and
-  `services/web/src/pages/Login.tsx`)
-- **Confidence**: confirmed that the WHATWG URL parser treats `\` as `/` for special
-  schemes, so `new URL("/\\evil.com", "https://herkules.dev")` is `https://evil.com/`
-- **What**: `safeNext` only rejects a non-`/` prefix and `//`. For special schemes the
-  parser normalizes `\`, so `/\\evil.com` survives and `location.replace(to)` navigates
-  off-origin straight after a trusted sign-in. The function's own comment claims this
-  cannot happen. There is no unit test for `safeNext`.
-- **Fix**: compare parsed origins rather than string prefixes — `const u = new URL(raw,
-location.origin); return u.origin === location.origin ? u.pathname + u.search +
-u.hash : "/";` — and add a test covering `//`, `/\`, `/\\/` and `https://`.
 
 ### 7. Avatar responses echo an unvalidated `Content-Type` and lack `nosniff`
 
@@ -522,6 +496,10 @@ excluded.introduction)` but gates the whole `DO UPDATE` on `listing_position`/`i
 
 ## Deployment, CI and infrastructure
 
+Entries referencing `tools/deploy` now belong to the private `herkules-infra`
+repository. They are retained here as the historical review record, not a claim
+that these files still live in the application checkout.
+
 ### 34. `apply-release.sh` reports a failed rollback as a successful one
 
 - **Where**: `tools/deploy/apply-release.sh:139` (`restore_previous`), `:52` (`finish`)
@@ -549,19 +527,6 @@ excluded.introduction)` but gates the whole `DO UPDATE` on `listing_position`/`i
 - **Fix**: list once into a temp file with the exit status checked, then grep that file
   twice. One `tar` pass instead of two, and a clear "release archive is unreadable".
 
-### 36. GitHub Actions pinned to mutable tags, and Dependabot does not watch them
-
-- **Where**: `.github/workflows/{ci,images,rollback,terraform}.yml` (13 distinct refs,
-  e.g. `voidzero-dev/setup-vp@v1`, `docker/build-push-action@v7`,
-  `dflook/terraform-test@v3`); `.github/dependabot.yml` (only the terraform ecosystem)
-- **Confidence**: confirmed
-- **What**: the `release` job holds `DEPLOY_SSH_KEY`, the production environment and
-  `packages: write`, and runs `setup-vp` with `run-install: true` — a re-pointed tag there
-  is direct production access. Nothing ever proposes the updates that would pin them.
-- **Fix**: pin each `uses:` to a full commit SHA with the tag in a trailing comment, and
-  add a `github-actions` Dependabot entry. `oras-project/setup-oras` is already the model
-  (tag-pinned action, version-pinned binary).
-
 ### 37. Base images that produce production artifacts are tag-pinned, not digest-pinned
 
 - **Where**: `Dockerfile` (`node:24-alpine`, `caddy:2.10-alpine`, `rclone/rclone:1.72`,
@@ -587,21 +552,6 @@ excluded.introduction)` but gates the whole `DO UPDATE` on `listing_position`/`i
   (`AI_HOST` is now forwarded by the caddy service; the defaults still disagree.)
 - **Fix**: make one side own the default — mirror the Caddyfile's values in the
   entrypoint, or read the Caddyfile default in both places.
-
-### 39. Docs-only pushes run the full pipeline, then a release that deploys nothing
-
-- **Where**: `.github/workflows/ci.yml` (triggers), `.github/workflows/images.yml`
-- **Confidence**: reported
-- **What**: `ci.yml` has no path filter, so a `docs/**` commit runs `vp run ready`, both
-  edge builds, the Wrangler checks, the Caddy image build and the Terraform trio on a
-  30-minute budget; its success then fires Images, which correctly selects zero targets.
-  The `new-api` job already demonstrates the cheap "always present, build only on relevant
-  changes" pattern.
-- **Fix**: add `paths-ignore` to the triggers **only if CI is not a required status
-  check** — a path-skipped required check stays "Expected" and blocks merges. Otherwise
-  gate the expensive steps on a cheap precondition job.
-
----
 
 ## `tools/ai` and tooling
 

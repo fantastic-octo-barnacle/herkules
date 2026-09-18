@@ -55,3 +55,10 @@ Application development and image publication live here. Production infrastructu
 in the sibling [herkules-infra](https://github.com/fantastic-octo-barnacle/herkules-infra)
 repository. See [the deployment contract](docs/deploy.md) for artifact promotion and
 application-owned Caddy fragments. `vp run dev` remains self-contained.
+
+## License
+
+Original Herkules code is dual-licensed under [MIT](LICENSE-MIT) or
+[Apache-2.0](LICENSE-APACHE), at your option. Third-party materials retain their
+own terms; see [the notices](THIRD_PARTY_NOTICES.md). Packages remain private in
+package-manager metadata; making this repository public does not publish them to npm.

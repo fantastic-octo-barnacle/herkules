@@ -1,7 +1,8 @@
 # Application image contract
 
 The root Dockerfile publishes `auth`, `bbs`, `ai` and `platform`. CI builds
-all four in one shared BuildKit graph alongside the checks, then emits the
+all four in one shared BuildKit graph when image inputs change (or on a manual run),
+alongside the checks, then emits the
 `application` artifact only after every check passes.
 Production promotion is a separate reviewed change in `herkules-infra`.
 
@@ -15,3 +16,5 @@ as a versioned interface; coordinate an incompatible change before promotion.
 `sh tools/images/caddy.test.sh` checks the actual fragments using the Caddy parser.
 `vp run test:images` checks image-selection rules. Browser API response validation
 remains covered by `services/web` tests; static-delivery tests belong to infrastructure.
+
+Documentation-only changes still run checks, but skip image publication.

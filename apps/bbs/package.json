@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "RM 文库 at bbs.herkules.dev: Hono API + MCP server (herkules.dev/mcp/bbs) + static TanStack SPA over the RM WenKu corpus imported into Postgres.",
+  "license": "MIT OR Apache-2.0",
   "files": [
     "dist",
     "drizzle"

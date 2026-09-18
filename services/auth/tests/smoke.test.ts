@@ -95,3 +95,31 @@ describe("login and token", () => {
     expect(types).toContain("token.issued");
   });
 });
+
+test("signed-in members cannot use unaudited OAuth management endpoints", async () => {
+  const login = await t.login("alice");
+  if (!login.ok) throw new Error("login failed");
+  const client = await t.mcpClient(login.cookie, t.service.registry.canonical.audience);
+  for (const path of [
+    "/oauth2/create-client",
+    "/oauth2/update-client",
+    "/oauth2/delete-client",
+    "/oauth2/client/rotate-secret",
+    "/oauth2/update-consent",
+  ]) {
+    const res = await t.fetch(`/auth${path}`, {
+      method: "POST",
+      cookie: login.cookie,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        client_id: client.clientId,
+        client_name: "Changed",
+        redirect_uris: ["https://untrusted.example/callback"],
+        scopes: ["offline_access"],
+      }),
+    });
+    expect(res.status, path).toBe(404);
+  }
+  // Disabling these routes must preserve the documented DCR + consent + refresh flow.
+  expect((await client.refresh()).status).toBe(200);
+});

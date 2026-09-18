@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "herkules authorization server: Hono + Better Auth 1.7 issuer at https://herkules.dev/auth (GitHub gate, roles, OAuth 2.1 for MCP clients, registry PRM, user-info, audit).",
+  "license": "MIT OR Apache-2.0",
   "files": [
     "dist",
     "drizzle"

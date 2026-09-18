@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "herkules web: the SPA at https://herkules.dev/ — login, consent, settings (connected clients), admin (members, allowlist, audit), dev-token page. Static files; every call goes to services/auth under /auth.",
+  "license": "MIT OR Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "vp dev",
