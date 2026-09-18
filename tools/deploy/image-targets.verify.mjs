@@ -92,7 +92,7 @@ test("treats the shared Dockerfile and manual builds conservatively", () => {
   // `.dockerignore` is a build input too: it decides what `COPY . .` puts in
   // every image, so changing it alone must not be a no-op release.
   assert.deepEqual(selectImageTargets([".dockerignore"]), {
-    targets: ["auth", "bbs", "caddy", "backup"],
+    targets: ["auth", "bbs", "caddy", "backup", "ai"],
     deploy: true,
   });
   assert.deepEqual(selectImageTargets([], { all: true }), {
