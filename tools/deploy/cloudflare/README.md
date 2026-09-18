@@ -85,7 +85,7 @@ not purchase a subscription or enable ACM. Production uses `herkules-platform`
 and `herkules-bbs`, with workers.dev and preview URLs disabled. Do not
 manually attach the preview Workers to production routes.
 
-`images.yml` and `rollback.yml` both run under `deploy-production` concurrency:
+`release.yml` and `rollback.yml` both run under `deploy-production` concurrency:
 
 1. Verify route ownership and detach the two production asset routes before
    modifying the VPS. Unrelated routes and existing backend bypasses are preserved.

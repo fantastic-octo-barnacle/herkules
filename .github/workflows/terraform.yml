@@ -19,7 +19,7 @@ name: Terraform
 #
 # Credential-free checks (fmt, validate, terraform test) run in ci.yml on every
 # PR and are not gated. This workflow never touches Worker routes or uploads;
-# those belong to images.yml/rollback.yml and tools/deploy/cloudflare/release.mjs.
+# those belong to release.yml/rollback.yml and tools/deploy/cloudflare/release.mjs.
 #
 # A third job, `drift`, runs the same plan on a weekly schedule and fails when the
 # result is non-empty. Codifying hand-set configuration only pays off if a

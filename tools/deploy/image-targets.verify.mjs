@@ -85,6 +85,10 @@ test("treats the shared Dockerfile and manual builds conservatively", () => {
     targets: ["auth", "bbs", "caddy", "backup"],
     deploy: true,
   });
+  assert.deepEqual(selectImageTargets(["tools/deploy/docker-bake.hcl"]), {
+    targets: ["auth", "bbs", "caddy", "backup"],
+    deploy: true,
+  });
   // `.dockerignore` is a build input too: it decides what `COPY . .` puts in
   // every image, so changing it alone must not be a no-op release.
   assert.deepEqual(selectImageTargets([".dockerignore"]), {
@@ -104,7 +108,7 @@ test("rebuilds Caddy when its TLS validation changes", () => {
   });
 });
 
-test("inference source rebuilds the shared auth image", () => {
+test("inference source rebuilds only the auth image", () => {
   assert.deepEqual(selectImageTargets(["services/inference/src/gateway.ts"]), {
     targets: ["auth"],
     deploy: true,
