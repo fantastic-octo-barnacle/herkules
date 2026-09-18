@@ -18,6 +18,7 @@ const DIGESTS = {
   bbs: image("bbs", "2"),
   caddy: image("caddy", "3"),
   backup: image("backup", "4"),
+  ai: image("ai", "6"),
 };
 
 test("creates an initial release and emits the Compose environment", async () => {
@@ -40,6 +41,7 @@ test("creates an initial release and emits the Compose environment", async () =>
       `BBS_IMAGE_REF=${DIGESTS.bbs}`,
       `CADDY_IMAGE_REF=${DIGESTS.caddy}`,
       `BACKUP_IMAGE_REF=${DIGESTS.backup}`,
+      `AI_IMAGE_REF=${DIGESTS.ai}`,
       "DEPLOY_CONFIG_DIR=./active-config",
       "",
     ].join("\n"),
@@ -110,6 +112,32 @@ test("leaves recreation to Compose when the image changed as well", async () => 
   assert.deepEqual(planRelease(null, second).recreate, ["gatus"]);
 });
 
+test("reads a release from before the ai split as running AI from its auth image", async () => {
+  const bundle = await fixture();
+  const { ai: _ai, ...legacyImages } = DIGESTS;
+  const current = await createRelease({
+    sourceSha: SHA,
+    bundleDir: bundle,
+    updates: Object.entries(DIGESTS).map(([target, ref]) => ({ target, image: ref })),
+  });
+  const legacy = { ...current, images: legacyImages };
+
+  assert.equal(validateRelease(legacy), legacy);
+  assert.match(environmentFor(legacy), new RegExp(`^AI_IMAGE_REF=${escape(DIGESTS.auth)}$`, "m"));
+
+  // A release built on a legacy base keeps AI on the old auth image until ai itself is rebuilt.
+  const nextAuth = image("auth", "7");
+  const candidate = await createRelease({
+    base: legacy,
+    baseReference: `ghcr.io/acme/herkules/release@sha256:${"9".repeat(64)}`,
+    sourceSha: "b".repeat(40),
+    bundleDir: bundle,
+    updates: [{ target: "auth", image: nextAuth }],
+  });
+  assert.deepEqual(candidate.images, { ...legacyImages, auth: nextAuth, ai: DIGESTS.auth });
+  assert.deepEqual(planRelease(legacy, candidate).images, ["auth"]);
+});
+
 test("rejects mutable image references", async () => {
   const bundle = await fixture();
   await assert.rejects(
@@ -132,6 +160,10 @@ test("detects deployment files changed after release assembly", async () => {
   await writeFile(join(bundle, "Caddyfile"), "tampered\n");
   await assert.rejects(verifyBundle(release, bundle), /caddy config does not match/);
 });
+
+function escape(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function image(target, digit) {
   return `ghcr.io/acme/herkules/${target}:sha-deadbee@sha256:${digit.repeat(64)}`;

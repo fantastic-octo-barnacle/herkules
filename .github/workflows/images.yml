@@ -1,6 +1,6 @@
 name: Images
 
-# Manual full release: rebuild all four images from main and release them. Pushes to main are
+# Manual full release: rebuild every image from main and release them. Pushes to main are
 # built and released by ci.yml, which gates the release on its own checks.
 on:
   workflow_dispatch:

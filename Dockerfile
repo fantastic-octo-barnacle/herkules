@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# One build, four images: --target auth | bbs | caddy | backup.
+# One build, five images: --target auth | bbs | caddy | backup | ai.
 # The build stage installs the whole workspace once; runtime images get only
 # `pnpm deploy --prod` output (auth, bbs) or static files (caddy).
 
@@ -58,10 +58,6 @@ USER node
 FROM runtime AS auth
 ENV PORT=3001 MIGRATIONS_DIR=/app/drizzle AVATAR_DIR=/data/avatars
 COPY --from=build --chown=node:node /out/auth /app
-# Same release image, separate inference container and process.
-COPY --from=build --chown=node:node /out/inference /ai
-COPY --from=ai-portal --chown=node:node /portal /ai/portal
-COPY --from=ai-backend /new-api /new-api
 # The `avatars` named volume inherits this directory's ownership, so it has to exist and be
 # node-owned in the image; only root can create it, hence the two USER lines.
 USER root
@@ -71,6 +67,18 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --start-interval=2s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3001/auth/healthz || exit 1
 CMD ["node", "dist/main.mjs"]
+
+# ── ai (the `ai` Compose profile: inference gateway + portal, and New API) ──
+# Its own image, so an AI change neither rebuilds nor restarts auth. Compose runs it twice:
+# `node /ai/dist/main.mjs` (inference) and `/new-api` (working_dir /data); both define their
+# healthchecks there.
+FROM runtime AS ai
+COPY --from=build --chown=node:node /out/inference /ai
+COPY --from=ai-portal --chown=node:node /portal /ai/portal
+COPY --from=ai-backend /new-api /new-api
+USER root
+RUN apk add --no-cache tzdata ca-certificates && mkdir -p /data && chown node:node /data
+USER node
 
 # ── bbs (API + MCP + SPA; `files` carries dist/ and drizzle/) ───────────────
 FROM runtime AS bbs

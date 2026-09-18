@@ -170,7 +170,7 @@ services:
   # AI is enabled only after provisioning secrets/database and setting COMPOSE_PROFILES=ai.
   new-api:
     profiles: [ai]
-    image: ${AUTH_IMAGE_REF}
+    image: ${AI_IMAGE_REF:?set AI_IMAGE_REF through the active release}
     working_dir: /data
     env_file:
       - path: .env.ai
@@ -206,13 +206,13 @@ services:
 
   inference:
     profiles: [ai]
-    image: ${AUTH_IMAGE_REF}
+    image: ${AI_IMAGE_REF:?set AI_IMAGE_REF through the active release}
     command: ["node", "/ai/dist/main.mjs"]
     env_file:
       - path: .env.ai-gateway
         required: false
     environment:
-      PORT: "4010" # override PORT=3001 inherited from the auth image
+      PORT: "4010"
       AI_PORTAL_DIR: /ai/portal
       AI_PORTAL_ORIGIN: https://ai-portal.herkules.dev
       AI_API_ORIGIN: https://ai.herkules.dev
