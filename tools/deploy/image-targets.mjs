@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 
-const allTargets = ["auth", "bbs", "caddy", "backup"];
+const allTargets = ["auth", "bbs", "caddy", "backup", "ai"];
 const nodeBuildInputs = new Set([
   "package.json",
   "pnpm-lock.yaml",
@@ -35,19 +35,16 @@ export function selectImageTargets(paths, { all = false } = {}) {
   for (const path of paths) {
     if (!path) continue;
     if (path === "README.md" || path.endsWith("/README.md")) continue;
-    // `COPY . .` means everything the build sees is an input. The Dockerfile is the
-    // obvious one; `.dockerignore` is the less obvious one and changes which files
-    // that COPY brings in, so a change to it alone must still rebuild — otherwise a
-    // commit can silently reshape every image and the next deploy is skipped.
-    if (path === "Dockerfile" || path === ".dockerignore") add(...allTargets);
-    if (nodeBuildInputs.has(path) || path.startsWith("tsconfig")) add("auth", "bbs", "caddy");
+    if (["Dockerfile", ".dockerignore", "tools/deploy/docker-bake.hcl"].includes(path))
+      add(...allTargets);
+    if (nodeBuildInputs.has(path) || path.startsWith("tsconfig")) add("auth", "bbs", "caddy", "ai");
     if (isBuildInput(path, "services/auth", ["src", "drizzle"])) add("auth");
     if (
       isBuildInput(path, "services/inference", ["src"]) ||
       path.startsWith("tools/ai/portal/") ||
       path.startsWith("tools/ai/new-api/")
     )
-      add("auth");
+      add("ai");
     if (isBuildInput(path, "services/web", ["src", "public"])) add("caddy");
     if (isBuildInput(path, "apps/bbs", ["src", "drizzle", "web/src", "web/public"])) add("bbs");
     if (isBuildInput(path, "packages/auth-middleware", ["src"])) add("auth", "bbs");

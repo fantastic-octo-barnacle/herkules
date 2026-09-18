@@ -4,7 +4,14 @@ import { basename, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
-export const IMAGE_TARGETS = ["auth", "bbs", "caddy", "backup"];
+export const IMAGE_TARGETS = ["auth", "bbs", "caddy", "backup", "ai"];
+
+// Releases published before the ai image split carry no `ai` digest: their auth image also held
+// inference and New API, so it stands in for `ai`. Every release created from now on records `ai`.
+function withLegacyImages(images) {
+  if (images?.ai !== undefined || images?.auth === undefined) return images;
+  return { ...images, ai: images.auth };
+}
 
 const SHA = /^[0-9a-f]{40}$/;
 const IMAGE_REF = /^ghcr\.io\/[a-z0-9_./-]+(?::[a-zA-Z0-9_.-]+)?@sha256:[0-9a-f]{64}$/;
@@ -30,7 +37,7 @@ export async function createRelease({
     throw new TypeError("a base release requires its immutable OCI reference");
   }
 
-  const images = { ...base?.images };
+  const images = { ...withLegacyImages(base?.images) };
   const seen = new Set();
   for (const update of updates) {
     if (!IMAGE_TARGETS.includes(update.target)) {
@@ -72,8 +79,9 @@ export function validateRelease(value) {
   if (value.parentRelease !== null && !RELEASE_REF.test(value.parentRelease ?? "")) {
     throw new TypeError("release parentRelease is invalid");
   }
+  const images = withLegacyImages(value.images);
   for (const target of IMAGE_TARGETS) {
-    if (!IMAGE_REF.test(value.images?.[target] ?? "")) {
+    if (!IMAGE_REF.test(images?.[target] ?? "")) {
       throw new TypeError(`release ${target} image is invalid`);
     }
   }
@@ -103,9 +111,11 @@ export function environmentFor(release) {
     bbs: "BBS_IMAGE_REF",
     caddy: "CADDY_IMAGE_REF",
     backup: "BACKUP_IMAGE_REF",
+    ai: "AI_IMAGE_REF",
   };
+  const images = withLegacyImages(release.images);
   return [
-    ...IMAGE_TARGETS.map((target) => `${names[target]}=${release.images[target]}`),
+    ...IMAGE_TARGETS.map((target) => `${names[target]}=${images[target]}`),
     "DEPLOY_CONFIG_DIR=./active-config",
     "",
   ].join("\n");
@@ -114,8 +124,10 @@ export function environmentFor(release) {
 export function planRelease(current, candidate) {
   if (current !== null) validateRelease(current);
   validateRelease(candidate);
+  const currentImages = current === null ? null : withLegacyImages(current.images);
+  const candidateImages = withLegacyImages(candidate.images);
   const images = IMAGE_TARGETS.filter(
-    (target) => current === null || current.images[target] !== candidate.images[target],
+    (target) => currentImages === null || currentImages[target] !== candidateImages[target],
   );
   // Compose recreates a service whose image changed on its own, which also re-resolves the
   // config bind mounts; only unchanged-image services need the explicit recreate.

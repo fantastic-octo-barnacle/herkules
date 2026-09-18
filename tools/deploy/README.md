@@ -111,12 +111,15 @@ deploys/rollbacks synchronize assets from the selected immutable images when
 `CLOUDFLARE_ASSETS_ENABLED=true`. The runbook covers credentials, route ownership,
 origin fallback and disabling delivery. Local `vp run dev` is unchanged.
 
-Push to `main` and wait for CI. `images.yml` runs only after that commit's `CI`
-workflow succeeds. It diffs the commit against the source of the active
-production release and builds the affected `linux/amd64` images, so a failed
-release is retried by the next push whether or not that push touches the same
-files. A manual run rebuilds all four. A CI run that finishes after a newer
-commit has already been released is skipped.
+Push to `main`. The `CI` run for that push also calls `image-build.yml`, which
+diffs the commit against the source of the active production release and builds
+the affected `linux/amd64` images in one BuildKit graph (`docker-bake.hcl`) while
+the checks run, so a failed release is retried by the next push whether or not
+that push touches the same files. `release.yml` starts only after every CI check
+and the image build have passed; pushed images that never pass CI are never
+released. A manual run of **Images** (`images.yml`) rebuilds and releases every
+image. A CI run whose release starts after a newer commit has already been
+released is skipped.
 
 Every built image gets a readable `sha-<commit>` tag. The build digest is the
 version used in production. The serialized release job reads the latest successful
@@ -396,7 +399,7 @@ cd tools/deploy
 # .env, .env.auth, .env.bot and .env.backup, from the blocks in .env.example.
 #   .env:       SITE_ADDRESS=http://localhost:3000, PUBLIC_ORIGIN=http://localhost:3000,
 #               BBS_SITE_ADDRESS=http://localhost:3003, BBS_ORIGIN=http://localhost:3003,
-#               any POSTGRES_PASSWORD; the four *_IMAGE_REF values can stay (the overlay builds locally)
+#               any POSTGRES_PASSWORD; the five *_IMAGE_REF values can stay (the overlay builds locally)
 #   .env.auth:  the dev GitHub app
 #   .env.backup: may be empty — the backup service is scaled to 0 in the overlay
 #   .env.bot: required by Compose, but bbs-bot is scaled to 0 in the overlay
@@ -483,7 +486,10 @@ Updating: sync the fork, let its workflow publish, and bump the digest in `docke
 
 ## Optional AI hosting
 
-The `ai` Compose profile adds New API and the inference gateway. Provisioning,
+The `ai` Compose profile adds New API and the inference gateway, both from the
+`ai` image (`AI_IMAGE_REF`), so an AI change neither rebuilds nor restarts `auth`.
+Releases from before that split carry no `ai` digest; `release.mjs` reads their
+`auth` digest in its place, which is what they ran AI from. Provisioning,
 local tests, GPU adapter installation and activation are in
 [tools/ai/README.md](../ai/README.md). AI uses a dedicated Postgres database and
 owner plus a read-only metadata role; set `AI_BACKUP_DATABASE=herkules_ai` when
