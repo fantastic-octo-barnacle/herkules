@@ -1,4 +1,4 @@
-import { expect, test, vi } from "vite-plus/test";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 import { Plans } from "../src/plans.ts";
 import type { NewAPI } from "../src/new-api.ts";
 function fixture() {
@@ -45,6 +45,39 @@ function fixture() {
   } as unknown as NewAPI;
   return { plans: new Plans(admin), admin, catalog, subs, grants: () => grants };
 }
+afterEach(() => {
+  vi.useRealTimers();
+});
+test("recently ensured users skip the subscription read until assignment invalidates them", async () => {
+  const f = fixture();
+  await f.plans.bootstrap();
+  const call = vi.spyOn(f.admin, "call");
+  const reads = () =>
+    call.mock.calls.filter(([path, method]) => path.endsWith("/subscriptions") && !method).length;
+  await Promise.all([f.plans.ensure(2), f.plans.ensure(2), f.plans.ensure(2)]);
+  await f.plans.ensure(2);
+  expect(reads()).toBe(1);
+  await f.plans.assign(2, "pro");
+  expect(reads()).toBe(2);
+  f.subs.forEach((s) => (s.status = "cancelled"));
+  await f.plans.ensure(2);
+  expect(reads()).toBe(3);
+  expect(f.grants()).toBe(4);
+});
+test("a failed assignment still invalidates the recent check", async () => {
+  const f = fixture();
+  await f.plans.bootstrap();
+  await f.plans.ensure(2);
+  const original = f.admin.call.bind(f.admin);
+  const call = vi.spyOn(f.admin, "call").mockImplementation(async (path, method, value) => {
+    if (method === "POST" && path.endsWith("/subscriptions")) throw new Error("injected failure");
+    return original(path, method, value);
+  });
+  await expect(f.plans.assign(2, "pro")).rejects.toThrow("injected failure");
+  call.mockClear();
+  await f.plans.ensure(2);
+  expect(call).toHaveBeenCalledWith("/api/subscription/admin/users/2/subscriptions");
+});
 test("concurrent first requests grant one Lite pair; repeat assignments preserve usage", async () => {
   const f = fixture();
   await f.plans.bootstrap();
@@ -70,11 +103,16 @@ test("cancelled plans are not automatically refilled; upgrades replace both pool
 });
 
 test("an active pair repairs a cancelled counterpart without resetting its other pool", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
   const f = fixture();
   await f.plans.bootstrap();
   await f.plans.ensure(2);
   f.subs[0].amount_used = 123;
   f.subs[1].status = "cancelled";
+  // An out-of-process cancellation is repaired once the recent check expires.
+  await f.plans.ensure(2);
+  expect(f.grants()).toBe(2);
+  vi.setSystemTime(Date.now() + 5 * 60_000);
   await f.plans.ensure(2);
   await f.plans.ensure(2);
   expect(f.grants()).toBe(3);
