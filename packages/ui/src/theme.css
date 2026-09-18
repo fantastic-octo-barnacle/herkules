@@ -136,7 +136,14 @@
   --color-secondary: var(--surface-2);
   --color-secondary-foreground: var(--ink);
   --color-muted-foreground: var(--muted);
-  --color-accent-foreground: var(--ink);
+  /*
+   * `accent` here is the SATURATED brand green, not shadcn's subtle grey, so its
+   * foreground must be `accent-ink` like `primary-foreground` — the paired value.
+   * With `var(--ink)` every `hover:bg-accent hover:text-accent-foreground` in
+   * button/badge/select was dark-on-dark in light mode and light-on-light in dark
+   * mode, both far below AA.
+   */
+  --color-accent-foreground: var(--accent-ink);
   --color-destructive: var(--danger);
   --color-destructive-foreground: var(--accent-ink);
   --color-border: var(--line);

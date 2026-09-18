@@ -1,8 +1,8 @@
 /**
  * The FRAME kill-criterion probes for apps/bbs (apps/bbs/FRAME.md): can this
  * issuer serve a first-party CONFIDENTIAL client on ANOTHER origin that skips
- * consent and mints an `api/<name>` token, by configuration alone? Each test is
- * one of the five verifications listed in packages/oauth-client/DESIGN.md.
+ * consent and mints an `api/<name>` token, by configuration alone? The tests in
+ * this file are the verification: they are the record, not a pointer to one.
  *
  * The first describe drives a DIRECTLY INSERTED row (what ensureFirstPartyClients
  * writes, minus the seeding code) so the probes hold independently of clients.ts;

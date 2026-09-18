@@ -15,6 +15,20 @@
       "when": 1789272665787,
       "tag": "0001_puzzling_famine",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789740864234,
+      "tag": "0002_rainy_wrecker",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789742375606,
+      "tag": "0003_stormy_warbird",
+      "breakpoints": true
     }
   ]
 }

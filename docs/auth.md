@@ -1,6 +1,6 @@
 # Authentication model
 
-Herkules uses one self-hosted authorization server at `https://herkules.dev/auth`. GitHub proves the external identity. The auth database owns the stable Herkules user and the `admin | member` role. Resource servers verify short-lived access tokens locally.
+Herkules uses one self-hosted authorization server at `https://herkules.dev/auth`. Feishu or GitHub proves the external identity. Feishu users require a readable contact email and admission by team tenant or an explicit external-identity allowlist entry; GitHub connection is optional. The auth database owns the stable Herkules user and the `admin | member` role. Resource servers verify short-lived access tokens locally.
 
 [`tokens.md`](tokens.md) is authoritative for token fields, verification, errors, protected-resource metadata, and conformance. This document explains ownership and service interaction.
 
@@ -17,6 +17,12 @@ Herkules uses one self-hosted authorization server at `https://herkules.dev/auth
 | Display names, avatars, GitHub IDs                        | Auth user-info API in `services/auth/src/users.ts`        |
 | Application data and authorization beyond role            | The consuming app or service                              |
 
+A confirmed identity merge can retire an unused duplicate after proof of both
+accounts. The account with application history retains its `sub`; if both have
+history, merging requires application-specific data migration. Matching email
+addresses never authorize merging. See the auth service README for the proof,
+revocation and audit rules.
+
 Only the opaque access-token `sub` identifies a user in application storage. `client_id` identifies software for audit. GitHub IDs, display names, and avatar URLs can change and must not become foreign keys.
 
 ## Browser flow
@@ -24,7 +30,7 @@ Only the opaque access-token `sub` identifies a user in application storage. `cl
 The platform SPA uses the auth service's same-origin session cookie. A first-party product such as BBS is a confidential OAuth client:
 
 1. The app starts authorization code with PKCE for its API audience and `offline_access`.
-2. The issuer authenticates through GitHub and applies the admission gate.
+2. The issuer authenticates through Feishu or GitHub and applies the corresponding admission gate. Feishu users may connect GitHub or skip before continuing consent.
 3. The app exchanges the code with `client_secret_basic` and stores only the access and refresh tokens in an encrypted, host-only cookie.
 4. `@herkules/oauth-client` verifies the access token through the app's existing `ResourceAuth` and exposes the same `Principal` used for bearer requests.
 
@@ -46,7 +52,7 @@ VS Code, Codex and Claude Code can use CIMD, but CIMD requires the authorization
 
 ## Admission and revocation
 
-Admission comes from an environment-seeded administrator, the checked database allowlist, or membership in the configured GitHub organization. Disabled users are always refused first. The gate runs at login and is rechecked during grants under the TTL and stale-org policy in `services/auth/src/config.ts` and `services/auth/src/gate.ts`.
+Feishu admission requires a readable email plus the configured tenant or a case-sensitive tenant/open-ID allowlist entry. GitHub login requires a real verified email; admission comes from an environment-seeded administrator, the checked GitHub allowlist, or membership in the configured GitHub organization. Each login provider applies its own gate; grants recheck the admission stamp from the latest successful sign-in. Disabled users are always refused first. The gate runs at login and is rechecked during grants under the TTL and stale-org policy in `services/auth/src/config.ts` and `services/auth/src/gate.ts`.
 
 Access tokens remain valid until expiry. Disabling a user also removes sessions and OAuth refresh tokens. Services that call user-info with the caller's token get an earlier disabled-user check; fully local authorization accepts the remaining short access-token lifetime by design.
 

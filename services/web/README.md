@@ -1,6 +1,6 @@
 # Platform web app
 
-`@herkules/web` is the static React app at `https://herkules.dev/`. It provides the public landing page, GitHub sign-in, OAuth consent, connected-client settings, the developer-token flow, and the member administration pages. It has no server state and calls `services/auth` under `/auth` on the same origin.
+`@herkules/web` is the static React app at `https://herkules.dev/`. It provides the public landing page, Feishu and GitHub sign-in, optional identity linking, OAuth consent, connected-client settings, the developer-token flow, and the member administration pages. It has no server state and calls `services/auth` under `/auth` on the same origin.
 
 ## Run and test
 
@@ -41,3 +41,21 @@ The development server runs on `http://localhost:3000` and proxies auth, metadat
 - `src/pages/`: route-level UI, including the public `Home` and the admin-gated members, allowlist, and audit pages
 - `public/hero.webp`: the landing-page photograph. John Cobb, <https://unsplash.com/photos/6btEyS3AJrI>, Unsplash License; cropped to 1920x640, desaturated, WebP q74
 - `tests/flow.test.ts`: real auth-service integration through PGlite
+
+## Identity connections
+
+`/auth/login-options` advertises Feishu only when auth has its full configuration.
+`/connect-github` offers Connect / Skip after Feishu login; the OAuth provider's
+post-login hook uses the same page for signed MCP/OIDC continuations. Completing
+the choice persists an onboarding preference before `/oauth2/continue`, so Skip
+cannot loop back to the prompt. `oauth-query.ts` preserves the signed parameters
+across GitHub linking. Settings connects Feishu to existing GitHub accounts without
+changing their user ID, or connects optional GitHub to a Feishu account. The admin
+allowlist page includes a separate tenant-key/open-ID form for external Feishu users.
+
+When a connection proves an identity belongs to another account, `identity-merge.tsx`
+shows the two identities and the retained account before the shared confirmation
+dialog. Confirmation retires the unused duplicate and requires a new sign-in;
+Cancel keeps both accounts. Signed OAuth continuation parameters survive the
+merge and reauthentication. Expired proofs, conflicting provider identities,
+and accounts that both have application history show actionable refusals.

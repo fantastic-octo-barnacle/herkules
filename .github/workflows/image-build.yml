@@ -1,0 +1,75 @@
+name: Image build
+# Application artifacts only; shared BuildKit graph runs alongside CI checks.
+on:
+  workflow_call:
+permissions:
+  contents: read
+env:
+  BUILD_SHA: ${{ github.sha }}
+jobs:
+  build:
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.BUILD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - id: rev
+        env:
+          TARGETS: '["auth","bbs","ai","platform"]'
+        run: |
+          echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+          echo "bake=$(jq -r 'join(",")' <<<"$TARGETS")" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Labels only; tags come from tools/images/docker-bake.hcl.
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+      # One job, one graph: the selected targets share the build and AI stages.
+      - id: bake
+        uses: docker/bake-action@v7
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SHORT_SHA: ${{ steps.rev.outputs.short }}
+        with:
+          source: .
+          files: |
+            tools/images/docker-bake.hcl
+            ${{ steps.meta.outputs.bake-file-labels }}
+          targets: ${{ steps.rev.outputs.bake }}
+          push: true
+      - name: Record immutable image references
+        env:
+          METADATA: ${{ steps.bake.outputs.metadata }}
+          SHORT_SHA: ${{ steps.rev.outputs.short }}
+          TARGETS: '["auth","bbs","ai","platform"]'
+        run: |
+          mkdir -p image-update
+          for target in $(jq -r '.[]' <<<"$TARGETS"); do
+            digest=$(jq -r --arg target "$target" '.[$target]["containerimage.digest"] // ""' <<<"$METADATA")
+            if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "bake reported no digest for $target" >&2
+              exit 1
+            fi
+            jq -n \
+              --arg target "$target" \
+              --arg image "ghcr.io/$GITHUB_REPOSITORY/$target:sha-$SHORT_SHA@$digest" \
+              '{target: $target, image: $image}' > "image-update/$target.json"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image-updates
+          path: image-update/*.json
+          if-no-files-found: error

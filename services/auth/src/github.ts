@@ -4,6 +4,8 @@
  * GitHub and production against the network, with the same code between.
  */
 
+import { z } from "zod";
+
 export interface GithubApi {
   /**
    * Is the token's user an active member of `org`?
@@ -12,7 +14,7 @@ export interface GithubApi {
    * un-authorized our OAuth app, or the stored token is dead). Never throws.
    */
   orgMembership(accessToken: string, org: string): Promise<OrgMembership>;
-  /** GET /user -> the raw profile Better Auth expects from getUserInfo. `null` on any failure (BA treats it as a failed login). */
+  /** GET /user and /user/emails -> profile with a verified email, including private addresses. `null` on any failure (BA treats it as a failed login). */
   profile(accessToken: string): Promise<GithubProfile | null>;
   /** Streams an avatar for the cache. Returns null on failure; the caller keeps the previous file. */
   avatar(
@@ -90,11 +92,28 @@ export function createGithubApi(options: GithubApiOptions = {}): GithubApi {
         ) {
           return null;
         }
+        // Public profile email may be hidden. The authenticated endpoint includes private addresses.
+        const emailsResponse = await call("/user/emails?per_page=100", accessToken);
+        const emails = emailsResponse.ok
+          ? z
+              .array(z.object({ email: z.string(), verified: z.boolean(), primary: z.boolean() }))
+              .safeParse(await emailsResponse.json())
+          : undefined;
+        const verified = emails?.success
+          ? emails.data.filter(
+              (entry) =>
+                entry.verified &&
+                z.string().email().safeParse(entry.email).success &&
+                !/@(?:users\.)?noreply\.github\.com$/i.test(entry.email),
+            )
+          : [];
+        const email =
+          (verified.find((entry) => entry.primary) ?? verified[0])?.email.toLowerCase() ?? null;
         return {
           id: body.id,
           login: body.login,
           name: typeof body.name === "string" ? body.name : null,
-          email: typeof body.email === "string" ? body.email : null,
+          email,
           avatar_url: body.avatar_url,
         };
       } catch {
@@ -111,13 +130,4 @@ export function createGithubApi(options: GithubApiOptions = {}): GithubApi {
       }
     },
   };
-}
-
-/**
- * GitHub returns `email: null` for users with a private email. Better Auth requires
- * a unique email; we do not use email for anything, so synthesize GitHub's own
- * noreply form rather than spend a second API call on /user/emails.
- */
-export function emailFor(profile: GithubProfile): string {
-  return profile.email ?? `${profile.id}+${profile.login}@users.noreply.github.com`;
 }

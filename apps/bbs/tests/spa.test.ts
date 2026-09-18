@@ -56,7 +56,13 @@ describe("createSpaHandler", () => {
   });
 
   it("answers 404 with the plain shell for an unknown or malformed id", async () => {
-    for (const path of [`/articles/${FAKE.unknownId}`, "/articles/not-a-ulid", "/kb/nobody"]) {
+    for (const path of [
+      `/articles/${FAKE.unknownId}`,
+      "/articles/not-a-ulid",
+      "/kb/nobody",
+      "/kb/%", // malformed percent-encoding: a 404, not a 200 shell
+      "/kb/%E0%A4%A",
+    ]) {
       const res = await get(path);
       expect(res.status, path).toBe(404);
       expect(res.headers.get("content-type")).toBe("text/html; charset=utf-8");
@@ -70,6 +76,17 @@ describe("createSpaHandler", () => {
     expect(miss.status).toBe(404);
     expect(await miss.json()).toMatchObject({ error: "not_found" });
     expect((await get("/mcp/other")).status).toBe(404);
+  });
+
+  it("404s a missing asset instead of caching the shell under its URL", async () => {
+    // serveStatic calls next() on a miss, so without the guard this is the SPA
+    // shell with `immutable`, pinning HTML under a .js URL for a year.
+    for (const path of ["/assets/old-hash.js", "/assets/deep/nested.js", "/fonts/gone.woff2"]) {
+      const res = await get(path);
+      expect(res.status, path).toBe(404);
+      expect(res.headers.get("cache-control"), path).not.toBe(IMMUTABLE);
+      expect(await res.json()).toMatchObject({ error: "not_found" });
+    }
   });
 
   it("serves hashed assets as immutable and root files as short-lived", async () => {

@@ -4,8 +4,8 @@ Production infrastructure lives in [herkules-infra](https://github.com/fantastic
 The [runbook](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md)
 owns Terraform, Compose, routing, monitoring, backups, deployment and rollback.
 
-This repository builds `auth`, `bbs`, and `platform` images. After successful main CI,
-Images publishes their immutable references as the `application` artifact (`application.json`).
+This repository builds `auth`, `bbs`, `ai`, and `platform` images as one shared
+BuildKit graph alongside CI checks. After every check passes, CI publishes their immutable references as the `application` artifact (`application.json`).
 Infrastructure selects that manifest in a reviewed commit. Application CI has no VPS or
 Cloudflare deployment credentials and does not change production.
 

@@ -31,6 +31,7 @@ function stubDeps(): AuthDeps {
     throw new Error("schema generation never calls into dependencies");
   };
   return {
+    merges: {} as AuthDeps["merges"],
     config,
     db: {} as AuthDeps["db"],
     registry: buildRegistry({
@@ -40,6 +41,12 @@ function stubDeps(): AuthDeps {
     }),
     gate: { stampLogin: unreachable, recheck: unreachable, reject: unreachable },
     audit: { record: unreachable, list: unreachable },
+    feishu: {
+      profile: unreachable,
+      decide: unreachable,
+      reject: unreachable,
+      recheck: unreachable,
+    },
     github: { orgMembership: unreachable, profile: unreachable, avatar: unreachable },
     now: () => new Date(),
     onLogin: unreachable,

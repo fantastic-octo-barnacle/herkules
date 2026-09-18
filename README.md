@@ -16,6 +16,10 @@ Herkules is the team's self-hosted identity layer and internal application monor
 
 Cross-cutting contracts — identity flows, the resource-server token contract, the deploy runbook pointer, and UI decision records — are indexed in [`docs/README.md`](docs/README.md).
 
+Known defects and design gaps that have been found but deliberately not fixed yet
+are tracked in [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md). It is a backlog, not a
+contract: binding behaviour lives in the workspace READMEs above.
+
 ## Development
 
 The repository uses Vite+. Install the global `vp` CLI once; it manages Node and pnpm itself, per the root `package.json` `devEngines`.

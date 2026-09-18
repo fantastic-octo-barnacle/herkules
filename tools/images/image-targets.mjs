@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 
-const allTargets = ["auth", "bbs", "platform"];
+const allTargets = ["auth", "bbs", "ai", "platform"];
 const nodeBuildInputs = new Set([
   "package.json",
   "pnpm-lock.yaml",
@@ -18,7 +18,8 @@ export function selectImageTargets(paths, { all = false } = {}) {
     if (!path) continue;
     if (path === "README.md" || path.endsWith("/README.md")) continue;
     if (path.startsWith("tools/images/caddy/")) add("platform");
-    if (path === "Dockerfile") add(...allTargets);
+    if (["Dockerfile", ".dockerignore", "tools/images/docker-bake.hcl"].includes(path))
+      add(...allTargets);
     if (nodeBuildInputs.has(path) || path.startsWith("tsconfig")) add("auth", "bbs", "platform");
     if (isBuildInput(path, "services/auth", ["src", "drizzle"])) add("auth");
     if (
@@ -26,7 +27,7 @@ export function selectImageTargets(paths, { all = false } = {}) {
       path.startsWith("tools/ai/portal/") ||
       path.startsWith("tools/ai/new-api/")
     )
-      add("auth");
+      add("ai");
     if (isBuildInput(path, "services/web", ["src", "public"])) add("platform");
     if (isBuildInput(path, "apps/bbs", ["src", "drizzle", "web/src", "web/public"])) add("bbs");
     if (isBuildInput(path, "packages/auth-middleware", ["src"])) add("auth", "bbs");

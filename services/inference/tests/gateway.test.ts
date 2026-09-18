@@ -223,6 +223,30 @@ test("omitting an output limit reserves 32K for coding responses", async () => {
   ]);
 });
 
+test("an accepted key skips the pre-check on generation; model listings fetch once", async () => {
+  const f = await fixture();
+  const headers = {
+    host: "api.test",
+    authorization: "Bearer sk-test",
+    "content-type": "application/json",
+  };
+  const chat = JSON.stringify({ model: "qwen", messages: [], stream: true });
+  for (let i = 0; i < 2; i++) {
+    const response = await fetch(f.url() + "/v1/chat/completions", {
+      method: "POST",
+      headers,
+      body: chat,
+    });
+    expect(response.status).toBe(200);
+  }
+  // One key pre-check, then two proxied generations that New API authenticates itself.
+  expect(f.hits()).toBe(3);
+  expect(f.identifyKey).toHaveBeenCalledTimes(1);
+  expect((await fetch(f.url() + "/v1/models", { headers })).status).toBe(200);
+  expect(f.hits()).toBe(4);
+  expect(f.identifyKey).toHaveBeenCalledTimes(1);
+});
+
 test("model details use the authorized list", async () => {
   const f = await fixture();
   const headers = { host: "api.test", authorization: "Bearer sk-test" };
@@ -291,6 +315,7 @@ test("plan assignments require administrator membership and never trust a client
   const admin = await fixture(true, true, 131072, 10);
   expect((await fetch(admin.url() + "/api/herkules/admin/users/3/plan", req)).status).toBe(200);
   expect(admin.plans.assign).toHaveBeenCalledWith(3, "max");
+  expect(admin.hits()).toBe(1);
   expect((await fetch(admin.url() + "/api/subscription/balance/pay", req)).status).toBe(404);
 });
 

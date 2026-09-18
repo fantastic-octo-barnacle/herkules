@@ -1,6 +1,7 @@
 name: CI
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches: [main]
 permissions:
@@ -10,6 +11,37 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  images:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    uses: ./.github/workflows/image-build.yml
+
+  manifest:
+    needs: [images, ready, new-api]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: image-updates
+          path: image-updates
+      - name: Assemble tested application manifest
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          jq -s --arg source "$BUILD_SHA" --arg repository "$GITHUB_REPOSITORY" \
+            '{schemaVersion: 1, repository: $repository, sourceSha: $source,
+              images: (map({key: .target, value: .image}) | from_entries)}' \
+            image-updates/*.json > application.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: application
+          path: application.json
+          if-no-files-found: error
+
   ready:
     runs-on: ubuntu-latest
     timeout-minutes: 30
