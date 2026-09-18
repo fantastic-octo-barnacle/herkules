@@ -17,7 +17,9 @@ import { createBearer } from "./bearer.ts";
 import { ensureFirstPartyClients, pruneIdleClients } from "./clients.ts";
 import { loadConfig } from "./config.ts";
 import { createDb, migrate } from "./db/index.ts";
+import { createMerges } from "./db/merges.ts";
 import { createGate } from "./gate.ts";
+import { createFeishu } from "./feishu.ts";
 import { createGithubApi } from "./github.ts";
 import { buildRegistry, RESOURCE_SPECS, type ResourceSpec } from "./registry.ts";
 import type { Users } from "./users.ts";
@@ -50,17 +52,32 @@ export async function createService(deps: ServiceDeps = {}) {
   });
   const github = createGithubApi({ fetch: deps.fetch });
   const audit = createAudit(db, now);
+  const merges = createMerges(db, audit, now);
   const gate = createGate({ config, db, github, audit, now });
 
   // onLogin needs users; users needs auth: break the cycle with a late-bound closure.
   let users: Users;
+  const feishu = createFeishu({
+    config,
+    db,
+    audit,
+    now,
+    fetch: deps.fetch,
+    accessToken: async (userId): Promise<string> => {
+      const accountId = await db.accounts.feishuAccountId(userId);
+      if (!accountId) throw new Error("Feishu account missing");
+      return (await auth.api.getAccessToken({ body: { accountId, userId } })).accessToken;
+    },
+  });
   const auth = createAuth({
+    merges,
     config,
     db,
     registry,
     gate,
     audit,
     github,
+    feishu,
     now,
     onLogin: (id) => users.onLogin(id),
     fetchClientMetadataResource:
@@ -99,7 +116,7 @@ export async function createService(deps: ServiceDeps = {}) {
     await db.execute(sql`select 1`);
     return (await auth.api.getJwks()).keys.length > 0;
   };
-  const app = createApp({ config, auth, registry, users, bearer, avatars, healthy });
+  const app = createApp({ config, auth, registry, users, bearer, avatars, healthy, merges });
   return { app, auth, db, config, registry, users, audit, bearer, prune, close: () => db.close() };
 }
 

@@ -112,7 +112,7 @@ describe("the seeded beszel OIDC client", () => {
     expect(info.status, JSON.stringify(claims)).toBe(200);
     expect(claims.sub).toBe(id.sub);
     expect(claims.email_verified).toBe(true); // PocketBase drops an unverified email
-    expect(claims.email).toBe("7+alice@users.noreply.github.com");
+    expect(claims.email).toBe("alice@example.com");
     expect(claims.name).toBe("Alice");
     expect(typeof claims.picture).toBe("string");
   });

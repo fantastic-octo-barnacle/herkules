@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ConfirmDialog } from "../confirm.tsx";
 import { formatDate, relative, resourceName, shortId } from "../format.ts";
 import { Empty, Eyebrow, Lede, Loading, PageTitle, SectionTitle, Sub } from "../layout.tsx";
+import { IdentityConnections } from "../identity-connections.tsx";
 import { ErrorNotice } from "../notices.tsx";
 import { useSession } from "../session.tsx";
 
@@ -45,11 +46,15 @@ export function SettingsPage() {
         </span>
       </PageTitle>
       <Lede>
-        GitHub <code>{u.githubLogin}</code> ·{" "}
-        {u.role === "admin" ? <Badge>admin</Badge> : <Badge variant="outline">member</Badge>}
+        <span>
+          {u.feishuOpenId ? "Feishu" : "GitHub"}{" "}
+          <code>{u.feishuOpenId ? u.email : u.githubLogin}</code>
+        </span>{" "}
+        · {u.role === "admin" ? <Badge>admin</Badge> : <Badge variant="outline">member</Badge>}
         {" · "}member since {formatDate(u.createdAt)}
       </Lede>
 
+      <IdentityConnections />
       <SectionTitle>Connected clients</SectionTitle>
       <Lede>
         Applications you allowed to act as you, and what they may reach. Disconnecting revokes their

@@ -111,7 +111,8 @@ export function AdminUsersPage() {
                         {u.disabled ? <Badge variant="destructive">disabled</Badge> : null}
                       </div>
                       <Sub>
-                        <code>{u.githubLogin}</code> · joined {formatDate(u.createdAt)}
+                        <code>{u.githubLogin || "Feishu account"}</code> · joined{" "}
+                        {formatDate(u.createdAt)}
                       </Sub>
                     </div>
                   </div>

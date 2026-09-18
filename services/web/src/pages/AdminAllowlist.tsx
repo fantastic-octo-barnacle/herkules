@@ -13,6 +13,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { FeishuAllowlist } from "../feishu-allowlist.tsx";
 import { ConfirmDialog } from "../confirm.tsx";
 import { formatDate } from "../format.ts";
 import { Empty, Eyebrow, Lede, Loading, PageTitle } from "../layout.tsx";
@@ -60,6 +61,7 @@ export function AdminAllowlistPage() {
     <>
       <Eyebrow>Admin</Eyebrow>
       <PageTitle>Allowlist</PageTitle>
+      <FeishuAllowlist />
       <Lede>
         GitHub accounts admitted even when they are not members of the team's organization. Checked
         at every sign-in and every token refresh.

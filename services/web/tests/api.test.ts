@@ -22,7 +22,7 @@ const validSession = {
 
 describe("session response boundary", () => {
   for (const [section, fields] of Object.entries({
-    user: ["id", "name", "email", "image", "githubLogin", "githubId", "createdAt"],
+    user: ["id", "name", "email", "image", "createdAt"],
     session: ["id", "expiresAt", "createdAt"],
   })) {
     it.each(fields)(`rejects missing required ${section}.%s`, async (field) => {
@@ -51,6 +51,24 @@ describe("session response boundary", () => {
     },
   );
 
+  it("accepts Feishu-only users with nullable GitHub identity fields", async () => {
+    const value = {
+      ...validSession,
+      user: {
+        ...validSession.user,
+        githubLogin: null,
+        githubId: null,
+        feishuTenantKey: "team",
+        feishuOpenId: "ou_user",
+      },
+    };
+    await expect(apiReturning(JSON.stringify(value)).session()).resolves.toEqual(value);
+    await expect(
+      apiReturning(
+        JSON.stringify({ ...value, user: { ...value.user, feishuOpenId: 123 } }),
+      ).session(),
+    ).rejects.toMatchObject({ code: "invalid_response" });
+  });
   it("preserves signed-out and valid signed-in sessions", async () => {
     await expect(apiReturning("null").session()).resolves.toBeNull();
     const session = validSession;

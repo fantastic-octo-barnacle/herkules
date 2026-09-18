@@ -26,6 +26,11 @@ export interface FakeGithubUser {
   readonly login: string;
   readonly name?: string;
   readonly email?: string | null;
+  readonly emails?: readonly {
+    readonly email: string;
+    readonly verified: boolean;
+    readonly primary: boolean;
+  }[];
   readonly avatarUrl?: string;
   readonly org: OrgMembership;
 }
@@ -93,6 +98,7 @@ export interface TestService {
 }
 
 export interface TestServiceOptions {
+  readonly feishuFetch?: typeof globalThis.fetch;
   readonly env?: Partial<Record<string, string>>;
   /** Defaults to RESOURCE_SPECS plus `{ name: "notes", kind: "api" }` so audience binding is testable. */
   readonly resources?: readonly ResourceSpec[];
@@ -178,6 +184,13 @@ class FakeGithubImpl implements FakeGithub {
         return Response.json({ message: "Bad credentials" }, { status: 401 });
       }
       if (!u) return Response.json({ message: "Bad credentials" }, { status: 401 });
+      if (url.pathname === "/user/emails") {
+        return Response.json(
+          u.emails ?? [
+            { email: u.email ?? `${u.login}@example.com`, verified: true, primary: true },
+          ],
+        );
+      }
       if (url.pathname === "/user") {
         return Response.json({
           id: u.id,
@@ -275,13 +288,22 @@ export async function createTestService(options: TestServiceOptions = {}): Promi
       offsetMs += seconds * 1000;
     },
   };
-  const fakeFetch: typeof globalThis.fetch = (input, init) =>
-    github.handle(new URL(input instanceof Request ? input.url : String(input)), init, input);
+  const fakeFetch: typeof globalThis.fetch = (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (options.feishuFetch && (url.host === "open.feishu.cn" || url.host === "accounts.feishu.cn"))
+      return options.feishuFetch(input, init);
+    return github.handle(url, init, input);
+  };
 
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
-    if (url.host.endsWith("github.com") || url.host === "avatars.githubusercontent.com")
+    if (
+      url.host.endsWith("github.com") ||
+      url.host === "avatars.githubusercontent.com" ||
+      url.host === "open.feishu.cn" ||
+      url.host === "accounts.feishu.cn"
+    )
       return fakeFetch(input, init);
     return originalFetch(input, init);
   };
@@ -411,6 +433,20 @@ export async function createTestService(options: TestServiceOptions = {}): Promi
       const authz = await fetch(`/auth/oauth2/authorize?${q.toString()}`, { cookie });
       let location = authz.headers.get("location") ?? "";
       if (!location) throw new Error(`authorize: ${authz.status} ${await authz.text()}`);
+      if (new URL(location, ORIGIN).pathname === "/connect-github") {
+        await fetch("/auth/api/me/identity-setup", { method: "POST", cookie });
+        const continued = await fetch("/auth/oauth2/continue", {
+          method: "POST",
+          cookie,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            postLogin: true,
+            oauth_query: new URL(location, ORIGIN).search.slice(1),
+          }),
+        });
+        const body = (await continued.json()) as { url?: string; redirect_uri?: string };
+        location = body.url ?? body.redirect_uri ?? "";
+      }
       if (location.startsWith("/consent") || location.includes("/consent?")) {
         const oauthQuery = new URL(location, ORIGIN).search.slice(1);
         const consent = await fetch("/auth/oauth2/consent", {
