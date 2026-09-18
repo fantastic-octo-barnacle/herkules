@@ -7,6 +7,26 @@ import type { AuditRow } from "./api.ts";
 export type Names = ReadonlyMap<string, string>;
 
 const REASONS: Record<string, string> = {
+  github_email_required:
+    "GitHub must provide a real, verified email. Verify your email in GitHub settings and grant email access.",
+  email_not_found:
+    "The provider did not return a usable email. For GitHub, verify an email and grant email access. For Feishu, ask your administrator to set your contact email and enable email access.",
+  email_is_missing:
+    "Feishu must provide a readable, nonempty email address. Ask your administrator to configure your contact email and this app’s email permission.",
+  account_not_linked:
+    "An account with this email already exists. Sign in to that account and connect Feishu from settings to keep your existing data.",
+  merge_reauthentication_required:
+    "Sign out and sign in again, then retry connecting the identity to merge your accounts.",
+  merge_identity_conflict:
+    "These accounts already have conflicting identities. Contact an administrator.",
+  merge_requires_migration:
+    "Both accounts have application history. An administrator must migrate that data before they can be merged.",
+  merge_unavailable: "One of these accounts is disabled or has already been merged.",
+  merge_changed:
+    "Account usage changed. Connect the identity again and review the new merge details.",
+  merge_expired: "This merge request expired. Connect the identity again.",
+  account_already_linked_to_different_user:
+    "This identity already belongs to another Herkules account. Sign in to that account; accounts are not merged automatically.",
   not_org_member: "not a member of the team's GitHub organization and not on the allowlist",
   banned: "the account is disabled",
   github_unreachable: "GitHub could not be reached to confirm membership",
@@ -31,8 +51,20 @@ export function describeAudit(row: AuditRow, names: Names): string {
     typeof e.clientId === "string" ? `client ${shortId(e.clientId)}` : "a client";
   const list = (v: unknown) => (Array.isArray(v) ? v.map(String).join(", ") : "");
   switch (e.type) {
+    case "identity.merged":
+      return `${actor()} merged ${who(e.previousUserId)} into ${who(e.userId)}.`;
+    case "identity.application_used":
+      return "First application authorization";
+    case "identity.connected":
+      return `${who(e.userId)} connected ${str(e.provider)} (${str(e.accountId)}).`;
+    case "feishu.rejected":
+      return `Feishu sign-in/access refused for ${str(e.tenantKey) ?? "unknown tenant"} / ${str(e.openId) ?? who(e.userId)}: ${str(e.reason)}.`;
+    case "admin.feishu_allowlist_added":
+      return `${actor()} allowlisted Feishu ${str(e.tenantKey)} / ${str(e.openId)}.`;
+    case "admin.feishu_allowlist_removed":
+      return `${actor()} removed Feishu ${str(e.tenantKey)} / ${str(e.openId)} from the allowlist.`;
     case "login":
-      return `${who(e.userId)} signed in with GitHub.`;
+      return `${who(e.userId)} signed in with ${String(e.via).startsWith("feishu-") ? "Feishu" : "GitHub"}.`;
     case "gate.rejected":
       return `Sign-in refused for ${str(e.githubLogin) ?? who(e.userId)}: ${REASONS[str(e.reason) ?? ""] ?? str(e.reason)} (at ${str(e.phase) ?? "login"}).`;
     case "gate.stale_allow":

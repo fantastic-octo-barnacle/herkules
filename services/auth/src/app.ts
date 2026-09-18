@@ -16,12 +16,14 @@ import type { Auth } from "./auth.ts";
 import type { Avatars } from "./avatars.ts";
 import type { Bearer, Caller } from "./bearer.ts";
 import { FIRST_PARTY_CLIENTS } from "./clients.ts";
+import { MergeError, type Merges } from "./db/merges.ts";
 import type { Config } from "./config.ts";
 import type { Registry } from "./registry.ts";
 import type { Users } from "./users.ts";
 import { UsersError } from "./users.ts";
 
 export interface AppDeps {
+  readonly merges: Merges;
   readonly config: Config;
   readonly auth: Auth;
   readonly registry: Registry;
@@ -71,6 +73,9 @@ export function createApp(deps: AppDeps): Hono {
   // AS metadata (root path-inserted alias and /auth/.well-known/*) and JWKS: Better Auth's plugin onRequest answers these.
   app.on(["GET", "HEAD"], "/.well-known/*", (c) => auth.handler(c.req.raw));
 
+  app.get("/auth/login-options", (c) =>
+    c.json({ feishu: !!deps.config.FEISHU_APP_ID, github: true }),
+  );
   app.get("/auth/healthz", async (c) => {
     const ok = await deps.healthy().catch(() => false);
     return c.json({ ok }, ok ? 200 : 503);
@@ -94,6 +99,34 @@ export function createApp(deps: AppDeps): Hono {
     if (!body.success) return c.json({ error: "invalid_request" }, 400);
     c.header("Cache-Control", "no-store");
     return c.json({ users: await users.accountStatus(body.data.ids) });
+  });
+
+  // Account merging needs a browser session, never a downstream bearer token.
+  // Require exact Origin on mutations; these routes are outside Better Auth's CSRF middleware.
+  app.on(["GET", "POST", "DELETE"], "/auth/identity-merge", async (c) => {
+    c.header("Cache-Control", "no-store");
+    if (c.req.method !== "GET" && c.req.header("origin") !== deps.config.PUBLIC_ORIGIN)
+      return c.json({ error: "invalid_origin" }, 403);
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    if (!session || (session.user as Record<string, unknown>).banned)
+      return c.json({ error: "unauthorized" }, 401);
+    try {
+      if (c.req.method === "GET")
+        return c.json(await deps.merges.preview(session.session.id, session.user.id));
+      if (c.req.method === "DELETE") {
+        await deps.merges.cancel(session.session.id);
+        return c.json({ ok: true });
+      }
+      const body = z
+        .object({ id: z.string().uuid() })
+        .safeParse(await c.req.json().catch(() => null));
+      if (!body.success) return c.json({ error: "invalid_request" }, 400);
+      return c.json(await deps.merges.confirm(session.session.id, session.user.id, body.data.id));
+    } catch (error) {
+      if (error instanceof MergeError)
+        return c.json({ error: error.code, error_description: error.message }, 409);
+      throw error;
+    }
   });
 
   // ── Our API: session cookie or any-audience herkules JWT ───────────────────
@@ -149,6 +182,10 @@ export function createApp(deps: AppDeps): Hono {
     }),
   );
   // Settings: connected clients and disconnect (consent + refresh tokens + audit).
+  api.post("/me/identity-setup", async (c) => {
+    await users.finishIdentitySetup(c.var.caller.userId);
+    return c.json({ ok: true });
+  });
   api.get("/me", (c) => c.json(c.var.caller));
   api.get("/me/clients", async (c) =>
     c.json({ clients: await users.connectedClients(c.var.caller.userId) }),
@@ -179,6 +216,29 @@ export function createApp(deps: AppDeps): Hono {
   adminApi.delete("/users/:id/clients/:clientId", async (c) =>
     c.json(
       await users.revokeClient(actorOf(c.var.caller), c.req.param("id"), c.req.param("clientId")),
+    ),
+  );
+  adminApi.get("/feishu-allowlist", async (c) =>
+    c.json({ entries: await users.feishuAllowlist() }),
+  );
+  adminApi.put("/feishu-allowlist/:tenantKey/:openId", async (c) => {
+    const { note } = allowlistBody.parse(await parseJson(c));
+    return c.json(
+      await users.feishuAllowlistAdd(
+        actorOf(c.var.caller),
+        c.req.param("tenantKey"),
+        c.req.param("openId"),
+        note,
+      ),
+    );
+  });
+  adminApi.delete("/feishu-allowlist/:tenantKey/:openId", async (c) =>
+    c.json(
+      await users.feishuAllowlistRemove(
+        actorOf(c.var.caller),
+        c.req.param("tenantKey"),
+        c.req.param("openId"),
+      ),
     ),
   );
   adminApi.get("/allowlist", async (c) => c.json({ entries: await users.allowlist() }));

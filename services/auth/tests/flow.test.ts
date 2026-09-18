@@ -68,7 +68,7 @@ describe("gate at login", () => {
     const r = await t.login("carol");
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(t.github.calls.slice(before).map((c) => c.path)).toEqual(["/user"]);
+    expect(t.github.calls.slice(before).map((c) => c.path)).toEqual(["/user", "/user/emails"]);
     expect((await t.service.db.users.byId(r.userId))?.admittedVia).toBe("allowlist");
 
     expect(

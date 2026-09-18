@@ -22,6 +22,34 @@ export type Actor =
   | { readonly kind: "system"; readonly job: string };
 
 export type AuditEvent =
+  | { readonly type: "identity.application_used"; readonly userId: string }
+  | {
+      readonly type: "identity.merged";
+      readonly actor: Actor;
+      readonly userId: string;
+      readonly previousUserId: string;
+    }
+  | {
+      readonly type: "identity.connected";
+      readonly userId: string;
+      readonly provider: string;
+      readonly accountId: string;
+    }
+  | {
+      readonly type: "feishu.rejected";
+      readonly tenantKey?: string;
+      readonly openId?: string;
+      readonly userId?: string;
+      readonly reason: string;
+      readonly phase: GatePhase;
+    }
+  | {
+      readonly type: "admin.feishu_allowlist_added" | "admin.feishu_allowlist_removed";
+      readonly actor: Actor;
+      readonly tenantKey: string;
+      readonly openId: string;
+      readonly note?: string;
+    }
   | { readonly type: "login"; readonly userId: string; readonly via: AdmittedVia }
   | {
       readonly type: "gate.rejected";

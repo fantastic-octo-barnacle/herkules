@@ -21,9 +21,16 @@ import type { AuthDb } from "./db/index.ts";
 import type { GithubApi, GithubProfile, OrgMembership } from "./github.ts";
 
 /** Which door admitted the user. Stored on the user row and stamped in audit rows. `org-stale` = prior org verdict kept during a GitHub outage. */
-export type AdmittedVia = "admin" | "allowlist" | "org" | "org-stale";
+export type AdmittedVia =
+  | "admin"
+  | "allowlist"
+  | "org"
+  | "org-stale"
+  | "feishu-tenant"
+  | "feishu-allowlist";
 
 export type GateReason =
+  | "github_email_required"
   | "not_org_member" //  GitHub says no active membership and no allowlist row
   | "banned" //          admin disabled the user (also enforced by the admin plugin's session hook)
   | "github_unreachable" // could not verify and no fresh prior verdict to lean on
@@ -102,7 +109,14 @@ export function isStamped(profile: unknown): profile is StampedProfile {
   return v.ok === true ? isAdmittedVia(v.via) : v.ok === false && typeof v.reason === "string";
 }
 
-const ADMITTED_VIA: readonly AdmittedVia[] = ["admin", "allowlist", "org", "org-stale"];
+const ADMITTED_VIA: readonly AdmittedVia[] = [
+  "admin",
+  "allowlist",
+  "org",
+  "org-stale",
+  "feishu-tenant",
+  "feishu-allowlist",
+];
 export function isAdmittedVia(value: unknown): value is AdmittedVia {
   return typeof value === "string" && (ADMITTED_VIA as readonly string[]).includes(value);
 }
@@ -111,6 +125,8 @@ export function isAdmittedVia(value: unknown): value is AdmittedVia {
 export interface GateUserRow {
   readonly id: string;
   readonly githubLogin: string;
+  readonly feishuTenantKey?: string | null;
+  readonly feishuOpenId?: string | null;
   readonly banned?: boolean | null;
   readonly admittedVia?: AdmittedVia | null;
   readonly gateCheckedAt?: number | null; // epoch seconds
@@ -120,14 +136,16 @@ export interface GateUserRow {
 export function gateUserRowOf(user: Record<string, unknown>): GateUserRow {
   if (
     typeof user.id !== "string" ||
-    typeof user.githubLogin !== "string" ||
-    user.githubLogin.length === 0
+    (!(typeof user.githubLogin === "string" && user.githubLogin.length > 0) &&
+      !(typeof user.feishuTenantKey === "string" && typeof user.feishuOpenId === "string"))
   ) {
     throw new Error("gate: user row was never admitted (missing githubLogin)");
   }
   return {
     id: user.id,
-    githubLogin: user.githubLogin,
+    githubLogin: typeof user.githubLogin === "string" ? user.githubLogin : "",
+    feishuTenantKey: typeof user.feishuTenantKey === "string" ? user.feishuTenantKey : null,
+    feishuOpenId: typeof user.feishuOpenId === "string" ? user.feishuOpenId : null,
     banned: user.banned === true,
     admittedVia: isAdmittedVia(user.admittedVia) ? user.admittedVia : null,
     gateCheckedAt: typeof user.gateCheckedAt === "number" ? user.gateCheckedAt : null,
