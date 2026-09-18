@@ -1,6 +1,6 @@
 # Herkules
 
-The team's self-hosted identity layer and internal application monorepo. The workspace map is in `README.md`; cross-cutting contracts live in `docs/README.md`. Every workspace has its own README with run/test commands and binding decisions — read it before working in that workspace.
+The team's self-hosted identity layer and internal application monorepo. The workspace map is in `README.md`; cross-cutting contracts live in `docs/README.md`. Every workspace has its own README with run/test commands and binding decisions — read it before working in that workspace. Known defects and gaps that are found but deliberately unfixed are tracked in `KNOWN_ISSUES.md`; check it before re-auditing an area, and remove an entry there when you fix it.
 
 ## Commands
 

@@ -107,17 +107,19 @@ describe("authenticate: bearer precedence and cross-site guard", () => {
   test("cookie auth on a cross-site POST is anonymous/cross_site; a cross-site GET is fine", async () => {
     const t = await setup();
     const { cookie } = await t.fake.signIn(t.app, { subject: "u1" });
-    const post = await t.client.authenticate(
-      request("/api/notes", {
-        method: "POST",
-        cookie,
-        headers: { "sec-fetch-site": "cross-site" },
-      }),
-    );
-    expect(post.ok).toBe(false);
-    if (!post.ok) {
-      expect(post.failure).toEqual({ kind: "anonymous", reason: "cross_site" });
-      expect(post.setCookie).toBeUndefined();
+    for (const site of ["cross-site", "same-site", "none"]) {
+      const post = await t.client.authenticate(
+        request("/api/notes", {
+          method: "POST",
+          cookie,
+          headers: { "sec-fetch-site": site },
+        }),
+      );
+      expect(post.ok, site).toBe(false);
+      if (!post.ok) {
+        expect(post.failure).toEqual({ kind: "anonymous", reason: "cross_site" });
+        expect(post.setCookie).toBeUndefined();
+      }
     }
     const get = await t.client.authenticate(
       request("/api/me", { cookie, headers: { "sec-fetch-site": "cross-site" } }),
@@ -131,6 +133,9 @@ describe("authenticate: bearer precedence and cross-site guard", () => {
       }),
     );
     expect(sameSite.ok).toBe(true);
+    // An absent header is not a same-site signal: SameSite=Lax still applies.
+    const absent = await t.client.authenticate(request("/api/notes", { method: "POST", cookie }));
+    expect(absent.ok).toBe(true);
   });
 });
 

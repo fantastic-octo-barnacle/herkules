@@ -1,7 +1,7 @@
 /**
  * Query string -> terms. Pure.
  *
- * DELIBERATE DEVIATION FROM FTS5 (stated in DESIGN.md, approved by the user):
+ * DELIBERATE DEVIATION FROM FTS5 (recorded in README.md §"Corpus and search"):
  * rm-wenku dropped every term shorter than 3 characters (trigram floor) and, if
  * nothing survived, fell back to a date-ordered title LIKE with no score and no
  * snippet (`articles.rs:1338`). Two-character words — 步兵, 电机, 云台, 底盘 — are

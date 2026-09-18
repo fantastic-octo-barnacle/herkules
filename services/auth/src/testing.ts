@@ -232,17 +232,6 @@ class FakeGithubImpl implements FakeGithub {
   }
 }
 
-function jar(...cookies: (string | null | undefined)[]): string {
-  const map = new Map<string, string>();
-  for (const c of cookies) {
-    for (const part of (c ?? "").split(/;\s*/)) {
-      const eq = part.indexOf("=");
-      if (eq > 0) map.set(part.slice(0, eq), part.slice(eq + 1));
-    }
-  }
-  return [...map].map(([k, v]) => `${k}=${v}`).join("; ");
-}
-
 /** Merge Set-Cookie headers into an existing cookie string (empty values delete). */
 function absorb(cookie: string, res: Response): string {
   const map = new Map<string, string>();
@@ -481,6 +470,5 @@ export async function createTestService(options: TestServiceOptions = {}): Promi
       await service.close();
     },
   };
-  void jar;
   return self;
 }

@@ -34,6 +34,8 @@
 import MarkdownIt from "markdown-it";
 import sanitizeHtml from "sanitize-html";
 
+import { referenceTarget } from "./urls.ts";
+
 export const RENDER_VERSION = "1";
 
 export interface RenderLink {
@@ -318,15 +320,6 @@ function renderMarkdown(raw: string): string {
       (_m, p: string | undefined, mark: string) =>
         `<li>${p ?? ""}<input type="checkbox"${mark === " " ? "" : " checked"} disabled />`,
     );
-}
-
-/** WangEditor's `bbs://reference.com/…/{postId}/{n}` -> the forum article URL; null unless the post id is numeric. */
-function referenceTarget(dataLink: string): string | null {
-  if (!dataLink.startsWith("bbs://reference.com/")) return null;
-  const parts = dataLink.slice("bbs://reference.com/".length).replace(/\/+$/, "").split("/");
-  if (parts.length < 2) return null;
-  const postId = parts[parts.length - 2]!;
-  return /^\d+$/.test(postId) ? `https://bbs.robomaster.com/article/${postId}` : null;
 }
 
 /** `<span data-w-e-type="reference" data-link="…/{postId}/{n}">[n]</span>` -> `<a href="https://bbs.robomaster.com/article/{postId}">[n] label</a>`. */

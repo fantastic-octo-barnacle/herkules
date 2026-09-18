@@ -334,6 +334,19 @@ describe("admin operations", () => {
     expect(logins.rows.length).toBeGreaterThanOrEqual(3);
   });
 
+  test("a malformed cursor is a 400, not a 500", async () => {
+    // `decodeCursor` throws; without the mapping in `api.onError` that surfaced as
+    // a server error for what is plainly bad client input.
+    for (const path of ["/auth/api/admin/audit", "/auth/api/admin/users"]) {
+      const res = await t.fetch(`${path}?cursor=not-a-cursor`, { cookie: root.cookie });
+      expect(res.status, path).toBe(400);
+      expect(await res.json()).toMatchObject({
+        error: "invalid_request",
+        error_description: "invalid cursor",
+      });
+    }
+  });
+
   test("revoke sessions logs the browser out but keeps IDE tokens", async () => {
     const client = await t.mcpClient(alice.cookie, t.service.registry.canonical.audience);
     expect(
@@ -446,7 +459,7 @@ describe("user-info API and clients", () => {
     const mine = list.clients.find((c) => c.clientId === client.clientId);
     expect(mine).toMatchObject({ clientId: client.clientId, name: "Test IDE" });
     // Better Auth keeps ONE consent row per (client, user) and overwrites its resources with the latest
-    // consent rather than accumulating them; the audit rows above hold the history. Documented in DESIGN.md.
+    // consent rather than accumulating them; the audit rows above hold the history.
     expect(mine?.resources).toEqual([notes]);
 
     expect(

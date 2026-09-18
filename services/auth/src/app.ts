@@ -11,6 +11,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 
 import type { Actor, AuditType } from "./audit.ts";
+import { CursorError } from "./audit.ts";
 import type { Auth } from "./auth.ts";
 import type { Avatars } from "./avatars.ts";
 import type { Bearer, Caller } from "./bearer.ts";
@@ -100,6 +101,9 @@ export function createApp(deps: AppDeps): Hono {
   api.onError((err, c) => {
     if (err instanceof UsersError)
       return c.json({ error: err.code, error_description: err.message }, err.status);
+    // A cursor this service cannot parse is the client's mistake, not a 500.
+    if (err instanceof CursorError)
+      return c.json({ error: "invalid_request", error_description: err.message }, 400);
     if (err instanceof z.ZodError)
       return c.json({ error: "invalid_request", error_description: z.prettifyError(err) }, 400);
     throw err;
