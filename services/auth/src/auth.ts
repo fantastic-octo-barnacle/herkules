@@ -19,8 +19,19 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { mcp } from "@better-auth/mcp";
 import type { ClientMetadataResourceFetch } from "@better-auth/oauth-provider";
 import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { admin } from "better-auth/plugins/admin";
+import { genericOAuth } from "better-auth/plugins/generic-oauth";
+import {
+  FEISHU_AUTHORIZE,
+  FEISHU_TOKEN,
+  FEISHU_SCOPES,
+  FEISHU_ERRORS,
+  feishuEmail,
+  feishuSubject,
+  type Feishu,
+  type FeishuProfile,
+} from "./feishu.ts";
 import { jwt } from "better-auth/plugins/jwt";
 import { signingOptions } from "./signing.ts";
 
@@ -29,11 +40,11 @@ import { auditAfterHook } from "./audit.ts";
 import { isDevTokenClient, registerBeforeHook } from "./clients.ts";
 import { clientSecretStore } from "./secrets.ts";
 import type { Config } from "./config.ts";
+import { MergeError, type Merges } from "./db/merges.ts";
 import type { AuthDb } from "./db/index.ts";
 import * as schema from "./db/schema.ts";
 import type { Gate, GateReason } from "./gate.ts";
 import { gateUserRowOf, isStamped } from "./gate.ts";
-import { emailFor } from "./github.ts";
 import type { GithubApi } from "./github.ts";
 import type { Registry } from "./registry.ts";
 import type { Role } from "./users.ts";
@@ -42,12 +53,14 @@ import { roleOf } from "./users.ts";
 const DAY = 86_400;
 
 export interface AuthDeps {
+  readonly merges: Merges;
   readonly config: Config;
   readonly db: AuthDb;
   readonly registry: Registry;
   readonly gate: Gate;
   readonly audit: Audit;
   readonly github: GithubApi;
+  readonly feishu: Feishu;
   readonly now: () => Date;
   /** Called after a login completes (avatar refresh). Injected to keep users.ts/avatars.ts out of this file's imports. */
   readonly onLogin: (userId: string) => Promise<void>;
@@ -67,6 +80,9 @@ export const DISABLED_PATHS: readonly string[] = [
   "/update-user", //           additional fields are input:true so mapProfileToUser can set them; nobody else may
   "/delete-user", //           FRAME: disable, never delete (audit integrity)
   "/change-email",
+  "/unlink-account", // primary Feishu identity cannot be removed to bypass its admission policy
+  "/get-access-token", // upstream credentials are server-only
+  "/refresh-token",
   "/oauth2/delete-consent", // replaced by /auth/api/me/clients/:id (also revokes refresh tokens + audits)
   "/admin/set-role",
   "/admin/ban-user", //        ban without refresh-token revocation leaves the IDE working for 30 days
@@ -89,6 +105,23 @@ export const DISABLED_PATHS: readonly string[] = [
 export function authOptions(deps: AuthDeps) {
   const { config, registry, gate, audit } = deps;
   const recordAudit = auditAfterHook(audit);
+  const markApplicationUse = async (userId: string) => {
+    try {
+      await deps.merges.markApplicationUse(userId);
+    } catch (error) {
+      if (error instanceof MergeError)
+        throw new APIError("BAD_REQUEST", {
+          error: "invalid_grant",
+          error_description: error.message,
+        });
+      throw error;
+    }
+  };
+  const validatedProfiles = new WeakMap<
+    object,
+    | { provider: "feishu"; profile: FeishuProfile }
+    | { provider: "github"; profile: import("./gate.ts").StampedProfile }
+  >();
   /**
    * Typed as BetterAuthPlugin[] on purpose: spreading cimd()'s own return type
    * conditionally makes the plugins tuple unnameable for declaration emit
@@ -142,13 +175,22 @@ export function authOptions(deps: AuthDeps) {
           const profile = await gate.stampLogin(tokens.accessToken);
           if (!profile) return null;
           const { verdict, checkedAt } = profile.herkules;
+          if (!profile.email) {
+            await gate.reject(
+              { githubLogin: profile.login, githubId: String(profile.id) },
+              "github_email_required",
+              "login",
+            );
+          }
+          const existing = await deps.db.users.byGithubId(String(profile.id));
+          const keepFeishuProfile = existing?.feishuOpenId && profile.email ? existing : undefined;
           return {
             user: {
               // No `id`: Better Auth derives the account subject from the provider's numeric profile id itself.
-              name: profile.name ?? profile.login,
-              email: emailFor(profile),
-              image: profile.avatar_url,
-              emailVerified: true,
+              name: keepFeishuProfile?.name ?? profile.name ?? profile.login,
+              email: keepFeishuProfile?.email ?? profile.email ?? "",
+              image: keepFeishuProfile?.image ?? profile.avatar_url,
+              emailVerified: keepFeishuProfile ? keepFeishuProfile.emailVerified : !!profile.email,
               // Every other key lands on the user row as an additional field (input: true), on create AND on
               // each returning sign-in (overrideUserInfoOnSignIn). mapProfileToUser is NOT called when
               // getUserInfo is overridden, so the stamp is copied here.
@@ -165,10 +207,26 @@ export function authOptions(deps: AuthDeps) {
 
     user: {
       additionalFields: {
-        githubLogin: { type: "string", required: true, input: true },
-        githubId: { type: "string", required: true, input: true },
+        githubLogin: { type: "string", required: false, input: true },
+        githubId: { type: "string", required: false, input: true },
+        feishuTenantKey: { type: "string", required: false, input: true },
+        feishuOpenId: { type: "string", required: false, input: true },
+        mergedInto: { type: "string", required: false, input: false },
+        githubConnectionOffered: {
+          type: "boolean",
+          required: false,
+          input: false,
+          defaultValue: false,
+        },
         admittedVia: {
-          type: ["admin", "allowlist", "org", "org-stale"] as const,
+          type: [
+            "admin",
+            "allowlist",
+            "org",
+            "org-stale",
+            "feishu-tenant",
+            "feishu-allowlist",
+          ] as const,
           required: false,
           input: true,
         },
@@ -179,17 +237,107 @@ export function authOptions(deps: AuthDeps) {
        * every returning sign-in. Reads the stamp; never calls GitHub.
        * Returning { error } sends the browser to onAPIError.errorURL.
        */
-      validateUserInfo: async ({ source }) => {
+      validateUserInfo: async ({ source, user }, ctx) => {
         const oauth = source.method === "oauth" ? source.oauth : undefined;
+        const offerMerge = async (provider: "github" | "feishu", accountId: string) => {
+          const session = await getSessionFromCtx(ctx);
+          if (!session || session.user.id !== user.id)
+            return {
+              error: "merge_reauthentication_required",
+              errorDescription: "Sign in again before connecting an identity.",
+            };
+          try {
+            if (await deps.merges.prepare(session.session.id, user.id!, provider, accountId))
+              return {
+                error: "merge_available",
+                errorDescription: "You own two accounts. Review and confirm merging them.",
+              };
+          } catch (error) {
+            if (error instanceof MergeError)
+              return { error: error.code, errorDescription: error.message };
+            throw error;
+          }
+          return undefined;
+        };
+        if (oauth?.providerId === "feishu") {
+          const profile = oauth.profile?.feishu as FeishuProfile | undefined;
+          if (!profile)
+            return {
+              error: "feishu_unavailable",
+              errorDescription: FEISHU_ERRORS.feishu_unavailable,
+            };
+          const verdict = await deps.feishu.decide(
+            profile,
+            source.action === "create-user" ? undefined : user.id,
+          );
+          if (!verdict.ok) {
+            await deps.feishu.reject(verdict.reason, "login", profile, user.id);
+            return { error: verdict.reason, errorDescription: FEISHU_ERRORS[verdict.reason] };
+          }
+          if (source.action === "link-account") {
+            const existing = await deps.db.users.byId(user.id!);
+            if (
+              existing?.feishuOpenId &&
+              (existing.feishuOpenId !== profile.open_id ||
+                existing.feishuTenantKey !== profile.tenant_key)
+            )
+              return {
+                error: "identity_already_connected",
+                errorDescription: "A Feishu identity is already connected to this account.",
+              };
+          }
+          if (source.action === "link-account") {
+            const ownerVerdict = await deps.feishu.decide(profile);
+            if (!ownerVerdict.ok)
+              return {
+                error: ownerVerdict.reason,
+                errorDescription: FEISHU_ERRORS[ownerVerdict.reason],
+              };
+            const merge = await offerMerge("feishu", feishuSubject(profile));
+            if (merge) return merge;
+          }
+          validatedProfiles.set(ctx.context, { provider: "feishu", profile });
+          return undefined;
+        }
         if (!oauth || oauth.providerId !== "github") {
           return {
             error: "unsupported_login",
-            errorDescription: "Only GitHub sign-in is supported.",
+            errorDescription: "Use one of the configured sign-in providers.",
           };
         }
         const p: unknown = oauth.profile;
         if (!isStamped(p))
           return { error: "server_error", errorDescription: "Sign-in could not be verified." };
+        const existing = user.id ? await deps.db.users.byId(user.id) : undefined;
+        if (existing?.banned) return { error: "banned", errorDescription: FEISHU_ERRORS.banned };
+        if (!p.email)
+          return {
+            error: "github_email_required",
+            errorDescription: DESCRIPTIONS.github_email_required,
+          };
+        if (existing?.feishuOpenId && source.action === "link-account") {
+          if (existing.githubId && existing.githubId !== String(p.id))
+            return {
+              error: "identity_already_connected",
+              errorDescription: "A GitHub account is already connected.",
+            };
+          const verdict = await deps.feishu.recheck(gateUserRowOf({ ...existing }));
+          if (!verdict.ok)
+            return { error: verdict.reason, errorDescription: FEISHU_ERRORS[verdict.reason] };
+          const owner = await deps.db.users.byGithubId(String(p.id));
+          if (owner && owner.id !== existing.id) {
+            if (!p.herkules.verdict.ok)
+              return {
+                error: p.herkules.verdict.reason,
+                errorDescription: DESCRIPTIONS[p.herkules.verdict.reason],
+              };
+            const merge = await offerMerge("github", String(p.id));
+            if (merge) return merge;
+          }
+          validatedProfiles.set(ctx.context, { provider: "github", profile: p });
+          return undefined;
+        }
+        validatedProfiles.set(ctx.context, { provider: "github", profile: p });
         const { verdict } = p.herkules;
         if (verdict.ok) return undefined;
         await gate.reject(
@@ -200,7 +348,16 @@ export function authOptions(deps: AuthDeps) {
         return { error: verdict.reason, errorDescription: DESCRIPTIONS[verdict.reason] };
       },
     },
-    account: { updateAccountOnSignIn: true }, // stored GitHub token refreshed each login; gate.recheck reads it
+    account: {
+      updateAccountOnSignIn: true,
+      accountLinking: {
+        enabled: true,
+        disableImplicitLinking: true,
+        allowDifferentEmails: true,
+        trustedProviders: ["github", "feishu"],
+        updateUserInfoOnLink: false,
+      },
+    }, // stored GitHub token refreshed each login; gate.recheck reads it
 
     session: {
       expiresIn: 30 * DAY,
@@ -211,6 +368,42 @@ export function authOptions(deps: AuthDeps) {
     },
 
     databaseHooks: {
+      account: {
+        create: {
+          after: async (account, ctx) => {
+            if (!ctx) return;
+            const validated = validatedProfiles.get(ctx.context);
+            if (!validated || validated.provider !== account.providerId) return;
+            await deps.db.transaction(async (tx) => {
+              if (validated.provider === "feishu") {
+                const p = validated.profile;
+                await tx.users.update(account.userId, {
+                  feishuTenantKey: p.tenant_key,
+                  feishuOpenId: p.open_id,
+                  email: feishuEmail(p)!,
+                  emailVerified: false,
+                  name: p.name,
+                  image: p.avatar_url ?? null,
+                });
+              } else {
+                await tx.users.update(account.userId, {
+                  githubId: String(validated.profile.id),
+                  githubLogin: validated.profile.login,
+                });
+              }
+              await audit.record(
+                {
+                  type: "identity.connected",
+                  userId: account.userId,
+                  provider: account.providerId,
+                  accountId: account.accountId,
+                },
+                tx,
+              );
+            });
+          },
+        },
+      },
       user: {
         create: {
           /** Seed: an env-listed login is CREATED as admin. Payload role beats the admin plugin's defaultRole. Never demotes (users.ts). */
@@ -240,6 +433,60 @@ export function authOptions(deps: AuthDeps) {
     },
 
     plugins: [
+      ...(config.FEISHU_APP_ID
+        ? [
+            genericOAuth({
+              config: [
+                {
+                  providerId: "feishu",
+                  clientId: config.FEISHU_APP_ID,
+                  clientSecret: config.FEISHU_APP_SECRET!,
+                  authorizationUrl: FEISHU_AUTHORIZE,
+                  tokenUrl: FEISHU_TOKEN,
+                  scopes: FEISHU_SCOPES,
+                  pkce: true,
+                  authentication: "post",
+                  overrideUserInfo: true,
+                  getUserInfo: async (tokens) => {
+                    const p = tokens.accessToken
+                      ? await deps.feishu.profile(tokens.accessToken)
+                      : null;
+                    if (!p) {
+                      await deps.feishu.reject("feishu_unavailable", "login");
+                      return null;
+                    }
+                    const email = feishuEmail(p);
+                    if (!email) await deps.feishu.reject("feishu_email_required", "login", p);
+                    const verdict = await deps.feishu.decide(p);
+                    return {
+                      id: feishuSubject(p),
+                      name: p.name,
+                      email: email ?? "",
+                      emailVerified: false,
+                      image: p.avatar_url ?? undefined,
+                      feishu: p,
+                      ...(verdict.ok
+                        ? {
+                            admittedVia: verdict.via,
+                            gateCheckedAt: Math.floor(deps.now().getTime() / 1000),
+                          }
+                        : {}),
+                    };
+                  },
+                  mapProfileToUser: (raw) => {
+                    const p = raw.feishu as FeishuProfile;
+                    return {
+                      feishuTenantKey: p.tenant_key,
+                      feishuOpenId: p.open_id,
+                      admittedVia: raw.admittedVia,
+                      gateCheckedAt: raw.gateCheckedAt,
+                    };
+                  },
+                },
+              ],
+            }),
+          ]
+        : []),
       jwt({
         ...signingOptions(config.issuer),
       }),
@@ -251,6 +498,12 @@ export function authOptions(deps: AuthDeps) {
       mcp({
         loginPage: "/login",
         consentPage: "/consent",
+        postLogin: {
+          page: "/connect-github",
+          consentReferenceId: () => undefined,
+          shouldRedirect: ({ user }) =>
+            !!user.feishuOpenId && !user.githubId && !user.githubConnectionOffered,
+        },
         resource: registry.canonical.audience,
         resources: [...registry.oauthResources()], // mcp() appends `resource` again and dedupes; overwrite mode makes the registry authoritative
         resourceSeedMode: "overwrite",
@@ -291,8 +544,23 @@ export function authOptions(deps: AuthDeps) {
           }
           if (!user) return {};
           const row = gateUserRowOf(user); // boundary: throws (500) on a row the gate never admitted
+          if (row.admittedVia === "feishu-tenant" || row.admittedVia === "feishu-allowlist") {
+            const verdict = await deps.feishu.recheck(row);
+            if (verdict.ok) {
+              await markApplicationUse(row.id);
+              return {};
+            }
+            await deps.feishu.reject(verdict.reason, "grant", undefined, row.id);
+            throw new APIError("BAD_REQUEST", {
+              error: "invalid_grant",
+              error_description: FEISHU_ERRORS[verdict.reason],
+            });
+          }
           const verdict = await gate.recheck(row);
-          if (verdict.ok) return {};
+          if (verdict.ok) {
+            await markApplicationUse(row.id);
+            return {};
+          }
           await gate.reject(
             {
               githubLogin: row.githubLogin,
@@ -358,6 +626,8 @@ export type Auth = ReturnType<typeof createAuth>;
 
 /** Client-visible reason text. Short; never names the org or echoes the login (errorDescription reaches the client). */
 export const DESCRIPTIONS: Readonly<Record<GateReason, string>> = {
+  github_email_required:
+    "GitHub must provide a real, verified email address. Verify an email in GitHub settings and grant email access, then try again.",
   not_org_member: "This GitHub account is not permitted to sign in.",
   banned: "This account has been disabled.",
   github_unreachable: "GitHub could not be reached to verify your membership. Try again.",

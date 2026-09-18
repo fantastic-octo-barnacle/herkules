@@ -5,7 +5,15 @@
  * Ours are declared here. `npx drizzle-kit generate` diffs both into
  * services/auth/drizzle/*.sql, applied at boot by db/index.ts.
  */
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  index,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export * from "./schema.auth.ts"; // user, session, account, verification, jwks, oauthClient, oauthAccessToken, oauthRefreshToken, oauthConsent, oauthResource, ...
 
@@ -19,6 +27,19 @@ export const allowlist = pgTable(
     addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("allowlist_login_ci").on(t.githubLogin)],
+);
+
+/** External Feishu identities. IDs are case-sensitive and scoped to this OAuth app. */
+export const feishuAllowlist = pgTable(
+  "feishu_allowlist",
+  {
+    tenantKey: text("tenant_key").notNull(),
+    openId: text("open_id").notNull(),
+    note: text("note"),
+    addedBy: text("added_by").notNull(),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.tenantKey, t.openId] })],
 );
 
 /** Append-only. No UPDATE/DELETE grants for the service role in prod (see tools/deploy). */

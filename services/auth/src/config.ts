@@ -15,6 +15,9 @@ export const configSchema = z.object({
   AUTH_SECRET: z.string().min(32),
   /** postgres://... in compose; `pglite://memory` or `pglite:///path` in tests/dev. */
   DATABASE_URL: z.string().min(1),
+  FEISHU_APP_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  FEISHU_APP_SECRET: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  FEISHU_TENANT_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   GITHUB_CLIENT_ID: z.string().min(1),
   GITHUB_CLIENT_SECRET: z.string().min(1),
   /** The controlled org whose active members are admitted. */
@@ -149,6 +152,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (isProduction && new URL(parsed.PUBLIC_ORIGIN).protocol !== "https:") {
     throw new TypeError(
       "PUBLIC_ORIGIN must be https in production: useSecureCookies would make the session cookie unusable",
+    );
+  }
+  const feishu = [parsed.FEISHU_APP_ID, parsed.FEISHU_APP_SECRET, parsed.FEISHU_TENANT_KEY];
+  if (feishu.some(Boolean) && !feishu.every(Boolean)) {
+    throw new TypeError(
+      "FEISHU_APP_ID, FEISHU_APP_SECRET and FEISHU_TENANT_KEY must be set together",
     );
   }
   if ((parsed.BBS_ORIGIN === undefined) !== (parsed.BBS_CLIENT_SECRET === undefined)) {
