@@ -90,6 +90,7 @@ run "access" {
       for app in [
         cloudflare_zero_trust_access_application.capability_map,
         cloudflare_zero_trust_access_application.gpu_4090,
+        cloudflare_zero_trust_access_application.dashboard,
       ] : length(app.policies) >= 1 && alltrue([for p in app.policies : p.id != null && p.precedence == 1])
     ])
     error_message = "Each application needs at least one referenced policy (with an id and precedence), never an inline copy."
@@ -148,4 +149,16 @@ run "access" {
     )
     error_message = "gpu-4090 keeps HttpOnly on and the binding cookie off (service-token client only)."
   }
+  assert {
+    condition = (
+      cloudflare_zero_trust_access_application.dashboard.destinations[0].uri == "dashboard.herkules.dev" &&
+      cloudflare_zero_trust_access_application.dashboard.allowed_idps == toset([var.oidc_idp_id]) &&
+      cloudflare_zero_trust_access_application.dashboard.policies[0].id == cloudflare_zero_trust_access_policy.herkules_team.id &&
+      cloudflare_zero_trust_access_application.dashboard.http_only_cookie_attribute &&
+      cloudflare_zero_trust_access_application.dashboard.enable_binding_cookie &&
+      cloudflare_zero_trust_access_application.dashboard.same_site_cookie_attribute == "lax"
+    )
+    error_message = "The dashboard must require the team identity policy and hardened browser cookies."
+  }
+
 }

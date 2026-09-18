@@ -488,3 +488,16 @@ activating it. Both AI hostnames use the required Origin CA pair. Caddy accepts
 Cloudflare client IP headers only from its published proxy ranges and overwrites
 the gateway's client-IP header. The gateway uses that address for New API's
 rate and IP restrictions. Update the checked-in ranges when Cloudflare changes them.
+
+## LarkAI dashboard (independent deployment)
+
+`dashboard.herkules.dev` routes to the `larkai:8000` network alias on
+`herkules_default`. The [LarkAI repository](https://github.com/fantastic-octo-barnacle/LarkAI)
+owns its Compose project, image pipeline, runtime env, SQLite volume and rollback.
+Only this one-time Caddy route and the shared Terraform DNS/Access objects live
+here. Ordinary LarkAI deployments do not create a Herkules release.
+
+Cloudflare Access uses the existing team policy. LarkAI validates Access JWTs at
+the origin, so connecting directly to the VPS cannot bypass authentication.
+The app exposes no host port. Feishu API authorization remains a separate app
+connection; its credentials are configured in LarkAI’s production environment.

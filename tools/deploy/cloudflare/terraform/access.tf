@@ -6,11 +6,8 @@
 # policies, each attached to one of them. The account has no other Access
 # applications, no Access groups, and no reusable policy beyond these two.
 #
-# There is deliberately **no** application for the VPS-hosted hostnames.
-# `ai-portal.herkules.dev` never reaches Access: an anonymous request is answered
-# by the portal's own `/dashboard` redirect. Older notes in this repository claimed
-# it sat behind Access; the account and the wire both say otherwise. See
-# docs/cloudflare-terraform.md §8.
+# LarkAI Dashboard was added on 2026-09-18 as the first VPS-hosted Access app.
+# Its origin validates Access JWTs; other VPS applications keep native auth.
 #
 # Provider 5.25 shape, taken from the provider's own schema rather than the resource
 # docs' prose: an application attaches policies by reference through its `policies`
@@ -154,6 +151,26 @@ resource "cloudflare_zero_trust_access_application" "gpu_4090" {
 
   policies = [{ id = cloudflare_zero_trust_access_policy.ai_gateway.id, precedence = 1 }]
 
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# LarkAI deploys independently; only its edge identity policy is shared here.
+resource "cloudflare_zero_trust_access_application" "dashboard" {
+  account_id                 = var.account_id
+  name                       = "LarkAI Dashboard"
+  type                       = "self_hosted"
+  destinations               = [{ type = "public", uri = "dashboard.${var.root_domain}" }]
+  session_duration           = "24h"
+  allowed_idps               = [var.oidc_idp_id]
+  auto_redirect_to_identity  = true
+  app_launcher_visible       = true
+  enable_binding_cookie      = true
+  http_only_cookie_attribute = true
+  same_site_cookie_attribute = "lax"
+  options_preflight_bypass   = false
+  policies                   = [{ id = cloudflare_zero_trust_access_policy.herkules_team.id, precedence = 1 }]
   lifecycle {
     prevent_destroy = true
   }

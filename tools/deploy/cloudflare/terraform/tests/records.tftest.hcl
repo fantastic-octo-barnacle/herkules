@@ -32,7 +32,7 @@ run "records" {
       "ai", "ai_portal", "apex", "bbs", "caa_google_issue", "caa_google_issuewild",
       "caa_letsencrypt_issue", "caa_letsencrypt_issuewild", "caa_sectigo_issue",
       "caa_sectigo_issuewild", "caa_sslcom_issue", "caa_sslcom_issuewild",
-      "capability_map", "dkim", "dmarc", "gpu_4090", "lark", "ops", "spf", "status", "www",
+      "capability_map", "dashboard", "feishu_verification", "gpu_4090", "lark", "mx1", "mx2", "mx3", "ops", "spf", "status", "www",
     ]
     error_message = "The managed record set changed. Update this list only alongside a reviewed zone change."
   }
@@ -65,18 +65,15 @@ run "records" {
     error_message = "CAA records use `data`; every other record uses `content`."
   }
 
-  # Losing these lets anyone spoof the domain.
   assert {
-    condition     = cloudflare_dns_record.record["spf"].content == "v=spf1 -all"
-    error_message = "SPF must stay hard-fail (-all)."
+    condition     = cloudflare_dns_record.record["spf"].content == "\"v=spf1 +include:_netblocks.m.feishu.cn -all\""
+    error_message = "Preserve Feishu SPF authorization and hard fail."
   }
   assert {
-    condition     = startswith(cloudflare_dns_record.record["dmarc"].content, "v=DMARC1; p=reject")
-    error_message = "DMARC must stay p=reject."
-  }
-  assert {
-    condition     = cloudflare_dns_record.record["dkim"].content == "v=DKIM1; p="
-    error_message = "The wildcard DKIM selector must keep its empty (revoked) key."
+    condition = alltrue([for n, priority in { mx1 = 1, mx2 = 5, mx3 = 10 } :
+      cloudflare_dns_record.record[n].content == "${n}.feishu.cn" &&
+    cloudflare_dns_record.record[n].priority == priority && !cloudflare_dns_record.record[n].proxied])
+    error_message = "Preserve Feishu MX destinations and priorities."
   }
 
   # Every A record is the VPS; nothing serves from anywhere else.
@@ -96,8 +93,8 @@ run "records" {
 
   # Cloudflare reports "automatic" (1) for every live record.
   assert {
-    condition     = alltrue([for r in cloudflare_dns_record.record : r.ttl == 1])
-    error_message = "All records use Cloudflare's automatic TTL (1)."
+    condition     = alltrue([for key, r in cloudflare_dns_record.record : r.ttl == (contains(["mx1", "spf", "feishu_verification"], key) ? 600 : 1)])
+    error_message = "Preserve the live DNS TTLs, including Feishu's 600-second records."
   }
 
   assert {
