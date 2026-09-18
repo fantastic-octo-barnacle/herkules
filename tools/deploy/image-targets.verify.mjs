@@ -82,21 +82,21 @@ test("deploys a changed release applicator without rebuilding images", () => {
 
 test("treats the shared Dockerfile and manual builds conservatively", () => {
   assert.deepEqual(selectImageTargets(["Dockerfile"]), {
-    targets: ["auth", "bbs", "caddy", "backup"],
+    targets: ["auth", "bbs", "caddy", "backup", "ai"],
     deploy: true,
   });
   assert.deepEqual(selectImageTargets(["tools/deploy/docker-bake.hcl"]), {
-    targets: ["auth", "bbs", "caddy", "backup"],
+    targets: ["auth", "bbs", "caddy", "backup", "ai"],
     deploy: true,
   });
   // `.dockerignore` is a build input too: it decides what `COPY . .` puts in
   // every image, so changing it alone must not be a no-op release.
   assert.deepEqual(selectImageTargets([".dockerignore"]), {
-    targets: ["auth", "bbs", "caddy", "backup"],
+    targets: ["auth", "bbs", "caddy", "backup", "ai"],
     deploy: true,
   });
   assert.deepEqual(selectImageTargets([], { all: true }), {
-    targets: ["auth", "bbs", "caddy", "backup"],
+    targets: ["auth", "bbs", "caddy", "backup", "ai"],
     deploy: true,
   });
 });
@@ -108,16 +108,16 @@ test("rebuilds Caddy when its TLS validation changes", () => {
   });
 });
 
-test("inference source rebuilds only the auth image", () => {
+test("inference source rebuilds only the ai image", () => {
   assert.deepEqual(selectImageTargets(["services/inference/src/gateway.ts"]), {
-    targets: ["auth"],
+    targets: ["ai"],
     deploy: true,
   });
 });
 
 test("portal patches rebuild the image that serves their assets", () => {
   assert.deepEqual(selectImageTargets(["tools/ai/portal/edits.json"]), {
-    targets: ["auth"],
+    targets: ["ai"],
     deploy: true,
   });
 });
