@@ -22,6 +22,11 @@ services:
       OPS_HOST: ${OPS_HOST:-ops.localhost}
       LARKSTACK_HOST: ${LARKSTACK_HOST:-lark.localhost}
       LARKAI_HOST: ${LARKAI_HOST:-dashboard.herkules.dev}
+      # The AI portal/public hosts. Without these two the Caddyfile silently fell back
+      # to its own defaults, so setting AI_HOST in .env changed nothing; the defaults
+      # here mirror the Caddyfile's.
+      AI_HOST: ${AI_HOST:-ai.herkules.dev}
+      AI_PORTAL_HOST: ${AI_PORTAL_HOST:-ai-portal.herkules.dev}
     volumes:
       - ${DEPLOY_CONFIG_DIR:-.}/Caddyfile:/etc/caddy/Caddyfile:ro
       - ${DEPLOY_CONFIG_DIR:-.}/caddy/services:/etc/caddy/services:ro

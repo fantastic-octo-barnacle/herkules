@@ -9,8 +9,14 @@
  *                                     /articles/:id and /kb/:name. UNKNOWN ids get the plain shell
  *                                     with status 404 so crawlers do not index them (the SPA renders
  *                                     its own not-found screen; a 404 document is still a document).
- *   GET /api/* | /mcp/*               never a document: an unmatched API path is a JSON 404 here, so
- *                                     a typo in an `hc` call cannot come back as HTML.
+ *   GET /api/* | /mcp/* | /assets/* | /fonts/*   never a document. The first two are a JSON 404 so a
+ *                                     typo in an `hc` call cannot come back as HTML. The last two are
+ *                                     a 404 too, and this one is NOT cosmetic: serveStatic calls next()
+ *                                     on a miss, so without this arm a request for a hashed chunk that
+ *                                     a deploy removed would fall through to the document and `cached`
+ *                                     would stamp it `immutable` — pinning an HTML body under a `.js`
+ *                                     URL in the browser and any CDN for a year. 404 + no immutable
+ *                                     header lets the client re-fetch the fixed document instead.
  *
  * ROUTE ORDER in app.ts is load-bearing: the fallback is registered LAST, after
  * /healthz, /mcp/bbs, /login, /callback, /logout and /api/*, so it can never
@@ -49,6 +55,9 @@ export interface SpaHandler {
 export const IMMUTABLE = "public, max-age=31536000, immutable";
 export const SHORT_LIVED = "public, max-age=3600";
 
+/** Prefixes the SPA fallback must refuse: a miss under any of these is a 404, never the document. */
+const NEVER_A_DOCUMENT = ["/api/", "/mcp/", "/assets/", "/fonts/"];
+
 /** Reads and parses `${webDir}/index.html` once. Throws at boot on a missing file or marker. */
 export async function createSpaHandler(deps: StaticDeps): Promise<SpaHandler> {
   const { webDir } = deps;
@@ -63,7 +72,10 @@ export async function createSpaHandler(deps: StaticDeps): Promise<SpaHandler> {
 
   const metaFor = async (pathname: string): Promise<HeadMeta | null | "plain"> => {
     const route = headRouteOf(pathname);
-    if (!route) return "plain";
+    if (route === null) return "plain";
+    // `undefined`: a /kb/:name that does not percent-decode. No document can match
+    // it, so it takes the same 404 path an unknown id does.
+    if (route === undefined) return null;
     if (route.kind === "article") {
       const id = articleId(route.id);
       return id ? deps.library.head(id) : null;
@@ -80,7 +92,11 @@ export async function createSpaHandler(deps: StaticDeps): Promise<SpaHandler> {
       }
       app.get("*", async (c) => {
         const { pathname } = new URL(c.req.url);
-        if (pathname.startsWith("/api/") || pathname.startsWith("/mcp/")) {
+        // `/assets/*` and `/fonts/*` land here when serveStatic misses, and a
+        // missing hashed chunk is not a document. Answering 404 here also keeps
+        // `cached` from stamping the shell `immutable` for a year. `/api/*` and
+        // `/mcp/*` say the same thing for the RPC and MCP surfaces.
+        if (NEVER_A_DOCUMENT.some((prefix) => pathname.startsWith(prefix))) {
           return c.json({ error: "not_found", error_description: "no such route" }, 404);
         }
         const meta = await metaFor(pathname);

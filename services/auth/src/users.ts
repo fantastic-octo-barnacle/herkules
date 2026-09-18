@@ -7,7 +7,6 @@
  */
 import type { Actor, Audit, AuditEvent, AuditPage, AuditType } from "./audit.ts";
 import { decodeCursor, encodeCursor } from "./audit.ts";
-import type { Auth } from "./auth.ts";
 import type { AuthDb, UserRow } from "./db/index.ts";
 import type { AdmittedVia } from "./gate.ts";
 
@@ -133,8 +132,6 @@ export interface Users {
 export interface UsersDeps {
   readonly db: AuthDb;
   readonly audit: Audit;
-  /** Unused today; reserved for operations that must go through Better Auth's own API. */
-  readonly auth?: Auth;
   readonly avatarUrlFor: (userId: string) => string;
   readonly refreshAvatar: (userId: string) => Promise<void>;
   readonly adminGithubLogins: readonly string[];

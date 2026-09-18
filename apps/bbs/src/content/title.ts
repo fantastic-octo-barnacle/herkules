@@ -403,7 +403,15 @@ function isSeasonRangeDash(before: string, after: readonly string[]): boolean {
   return second !== null && second === (first + 1) % 100;
 }
 
-/** The last two digits of a two- or four-digit year. */
+/**
+ * The last two digits of a two- or four-digit year (`2024` and `24` → 24).
+ *
+ * Only `isSeasonRangeDash` calls this, and only to test that the two years are
+ * consecutive. Iterating the reversed year reads the trailing digits first, so
+ * `digits[0]` and `digits[1]` are the ones and tens of the last two digits —
+ * despite looking like they take the leading pair of a 4-digit year. The caller
+ * compares mod 100, which is exactly consecutiveness for same-century years.
+ */
 function yearMod100(year: string): number | null {
   const digits: number[] = [];
   for (const ch of [...year].reverse()) {

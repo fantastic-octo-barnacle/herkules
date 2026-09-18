@@ -75,7 +75,6 @@ export async function createService(deps: ServiceDeps = {}) {
   users = createUsers({
     db,
     audit,
-    auth,
     avatarUrlFor: (id) => avatars.urlFor(id),
     refreshAvatar: async (id) => avatars.refresh(id, await db.users.imageOf(id)),
     adminGithubLogins: config.ADMIN_GITHUB_LOGINS,

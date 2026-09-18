@@ -22,10 +22,11 @@ jobs:
           cache: true
           run-install: true
       # check + every package's tests (PGlite, fake GitHub: no services) + every build.
+      # `vp run ready` already runs test:deploy, which includes the offline Cloudflare
+      # route/rollback tests, so they are not repeated here.
       - run: vp run ready
       - run: vp run build:edge
       - run: vp run test:edge
-      - run: node --test tools/deploy/cloudflare/release.test.mjs
       - run: vp exec wrangler deploy --dry-run --config tools/deploy/cloudflare/platform.json
       - run: vp exec wrangler deploy --dry-run --config tools/deploy/cloudflare/bbs.json
       - run: vp run test:caddy

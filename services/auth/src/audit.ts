@@ -178,11 +178,23 @@ export function encodeCursor(at: Date, id: string): string {
   return Buffer.from(`${at.toISOString()}|${id}`).toString("base64url");
 }
 
+/**
+ * A cursor a client sent that this service cannot parse. That is a client error,
+ * not a server one: `app.ts` maps it to 400. Extends `TypeError` so the
+ * `decodeCursor` contract (and its existing test) is unchanged.
+ */
+export class CursorError extends TypeError {
+  constructor(message: string) {
+    super(message);
+    this.name = "CursorError";
+  }
+}
+
 export function decodeCursor(cursor: string | undefined): { at: Date; id: string } | undefined {
   if (!cursor) return undefined;
   const [iso, id] = Buffer.from(cursor, "base64url").toString().split("|");
   const at = new Date(iso ?? "");
-  if (!id || Number.isNaN(at.getTime())) throw new TypeError("invalid cursor");
+  if (!id || Number.isNaN(at.getTime())) throw new CursorError("invalid cursor");
   return { at, id };
 }
 
