@@ -1,18 +1,23 @@
 # Herkules
 
-Herkules is the team's self-hosted identity layer and internal application monorepo. The platform runs on one origin for authorization and MCP resources, while products such as RM 文库 use their own subdomains and the same issuer.
+Herkules is an open-source, self-hosted identity platform and application monorepo. The platform runs on one origin for authorization and MCP resources, while products such as RM 文库 use their own subdomains and the same issuer.
+
+The source is public; access to the hosted services still follows the team admission
+policy. Local application development does not require access to the private
+infrastructure repository.
 
 ## Repository map
 
-| Workspace                                                                                                    | Purpose                                                                            |
-| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| [`services/auth`](services/auth/README.md)                                                                   | Better Auth authorization server, resource registry, users, roles, gate, and audit |
-| [`services/web`](services/web/README.md)                                                                     | Platform login, consent, settings, admin, and developer-token SPA                  |
-| [`services/inference`](services/inference/README.md)                                                         | AI portal gateway, worker scheduling, membership enforcement and streaming adapter |
-| [`apps/bbs`](apps/bbs/README.md)                                                                             | RM 文库 API, MCP server, SPA host, corpus, search, and crawler                     |
-| [`packages/auth-middleware`](packages/auth-middleware/README.md)                                             | Resource-server JWT verification and OAuth challenge helpers                       |
-| [`packages/oauth-client`](packages/oauth-client/README.md)                                                   | Stateless first-party browser OAuth sessions for Hono apps                         |
-| [`tools/deploy`](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md) | Separate infrastructure repository and production runbook                          |
+| Workspace                                                        | Purpose                                                                            |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [`services/auth`](services/auth/README.md)                       | Better Auth authorization server, resource registry, users, roles, gate, and audit |
+| [`services/web`](services/web/README.md)                         | Platform login, consent, settings, admin, and developer-token SPA                  |
+| [`services/inference`](services/inference/README.md)             | AI portal gateway, worker scheduling, membership enforcement and streaming adapter |
+| [`apps/bbs`](apps/bbs/README.md)                                 | RM 文库 API, MCP server, SPA host, corpus, search, and crawler                     |
+| [`packages/auth-middleware`](packages/auth-middleware/README.md) | Resource-server JWT verification and OAuth challenge helpers                       |
+| [`packages/oauth-client`](packages/oauth-client/README.md)       | Stateless first-party browser OAuth sessions for Hono apps                         |
+| [`packages/ui`](packages/ui/README.md)                           | Shared source CSS and React components                                             |
+| [`tools/images`](tools/images/README.md)                         | Application images and Caddy route fragments                                       |
 
 Cross-cutting contracts — identity flows, the resource-server token contract, the deploy runbook pointer, and UI decision records — are indexed in [`docs/README.md`](docs/README.md).
 
@@ -29,6 +34,24 @@ curl -fsSL https://vite.plus | bash
 vp install
 vp run ready
 ```
+
+To start the local stack, create the local environment files once (keep existing
+files on subsequent runs):
+
+```sh
+cp services/auth/.env.example services/auth/.env
+cp apps/bbs/.env.example apps/bbs/.env
+mkdir -p apps/bbs/.data
+```
+
+Follow the [auth setup](services/auth/README.md) to configure your own login
+provider credentials, and review the [BBS settings](apps/bbs/README.md). The local
+stack uses PGlite; `services/web` needs no environment file. Credentials, production
+data, and the BBS corpus are not included in this repository.
+
+If you have a compatible SQLite corpus, load it explicitly with
+`vp run @herkules/bbs#import <path>/app.db`. This replaces the local corpus, so it
+is deliberately excluded from `vp run dev`.
 
 Common commands:
 
@@ -52,9 +75,20 @@ Check a workspace's README and `package.json` before running it. `vp <name>` inv
 ## Repository boundary
 
 Application development and image publication live here. Production infrastructure lives
-in the sibling [herkules-infra](https://github.com/fantastic-octo-barnacle/herkules-infra)
-repository. See [the deployment contract](docs/deploy.md) for artifact promotion and
+in the private sibling [herkules-infra](https://github.com/fantastic-octo-barnacle/herkules-infra)
+repository. Its links require repository access. See [the deployment contract](docs/deploy.md) for artifact promotion and
 application-owned Caddy fragments. `vp run dev` remains self-contained.
+
+## Contributing and security
+
+Read the relevant workspace README before making a change and run `vp run ready`
+before submitting a pull request. Documentation-only changes still run CI checks
+but do not publish application images. Outside contributors' workflow runs require
+maintainer approval.
+
+Report vulnerabilities through [private vulnerability reporting](SECURITY.md),
+not a public issue. The [public-release record](docs/public-release.md) documents
+the retained history, audit scope, and repository safeguards.
 
 ## License
 

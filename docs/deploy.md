@@ -1,11 +1,15 @@
 # Deployment
 
-Production infrastructure lives in [herkules-infra](https://github.com/fantastic-octo-barnacle/herkules-infra).
+Production infrastructure lives in the private repository [herkules-infra](https://github.com/fantastic-octo-barnacle/herkules-infra).
 The [runbook](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md)
 owns Terraform, Compose, routing, monitoring, backups, deployment and rollback.
+These links require infrastructure-repository access; application development and
+tests can run from this public repository alone.
 
 This repository builds `auth`, `bbs`, `ai`, and `platform` images as one shared
-BuildKit graph alongside CI checks. After every check passes, CI publishes their immutable references as the `application` artifact (`application.json`).
+BuildKit graph alongside CI checks. When image inputs change on `main` (or a manual run requests a build), CI publishes
+their immutable references as the `application` artifact (`application.json`) after
+every required check passes. Documentation-only changes skip image publication.
 Infrastructure selects that manifest in a reviewed commit. Application CI has no VPS or
 Cloudflare deployment credentials and does not change production.
 
