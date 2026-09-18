@@ -221,6 +221,17 @@ export const FIRST_PARTY_CLIENTS = [
     requirePKCE: false,
   },
   {
+    clientId: "larkai",
+    name: "LarkAI Dashboard",
+    redirectUris: (c) => (c.LARKAI_ORIGIN ? [`${c.LARKAI_ORIGIN}/oidc/callback`] : []),
+    skipConsent: true,
+    tokenEndpointAuthMethod: "client_secret_basic",
+    applicationType: "web",
+    grantTypes: ["authorization_code"],
+    requirePKCE: true,
+    secret: (c) => c.LARKAI_CLIENT_SECRET,
+  },
+  {
     clientId: "cloudflare-access",
     name: "Cloudflare Access",
     redirectUris: (c) =>

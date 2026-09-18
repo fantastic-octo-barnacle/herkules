@@ -307,6 +307,13 @@ export function authOptions(deps: AuthDeps) {
             error_description: DESCRIPTIONS[verdict.reason],
           });
         },
+        // LarkAI checks UserInfo on each request: roles and disabling take effect
+        // from the current user row, never an app-local admin list or stale ID token.
+        customUserInfoClaims: async ({ user, jwt }) => {
+          if (jwt.client_id !== "larkai") return {};
+          if (user.banned) throw new APIError("UNAUTHORIZED", { error: "invalid_token" });
+          return { role: roleOf(user) };
+        },
         // Cloudflare reads email from the ID token rather than fetching UserInfo.
         customIdTokenClaims: async ({ user, scopes }) =>
           scopes.includes("email") ? { email: user.email, email_verified: user.emailVerified } : {},

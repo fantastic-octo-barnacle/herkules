@@ -72,3 +72,11 @@ issuer's existing admission gate checks team membership on token grants. That po
 is `Herkules team` in `tools/deploy/cloudflare/terraform/access.tf`, so recreating
 this identity provider means updating the `oidc_idp_id` variable there. Access
 sessions remain valid until their own expiry or explicit revocation.
+
+## LarkAI OpenID Connect
+
+`LARKAI_ORIGIN` and `LARKAI_CLIENT_SECRET` seed the confidential `larkai` client
+with the exact `/oidc/callback` redirect and mandatory PKCE. It requests
+`openid email profile`. UserInfo adds the current `admin | member` role only
+for this client and refuses disabled users. LarkAI checks it on each authenticated
+request, so role changes are not copied into a separate app admin list.
