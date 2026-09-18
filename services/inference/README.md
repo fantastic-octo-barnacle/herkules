@@ -70,7 +70,7 @@ and the chat-completions endpoint. Descriptions refresh from the catalog on star
 and official metadata sync is disabled on seeded entries so native model claims
 do not overwrite our serving capabilities. No database writes bypass New API.
 
-The native llama.cpp router supports `tags` in `tools/ai/models.ini`; they are
+The native llama.cpp router supports `tags` in `herkules-infra/tools/ai/models.ini`; they are
 informational and do not change routing aliases. It also forwards loaded-model
 metadata in `/v1/models`, and `/props?model=...` exposes runtime defaults. Its
 `/models` response can include filesystem paths and process arguments: do not

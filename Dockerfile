@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
-# One build, four images: --target auth | bbs | caddy | backup.
+# Application images: --target auth | bbs | platform.
 # The build stage installs the whole workspace once; runtime images get only
-# `pnpm deploy --prod` output (auth, bbs) or static files (caddy).
+# `pnpm deploy --prod` output (auth, bbs) or static assets and route fragments (platform).
 
 # Checksum-pinned New API source, with isolated subscription funding pools.
 FROM oven/bun:1.4.0@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6 AS ai-portal
@@ -76,30 +76,8 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 # ENTRYPOINT, not CMD: `docker compose run --rm bbs import /import/app.db` appends argv (main.ts dispatches).
 ENTRYPOINT ["node", "dist/main.mjs"]
 
-# ── caddy (the edge: TLS, routing, and services/web's SPA served from /srv) ─
-FROM caddy:2.10-alpine AS caddy-tls
-RUN apk add --no-cache openssl
-COPY tools/deploy/caddy/entrypoint.sh /usr/local/bin/herkules-caddy
-RUN chmod +x /usr/local/bin/herkules-caddy
-ENTRYPOINT ["/usr/local/bin/herkules-caddy"]
-CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
-FROM caddy-tls AS caddy
-# No Caddyfile in the image on purpose: the box bind-mounts ~/herkules/Caddyfile and
-# ~/herkules/caddy/services/, so a routing change stays `scp` + `up -d` with no rebuild.
-# (Ports 80/443 and 443/udp are already EXPOSEd by the base image.)
+# Static platform artifact consumed by herkules-infra; never run as a service.
+FROM scratch AS platform
 COPY --from=build /app/services/web/dist /srv
-
-# ── backup (nightly pg_dump -> Cloudflare R2 via rclone) ────────────────────
-FROM rclone/rclone:1.72 AS rclone
-
-FROM alpine:3.23 AS backup
-RUN apk add --no-cache postgresql17-client
-COPY --from=rclone /usr/local/bin/rclone /usr/local/bin/rclone
-COPY tools/deploy/backup/backup.sh /usr/local/bin/backup
-COPY tools/deploy/backup/entrypoint.sh /usr/local/bin/backup-entrypoint
-COPY tools/deploy/backup/crontab /etc/crontabs/root
-RUN chmod +x /usr/local/bin/backup /usr/local/bin/backup-entrypoint
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD test -f /tmp/backup-preflight-ok || exit 1
-ENTRYPOINT ["/usr/local/bin/backup-entrypoint"]
-CMD ["crond", "-f", "-l", "2"]
+COPY tools/images/caddy /caddy
+CMD ["/artifact-only"]
