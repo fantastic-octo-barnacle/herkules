@@ -111,11 +111,15 @@ services:
     # `compose up --wait` errors with "has no healthcheck configured" for an existing container
     # whose check is disabled (it only tolerates images with none at all). A trivial check keeps
     # --wait meaning "running" for the port-less bbs processes.
+    # start_interval (Docker Engine 25+) probes every 2 s during start_period, so --wait sees
+    # the first result in seconds instead of after the first 30 s interval.
     healthcheck: &no-port-healthcheck
       test: ["CMD", "true"]
       interval: 30s
       timeout: 5s
       retries: 1
+      start_period: 10s
+      start_interval: 2s
     depends_on:
       # Healthy means bbs finished migrating: the worker fails fast on a schema it does not know.
       bbs:
@@ -195,6 +199,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 60s
+      start_interval: 2s
     mem_limit: 384m
     restart: unless-stopped
 
@@ -235,6 +241,8 @@ services:
       interval: 15s
       timeout: 5s
       retries: 4
+      start_period: 30s
+      start_interval: 2s
     mem_limit: 192m
     restart: unless-stopped
     stop_grace_period: 30s

@@ -28,9 +28,15 @@ RUN npm install -g pnpm@11.24.0
 WORKDIR /app
 
 FROM base AS build
+# Dependencies first, source second: `pnpm fetch` reads only the lockfile (plus the workspace
+# settings), so this layer and its store stay cached until pnpm-lock.yaml changes. No cache
+# mount on purpose: CI restores layers from the GHA cache but never cache mounts, so the store
+# has to live in the layer for the offline install below to find it.
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm fetch --ignore-scripts
 COPY . .
 # --ignore-scripts: the root `prepare` (vp config) wires git hooks; nothing to build natively.
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --offline --frozen-lockfile --ignore-scripts
 # --sort is pnpm's topological order over the workspace dependency graph
 # (auth-middleware -> oauth-client -> auth -> bbs -> web), so adding, renaming or deleting a
 # package needs no edit here. Packages without a `build` script are skipped, not failed.
@@ -62,7 +68,7 @@ USER root
 RUN apk add --no-cache tzdata ca-certificates && mkdir -p /data/avatars && chown -R node:node /data
 USER node
 EXPOSE 3001
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --start-interval=2s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3001/auth/healthz || exit 1
 CMD ["node", "dist/main.mjs"]
 
@@ -71,7 +77,7 @@ FROM runtime AS bbs
 ENV PORT=3003 MIGRATIONS_DIR=/app/drizzle WEB_DIR=/app/dist/client
 COPY --from=build --chown=node:node /out/bbs /app
 EXPOSE 3003
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --start-interval=2s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3003/healthz || exit 1
 # ENTRYPOINT, not CMD: `docker compose run --rm bbs import /import/app.db` appends argv (main.ts dispatches).
 ENTRYPOINT ["node", "dist/main.mjs"]
@@ -99,7 +105,7 @@ COPY tools/deploy/backup/backup.sh /usr/local/bin/backup
 COPY tools/deploy/backup/entrypoint.sh /usr/local/bin/backup-entrypoint
 COPY tools/deploy/backup/crontab /etc/crontabs/root
 RUN chmod +x /usr/local/bin/backup /usr/local/bin/backup-entrypoint
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=2s --retries=3 \
   CMD test -f /tmp/backup-preflight-ok || exit 1
 ENTRYPOINT ["/usr/local/bin/backup-entrypoint"]
 CMD ["crond", "-f", "-l", "2"]
