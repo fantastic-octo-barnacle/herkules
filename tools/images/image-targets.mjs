@@ -18,9 +18,13 @@ export function selectImageTargets(paths, { all = false } = {}) {
     if (!path) continue;
     if (path === "README.md" || path.endsWith("/README.md")) continue;
     if (path.startsWith("tools/images/caddy/")) add("platform");
-    if (["Dockerfile", ".dockerignore", "tools/images/docker-bake.hcl"].includes(path))
+    if (
+      path.startsWith(".github/workflows/") ||
+      path === "tools/images/image-targets.mjs" ||
+      ["Dockerfile", ".dockerignore", "tools/images/docker-bake.hcl"].includes(path)
+    )
       add(...allTargets);
-    if (nodeBuildInputs.has(path) || path.startsWith("tsconfig")) add("auth", "bbs", "platform");
+    if (nodeBuildInputs.has(path) || path.startsWith("tsconfig")) add(...allTargets);
     if (isBuildInput(path, "services/auth", ["src", "drizzle"])) add("auth");
     if (
       isBuildInput(path, "services/inference", ["src"]) ||

@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Sign browsers in to a first-party app through the herkules issuer and yield the same Principal @herkules/auth-middleware yields bearer callers. Confidential OAuth 2.1 client, sealed cookie, no table.",
+  "license": "MIT OR Apache-2.0",
   "files": [
     "dist"
   ],

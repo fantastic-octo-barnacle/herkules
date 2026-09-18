@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "The one cascade for herkules.dev and bbs.herkules.dev: design tokens as a Tailwind v4 theme, and the shadcn/Radix primitives both SPAs share. Source-exported; consumed by Vite, never packed.",
+  "license": "MIT OR Apache-2.0",
   "type": "module",
   "exports": {
     "./theme.css": "./src/theme.css",

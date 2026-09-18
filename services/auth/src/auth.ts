@@ -83,6 +83,13 @@ export const DISABLED_PATHS: readonly string[] = [
   "/unlink-account", // primary Feishu identity cannot be removed to bypass its admission policy
   "/get-access-token", // upstream credentials are server-only
   "/refresh-token",
+  // DCR is the only supported client-registration surface. Client mutations must
+  // not bypass its redirect policy or our audited consent-revocation route.
+  "/oauth2/create-client",
+  "/oauth2/update-client",
+  "/oauth2/delete-client",
+  "/oauth2/client/rotate-secret",
+  "/oauth2/update-consent",
   "/oauth2/delete-consent", // replaced by /auth/api/me/clients/:id (also revokes refresh tokens + audits)
   "/admin/set-role",
   "/admin/ban-user", //        ban without refresh-token revocation leaves the IDE working for 30 days

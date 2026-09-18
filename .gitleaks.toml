@@ -1,0 +1,29 @@
+title = "Herkules secret scanning"
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Published test-only JWT conformance vectors, signed by the fixture key"
+targetRules = ["jwt"]
+paths = ['''^docs/tokens-vectors\.json$''']
+
+[[allowlists]]
+description = "Exact deterministic BBS import test credentials"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^apps/bbs/tests/import\.test\.ts$''']
+regexes = ['''^0123456789abcdef(?:0123456789abcdef)?$''']
+
+[[allowlists]]
+description = "Destination PUBLIC encryption key in the removed migration workflow"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^\.github/workflows/migrate-infra-secrets\.yml$''']
+regexes = ['''^TBWF3xfgUa/yHf0tjnVaxfLGW6t\+kZzdkY1V1YCMAXU=$''']
+
+[[allowlists]]
+description = "Authentication documentation prose, not a token value"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^services/auth/README\.md$''']
+regexes = ['''^unavailable/revoked$''']
