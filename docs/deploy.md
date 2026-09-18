@@ -1,5 +1,18 @@
 # Deployment
 
-The operational runbook remains at [`../tools/deploy/README.md`](../tools/deploy/README.md), next to the Compose files, Caddy configuration, environment template, and backup scripts it documents.
+Production infrastructure lives in [herkules-infra](https://github.com/fantastic-octo-barnacle/herkules-infra).
+The [runbook](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md)
+owns Terraform, Compose, routing, monitoring, backups, deployment and rollback.
 
-Use that runbook for production setup, deploys, rollbacks, verification, BBS import and worker cutover, backups, local Compose, and adding an MCP route. This file exists so cross-cutting documentation has a stable deployment entry point without maintaining a second copy of operational commands.
+This repository builds `auth`, `bbs`, `ai`, and `platform` images as one shared
+BuildKit graph alongside CI checks. After every check passes, CI publishes their immutable references as the `application` artifact (`application.json`).
+Infrastructure selects that manifest in a reviewed commit. Application CI has no VPS or
+Cloudflare deployment credentials and does not change production.
+
+The `platform` artifact contains `/srv` (the platform frontend) and `/caddy`
+(application route fragments from `tools/images/caddy`). Infrastructure owns the Caddy
+runtime, TLS, hostnames and trusted proxies, and imports those fragments inside its
+site blocks. Both fragments and assets come from the same selected image digest.
+
+Normal local development remains `vp run dev`; no infrastructure checkout is required.
+See the infrastructure repository's `MIGRATION.md` for the initial ownership transfer.

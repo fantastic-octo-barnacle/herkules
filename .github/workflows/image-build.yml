@@ -1,66 +1,18 @@
 name: Image build
-
-# Called by ci.yml (push to main, in parallel with CI's checks) and by images.yml (manual run).
-# Selects the image inputs that changed since the source of the active production release and
-# builds them as one BuildKit graph. Pushing an image deploys nothing: release.yml runs only
-# after CI passes, and it decides which of these digests enter a release.
+# Application artifacts only; shared BuildKit graph runs alongside CI checks.
 on:
   workflow_call:
-    outputs:
-      targets:
-        description: JSON array of the image targets this run built
-        value: ${{ jobs.changes.outputs.targets }}
-      deploy:
-        description: Whether this commit needs a release
-        value: ${{ jobs.changes.outputs.deploy }}
-
 permissions:
   contents: read
-
 env:
   BUILD_SHA: ${{ github.sha }}
-
 jobs:
-  changes:
-    permissions:
-      contents: read
-      deployments: read
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-    outputs:
-      targets: ${{ steps.select.outputs.targets }}
-      deploy: ${{ steps.select.outputs.deploy }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ env.BUILD_SHA }}
-          fetch-depth: 0
-          persist-credentials: false
-      - id: select
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          active=$(bash tools/deploy/deployment-state.sh active)
-          active_source=$(jq -r '.sourceSha // ""' <<<"$active")
-          if [[ "$GITHUB_EVENT_NAME" == "push" && -n "$active_source" ]] \
-            && git cat-file -e "$active_source^{commit}" 2>/dev/null; then
-            selection=$(git diff --name-only "$active_source" "$BUILD_SHA" | node tools/deploy/image-targets.mjs)
-          else
-            selection=$(node tools/deploy/image-targets.mjs --all)
-          fi
-          echo "targets=$(jq -c '.targets' <<<"$selection")" >> "$GITHUB_OUTPUT"
-          echo "deploy=$(jq -r '.deploy' <<<"$selection")" >> "$GITHUB_OUTPUT"
-          echo "$selection"
-
   build:
     permissions:
       actions: read
       contents: read
       packages: write
     timeout-minutes: 45
-    needs: changes
-    if: needs.changes.outputs.targets != '[]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -70,7 +22,7 @@ jobs:
           persist-credentials: false
       - id: rev
         env:
-          TARGETS: ${{ needs.changes.outputs.targets }}
+          TARGETS: '["auth","bbs","ai","platform"]'
         run: |
           echo "short=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
           echo "bake=$(jq -r 'join(",")' <<<"$TARGETS")" >> "$GITHUB_OUTPUT"
@@ -80,7 +32,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # Labels only; tags come from tools/deploy/docker-bake.hcl.
+      # Labels only; tags come from tools/images/docker-bake.hcl.
       - id: meta
         uses: docker/metadata-action@v6
         with:
@@ -94,7 +46,7 @@ jobs:
         with:
           source: .
           files: |
-            tools/deploy/docker-bake.hcl
+            tools/images/docker-bake.hcl
             ${{ steps.meta.outputs.bake-file-labels }}
           targets: ${{ steps.rev.outputs.bake }}
           push: true
@@ -102,7 +54,7 @@ jobs:
         env:
           METADATA: ${{ steps.bake.outputs.metadata }}
           SHORT_SHA: ${{ steps.rev.outputs.short }}
-          TARGETS: ${{ needs.changes.outputs.targets }}
+          TARGETS: '["auth","bbs","ai","platform"]'
         run: |
           mkdir -p image-update
           for target in $(jq -r '.[]' <<<"$TARGETS"); do

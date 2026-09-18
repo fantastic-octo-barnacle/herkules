@@ -1,42 +1,46 @@
 name: CI
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches: [main]
 permissions:
   contents: read
-# Superseded PR checks can stop; a main run carries its own image build and release.
+# Superseded PR checks can stop; main CI must finish to trigger image releases.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  # Push to main only: build the changed images alongside the checks below. Pushing an image
-  # deploys nothing; `release` waits for every check.
   images:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     permissions:
       actions: read
       contents: read
-      deployments: read
       packages: write
     uses: ./.github/workflows/image-build.yml
 
-  release:
-    # Every check job in this file belongs here: a release needs all of CI, not part of it.
-    needs: [images, ready, new-api, terraform]
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      needs.images.outputs.deploy == 'true'
-    permissions:
-      actions: read
-      contents: read
-      deployments: write
-      packages: write
-    uses: ./.github/workflows/release.yml
-    with:
-      targets: ${{ needs.images.outputs.targets }}
-    secrets: inherit
+  manifest:
+    needs: [images, ready, new-api]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: image-updates
+          path: image-updates
+      - name: Assemble tested application manifest
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          jq -s --arg source "$BUILD_SHA" --arg repository "$GITHUB_REPOSITORY" \
+            '{schemaVersion: 1, repository: $repository, sourceSha: $source,
+              images: (map({key: .target, value: .image}) | from_entries)}' \
+            image-updates/*.json > application.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: application
+          path: application.json
+          if-no-files-found: error
 
   ready:
     runs-on: ubuntu-latest
@@ -50,14 +54,8 @@ jobs:
           cache: true
           run-install: true
       # check + every package's tests (PGlite, fake GitHub: no services) + every build.
-      # `vp run ready` already runs test:deploy, which includes the offline Cloudflare
-      # route/rollback tests, so they are not repeated here.
       - run: vp run ready
-      - run: vp run build:edge
-      - run: vp run test:edge
-      - run: vp exec wrangler deploy --dry-run --config tools/deploy/cloudflare/platform.json
-      - run: vp exec wrangler deploy --dry-run --config tools/deploy/cloudflare/bbs.json
-      - run: vp run test:caddy
+      - run: sh tools/images/caddy.test.sh
 
   new-api:
     runs-on: ubuntu-latest
@@ -95,79 +93,3 @@ jobs:
           push: false
           cache-from: type=gha,scope=ai-backend
           cache-to: type=gha,scope=ai-backend,mode=max
-
-  # Credential-free checks on the Cloudflare-as-code config. Format, schema
-  # validation, and the invariants in tests/ under a mocked provider; nothing talks
-  # to Cloudflare. Plans and applies live in terraform.yml behind TERRAFORM_ENABLED.
-  terraform:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      TERRAFORM_DIR: tools/deploy/cloudflare/terraform
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: dflook/terraform-fmt-check@v3
-        with:
-          path: ${{ env.TERRAFORM_DIR }}
-      - uses: dflook/terraform-validate@v3
-        with:
-          path: ${{ env.TERRAFORM_DIR }}
-      - uses: dflook/terraform-test@v3
-        with:
-          path: ${{ env.TERRAFORM_DIR }}
-      # Five things are owned elsewhere and must never appear here: Worker
-      # uploads and routes belong to release.mjs (tools/deploy/cloudflare/README.md),
-      # the Origin CA key and the R2 S3 credentials belong to the box, and the
-      # Access identity provider and service token stay hand-made because their
-      # client_secret would land in state as plaintext. Two tools must never own
-      # the same resource; see docs/cloudflare-terraform.md §2–§3.
-      #
-      # The Access pair is matched as `resource` blocks only: access.tf legitimately
-      # reads the service token through a *data* source, which exposes no secret.
-      #
-      # The matching is deliberately not a plain `grep` over the file. A line-based
-      # match misses a real declaration whose keyword and type label are separated
-      # by a comment -- `resource /* x */ "cloudflare_zero_trust_access_service_token"`
-      # parses as a resource block, and a `/* ... */` comment may even span lines
-      # between the two. So each file is stripped of block comments and flattened to
-      # one line first. `.tf.json` files are rejected outright for the same reason:
-      # JSON syntax is legal to Terraform and invisible to these patterns.
-      - name: Out-of-scope resources stay out of Terraform
-        run: |
-          command -v perl >/dev/null || { echo "::error::perl is required by the ownership check."; exit 1; }
-
-          if find "$TERRAFORM_DIR" -name '*.tf.json' -print -quit | grep -q .; then
-            echo "::error::Terraform in this directory is HCL only; a .tf.json file would bypass the ownership checks below."
-            exit 1
-          fi
-
-          # Fails with the file, not the line: the match runs on a flattened copy.
-          # `[[:space:]]` and not `[^"]` between the keyword and the label: the
-          # latter would let any earlier mention of the word "resource" in a
-          # comment pair up with a quoted *data* source label further down.
-          check() {
-            local pattern="$1" message="$2" file flat
-            while IFS= read -r file; do
-              flat=$(perl -0777 -pe 's{/\*.*?\*/}{ }gs' "$file" | tr '\n' ' ')
-              if printf '%s' "$flat" | grep -qE "$pattern"; then
-                echo "::error file=$file::$message"
-                return 1
-              fi
-            done < <(find "$TERRAFORM_DIR" -name '*.tf')
-          }
-
-          check 'cloudflare_(workers_|origin_ca_certificate|account_token)' \
-            'Worker uploads/routes, Origin CA, and account tokens are owned outside Terraform.' || exit 1
-          check 'resource[[:space:]]+"cloudflare_zero_trust_access_(identity_provider|service_token)"' \
-            'The Access IdP and service token are hand-made: managing them would copy a client_secret into state.' || exit 1
-      # imports.tf is an adoption-only artifact. `terraform test` runs under a
-      # mock provider, which cannot import, so committing it fails the test step
-      # above with a cryptic message. Fail here instead, and say why.
-      - name: Adoption-only import blocks stay out
-        run: |
-          if [ -e "$TERRAFORM_DIR/imports.tf" ]; then
-            echo "::error::imports.tf is needed only for the first apply and breaks terraform test. Delete it before committing."
-            exit 1
-          fi

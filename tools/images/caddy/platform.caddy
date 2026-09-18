@@ -1,0 +1,28 @@
+	# Caddy orders `handle` blocks by path specificity, so the catch-all below always loses to these.
+	handle /ai {
+		redir {$AI_PORTAL_ORIGIN:https://ai-portal.herkules.dev} 302
+	}
+	handle /auth/internal/* {
+		respond 404
+	}
+	handle /auth/* {
+		reverse_proxy auth:3001
+	}
+	handle /.well-known/* {
+		reverse_proxy auth:3001
+	}
+	import mcp/*.caddy
+	# services/web's SPA, straight off disk. Hashed filenames under /assets are immutable;
+	# index.html must be revalidated or a deploy never reaches an open tab.
+	handle {
+		root * /srv
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		# Every document, "/" included, not just the literal /index.html: try_files rewrites after
+		# headers are matched, so a path matcher on /index.html would leave "/" cacheable and a
+		# deploy would not reach an open tab.
+		@document not path /assets/*
+		header @document Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
