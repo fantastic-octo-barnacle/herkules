@@ -2,8 +2,8 @@
  * Reader post-processing of the article body. The input is round 1's SANITISED
  * HTML (content/render.ts): attribute values are entity-escaped, so `>` never
  * occurs inside a tag and a regex pass is sufficient — the SPA ships no DOM
- * parser (DESIGN.md, "Tradeoffs accepted"). Every value these passes insert is
- * escaped here, because that is the only untrusted thing they add.
+ * parser — see web/README.md §"Decisions that bind". Every value these passes
+ * insert is escaped here, because that is the only untrusted thing they add.
  */
 import type { ArticleDTO } from "../../../src/api/dto.ts";
 

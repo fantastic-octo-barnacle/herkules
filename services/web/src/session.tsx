@@ -51,7 +51,14 @@ export function useSession(): SessionState {
 
 /** Only same-origin paths are honoured as `next`, so a crafted link cannot bounce a login elsewhere. */
 export function safeNext(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
+  if (
+    !raw ||
+    !raw.startsWith("/") ||
+    raw.startsWith("//") ||
+    raw.includes("\\") ||
+    raw.split("").some((char) => char.charCodeAt(0) <= 32)
+  )
+    return "/";
   return raw;
 }
 

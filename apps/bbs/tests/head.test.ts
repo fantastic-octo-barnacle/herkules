@@ -94,7 +94,10 @@ describe("headRouteOf", () => {
       id: "01J0000000000000000000000A",
     });
     expect(headRouteOf("/kb/HPM%205361")).toEqual({ kind: "entity", id: "HPM 5361" });
-    expect(headRouteOf("/kb/%E2%82")).toBeNull(); // malformed percent-encoding
+    // `undefined`, not `null`: it IS a metadata route, but no id can match it, so
+    // the caller must answer 404 rather than serve the plain shell.
+    expect(headRouteOf("/kb/%E2%82")).toBeUndefined(); // malformed percent-encoding
+    expect(headRouteOf("/kb/%")).toBeUndefined();
     for (const p of ["/", "/articles", "/articles/a/b", "/kb", "/search", "/api/articles/x"]) {
       expect(headRouteOf(p)).toBeNull();
     }

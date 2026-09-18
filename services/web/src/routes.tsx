@@ -21,6 +21,7 @@ import { Empty } from "./layout.tsx";
 import { Notice } from "./notices.tsx";
 import { ConsentPage } from "./pages/Consent.tsx";
 import { HomePage } from "./pages/Home.tsx";
+import { ConnectGithubPage } from "./pages/ConnectGithub.tsx";
 import { LoginPage } from "./pages/Login.tsx";
 import { sessionQuery, useSession } from "./session.tsx";
 import { Shell } from "./shell.tsx";
@@ -96,6 +97,12 @@ export const authedRoute = createRoute({
 });
 const authed = () => authedRoute;
 
+export const connectGithubRoute = createRoute({
+  getParentRoute: authed,
+  path: "/connect-github",
+  component: ConnectGithubPage,
+});
+
 export const settingsRoute = createRoute({
   getParentRoute: authed,
   path: "/settings",
@@ -158,6 +165,7 @@ export const routeTree = rootRoute.addChildren([
     homeRoute,
     authedRoute.addChildren([
       settingsRoute,
+      connectGithubRoute,
       devTokenRoute,
       devTokenCallbackRoute,
       adminRoute.addChildren([adminUsersRoute, adminAllowlistRoute, adminAuditRoute]),

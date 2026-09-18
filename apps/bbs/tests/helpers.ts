@@ -19,11 +19,12 @@
  *   wrong-audience 401; head injection against a fixture index.html; the renderer's
  *   adversarial cases.
  *   Real Postgres, opt-in via BBS_TEST_DATABASE_URL (`describe.skipIf`) — only what
- *   PGlite cannot answer: EXPLAIN uses `article_search_document_trgm` and
- *   `articles_feed_idx`; postgres.js type parsers agree with `canonical()`.
- *   Neither — a script, `vp run relevance`: the 20-query golden set against a dump
- *   named by BBS_GOLDEN_DB (the corpus is not checked in; a permanently skipped
- *   test would rot).
+ *   PGlite cannot answer: the bot's dedicated advisory lock and its serialization
+ *   of competing quota assignment (tests/bot.test.ts). The crawler's equivalent
+ *   lock is not covered yet. There is no EXPLAIN/index-usage check and no
+ *   relevance harness: the golden set was retired, and the corpus is not checked
+ *   in, so neither could run in CI. Search quality is asserted by the ranked
+ *   assertions in tests/search.test.ts instead.
  *
  * THREE HARNESSES, smallest first:
  *   fakeLibrary()     a hand-rolled `Library` with two articles — presenters, routes, head injection.

@@ -7,7 +7,6 @@
  */
 import type { Actor, Audit, AuditEvent, AuditPage, AuditType } from "./audit.ts";
 import { decodeCursor, encodeCursor } from "./audit.ts";
-import type { Auth } from "./auth.ts";
 import type { AuthDb, UserRow } from "./db/index.ts";
 import type { AdmittedVia } from "./gate.ts";
 
@@ -79,6 +78,7 @@ export interface Users {
   directory(): Promise<readonly UserInfo[]>;
 
   /** The caller's own connected clients (settings page). */
+  finishIdentitySetup(userId: string): Promise<void>;
   connectedClients(userId: string): Promise<readonly ConnectedClient[]>;
 
   /**
@@ -107,6 +107,16 @@ export interface Users {
   /** Kill browser sessions only (IDE refresh tokens survive). For "log them out everywhere" use setDisabled. */
   revokeSessions(actor: Actor, userId: string): Promise<{ readonly count: number }>;
 
+  feishuAllowlist(): Promise<
+    readonly (typeof import("./db/schema.ts").feishuAllowlist.$inferSelect)[]
+  >;
+  feishuAllowlistAdd(
+    actor: Actor,
+    tenantKey: string,
+    openId: string,
+    note?: string,
+  ): Promise<Mutation>;
+  feishuAllowlistRemove(actor: Actor, tenantKey: string, openId: string): Promise<Mutation>;
   allowlist(): Promise<readonly AllowlistEntry[]>;
   allowlistAdd(actor: Actor, githubLogin: string, note?: string): Promise<Mutation>;
   allowlistRemove(actor: Actor, githubLogin: string): Promise<Mutation>;
@@ -133,8 +143,6 @@ export interface Users {
 export interface UsersDeps {
   readonly db: AuthDb;
   readonly audit: Audit;
-  /** Unused today; reserved for operations that must go through Better Auth's own API. */
-  readonly auth?: Auth;
   readonly avatarUrlFor: (userId: string) => string;
   readonly refreshAvatar: (userId: string) => Promise<void>;
   readonly adminGithubLogins: readonly string[];
@@ -153,7 +161,7 @@ export function createUsers(deps: UsersDeps): Users {
     id: u.id,
     displayName: u.name,
     avatarUrl: avatarUrlFor(u.id),
-    githubId: u.githubId,
+    githubId: u.githubId ?? "",
   });
   /** Display role: a row without a valid role is shown as member; tokens still use the strict roleOf. */
   const displayRole = (u: UserRow): Role => (u.role === "admin" ? "admin" : "member");
@@ -193,6 +201,7 @@ export function createUsers(deps: UsersDeps): Users {
         .sort((x, y) => x.displayName.localeCompare(y.displayName) || x.id.localeCompare(y.id));
     },
 
+    finishIdentitySetup: (userId) => db.users.update(userId, { githubConnectionOffered: true }),
     async connectedClients(userId) {
       const [consents, lastByClient] = await Promise.all([
         db.consents.listFor(userId),
@@ -232,7 +241,7 @@ export function createUsers(deps: UsersDeps): Users {
       ]);
       const rows = users.map((u): AdminUserRow => ({
         ...infoOf(u),
-        githubLogin: u.githubLogin,
+        githubLogin: u.githubLogin ?? "",
         role: displayRole(u),
         disabled: u.banned,
         admittedVia: u.admittedVia,
@@ -274,6 +283,8 @@ export function createUsers(deps: UsersDeps): Users {
           throw new UsersError(403, "self_disable", "cannot disable yourself");
         }
         const u = await mustLock(tx, userId);
+        if (u.mergedInto && !disabled)
+          throw new UsersError(409, "account_merged", "A merged account cannot be re-enabled.");
         if (u.banned === disabled) return undefined;
         if (disabled) {
           if (displayRole(u) === "admin" && (await tx.users.countActiveAdmins()) <= 1) {
@@ -309,6 +320,34 @@ export function createUsers(deps: UsersDeps): Users {
       return { count };
     },
 
+    feishuAllowlist: () => db.feishuAllowlist.list(),
+    feishuAllowlistAdd: (actor, tenantKey, openId, note) =>
+      audited(async (tx) => {
+        if (![tenantKey, openId].every((id) => /^[A-Za-z0-9_-]{1,128}$/.test(id)))
+          throw new UsersError(
+            409,
+            "invalid_feishu_identity",
+            "Enter a Feishu tenant key and app-scoped open ID.",
+          );
+        const addedBy = actor.kind === "user" ? actor.userId : `system:${actor.job}`;
+        const added = await tx.feishuAllowlist.add(tenantKey, openId, note ?? null, addedBy);
+        return added
+          ? {
+              type: "admin.feishu_allowlist_added",
+              actor,
+              tenantKey,
+              openId,
+              ...(note ? { note } : {}),
+            }
+          : undefined;
+      }),
+    feishuAllowlistRemove: (actor, tenantKey, openId) =>
+      audited(async (tx) => {
+        const removed = await tx.feishuAllowlist.remove(tenantKey, openId);
+        return removed
+          ? { type: "admin.feishu_allowlist_removed", actor, tenantKey, openId }
+          : undefined;
+      }),
     allowlist: () => db.allowlist.list(),
     allowlistAdd: (actor, githubLogin, note) =>
       audited(async (tx) => {
@@ -341,7 +380,7 @@ export function createUsers(deps: UsersDeps): Users {
           const u = await mustLock(tx, row.id);
           if (u.role === "admin") return undefined;
           await tx.users.update(u.id, { role: "admin" });
-          return { type: "admin.seeded", userId: u.id, githubLogin: u.githubLogin };
+          return { type: "admin.seeded", userId: u.id, githubLogin: u.githubLogin ?? "" };
         });
       }
     },

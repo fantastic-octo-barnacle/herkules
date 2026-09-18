@@ -101,6 +101,8 @@ test("gateUserRowOf", () => {
   ).toEqual({
     id: "u",
     githubLogin: "a",
+    feishuTenantKey: null,
+    feishuOpenId: null,
     banned: false,
     admittedVia: "org",
     gateCheckedAt: 5,

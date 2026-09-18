@@ -81,7 +81,7 @@ describe("Cloudflare Access", () => {
       },
     );
     expect(payload).toMatchObject({
-      email: "7+alice@users.noreply.github.com",
+      email: "alice@example.com",
       email_verified: true,
       nonce: "nonce",
     });

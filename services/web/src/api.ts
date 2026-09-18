@@ -24,8 +24,10 @@ export interface SessionUser {
   readonly email: string;
   readonly image: string | null;
   readonly role?: string | null;
-  readonly githubLogin: string;
-  readonly githubId: string;
+  readonly githubLogin?: string | null;
+  readonly githubId?: string | null;
+  readonly feishuTenantKey?: string | null;
+  readonly feishuOpenId?: string | null;
   readonly createdAt: string;
 }
 export interface Session {
@@ -43,7 +45,14 @@ export interface AdminUserRow extends Member {
   readonly githubLogin: string;
   readonly role: Role;
   readonly disabled: boolean;
-  readonly admittedVia: "admin" | "allowlist" | "org" | "org-stale" | null;
+  readonly admittedVia:
+    | "admin"
+    | "allowlist"
+    | "org"
+    | "org-stale"
+    | "feishu-tenant"
+    | "feishu-allowlist"
+    | null;
   readonly createdAt: string;
   readonly lastLoginAt: string | null;
   readonly connectedClients: number;
@@ -54,6 +63,13 @@ export interface ConnectedClient {
   readonly resources: readonly string[];
   readonly consentedAt: string;
   readonly lastTokenAt: string | null;
+}
+export interface FeishuAllowlistEntry {
+  readonly tenantKey: string;
+  readonly openId: string;
+  readonly note: string | null;
+  readonly addedBy: string;
+  readonly addedAt: string;
 }
 export interface AllowlistEntry {
   readonly githubLogin: string;
@@ -153,14 +169,12 @@ export function createApi(fetchImpl: Fetch = (...args) => globalThis.fetch(...ar
       if (
         !isRecord(value) ||
         !isRecord(value.user) ||
-        !stringFields(value.user, [
-          "id",
-          "name",
-          "email",
-          "githubLogin",
-          "githubId",
-          "createdAt",
-        ]) ||
+        !stringFields(value.user, ["id", "name", "email", "createdAt"]) ||
+        !["githubLogin", "githubId", "feishuTenantKey", "feishuOpenId"].every(
+          (field) =>
+            (value.user as Record<string, unknown>)[field] == null ||
+            typeof (value.user as Record<string, unknown>)[field] === "string",
+        ) ||
         !(value.user.image === null || typeof value.user.image === "string") ||
         !(
           value.user.role === undefined ||
@@ -180,6 +194,36 @@ export function createApi(fetchImpl: Fetch = (...args) => globalThis.fetch(...ar
         provider: "github",
         callbackURL,
         ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
+      }),
+    loginOptions: () => get<{ feishu: boolean; github: boolean }>("/auth/login-options"),
+    signInWithFeishu: (callbackURL: string, oauthQuery?: string) =>
+      send<{ url: string }>("POST", "/auth/sign-in/social", {
+        provider: "feishu",
+        callbackURL,
+        ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
+      }),
+    linkIdentity: (provider: "github" | "feishu", callbackURL: string) =>
+      send<{ url: string }>("POST", "/auth/link-social", {
+        provider,
+        callbackURL,
+        errorCallbackURL: callbackURL,
+      }),
+    previewIdentityMerge: () =>
+      get<{
+        id: string;
+        expiresAt: string;
+        retainedAccount: { id: string; name: string };
+        githubLogin: string;
+        feishuName: string;
+      }>("/auth/identity-merge"),
+    confirmIdentityMerge: (id: string) =>
+      send<{ ok: boolean }>("POST", "/auth/identity-merge", { id }),
+    cancelIdentityMerge: () => send<{ ok: boolean }>("DELETE", "/auth/identity-merge"),
+    finishIdentitySetup: () => send<{ ok: boolean }>("POST", "/auth/api/me/identity-setup", {}),
+    continueLogin: (oauthQuery: string) =>
+      send<{ url?: string; redirect_uri?: string }>("POST", "/auth/oauth2/continue", {
+        postLogin: true,
+        oauth_query: oauthQuery,
       }),
     signOut: () => send<unknown>("POST", "/auth/sign-out", {}),
 
@@ -217,6 +261,21 @@ export function createApi(fetchImpl: Fetch = (...args) => globalThis.fetch(...ar
       send<Mutation>("DELETE", `/auth/api/me/clients/${encodeURIComponent(clientId)}`),
 
     admin: {
+      feishuAllowlist: () =>
+        get<{ entries: FeishuAllowlistEntry[] }>("/auth/api/admin/feishu-allowlist").then(
+          (r) => r.entries,
+        ),
+      feishuAllowlistAdd: (tenantKey: string, openId: string, note?: string) =>
+        send<Mutation>(
+          "PUT",
+          `/auth/api/admin/feishu-allowlist/${encodeURIComponent(tenantKey)}/${encodeURIComponent(openId)}`,
+          note ? { note } : {},
+        ),
+      feishuAllowlistRemove: (tenantKey: string, openId: string) =>
+        send<Mutation>(
+          "DELETE",
+          `/auth/api/admin/feishu-allowlist/${encodeURIComponent(tenantKey)}/${encodeURIComponent(openId)}`,
+        ),
       users: (q: { search?: string; cursor?: string; limit?: number } = {}) =>
         get<Page<AdminUserRow>>(`/auth/api/admin/users?${params(q)}`),
       setRole: (id: string, role: Role) =>

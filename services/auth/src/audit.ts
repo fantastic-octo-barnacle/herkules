@@ -22,6 +22,34 @@ export type Actor =
   | { readonly kind: "system"; readonly job: string };
 
 export type AuditEvent =
+  | { readonly type: "identity.application_used"; readonly userId: string }
+  | {
+      readonly type: "identity.merged";
+      readonly actor: Actor;
+      readonly userId: string;
+      readonly previousUserId: string;
+    }
+  | {
+      readonly type: "identity.connected";
+      readonly userId: string;
+      readonly provider: string;
+      readonly accountId: string;
+    }
+  | {
+      readonly type: "feishu.rejected";
+      readonly tenantKey?: string;
+      readonly openId?: string;
+      readonly userId?: string;
+      readonly reason: string;
+      readonly phase: GatePhase;
+    }
+  | {
+      readonly type: "admin.feishu_allowlist_added" | "admin.feishu_allowlist_removed";
+      readonly actor: Actor;
+      readonly tenantKey: string;
+      readonly openId: string;
+      readonly note?: string;
+    }
   | { readonly type: "login"; readonly userId: string; readonly via: AdmittedVia }
   | {
       readonly type: "gate.rejected";
@@ -178,11 +206,23 @@ export function encodeCursor(at: Date, id: string): string {
   return Buffer.from(`${at.toISOString()}|${id}`).toString("base64url");
 }
 
+/**
+ * A cursor a client sent that this service cannot parse. That is a client error,
+ * not a server one: `app.ts` maps it to 400. Extends `TypeError` so the
+ * `decodeCursor` contract (and its existing test) is unchanged.
+ */
+export class CursorError extends TypeError {
+  constructor(message: string) {
+    super(message);
+    this.name = "CursorError";
+  }
+}
+
 export function decodeCursor(cursor: string | undefined): { at: Date; id: string } | undefined {
   if (!cursor) return undefined;
   const [iso, id] = Buffer.from(cursor, "base64url").toString().split("|");
   const at = new Date(iso ?? "");
-  if (!id || Number.isNaN(at.getTime())) throw new TypeError("invalid cursor");
+  if (!id || Number.isNaN(at.getTime())) throw new CursorError("invalid cursor");
   return { at, id };
 }
 

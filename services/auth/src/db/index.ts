@@ -37,9 +37,14 @@ export type Drizzle = PgDatabase<PgQueryResultHKT, typeof schema>;
 export interface UserRow {
   readonly id: string;
   readonly name: string;
+  readonly email: string;
+  readonly emailVerified: boolean;
+  readonly mergedInto: string | null;
   readonly image: string | null;
-  readonly githubId: string;
-  readonly githubLogin: string;
+  readonly githubId: string | null;
+  readonly githubLogin: string | null;
+  readonly feishuTenantKey: string | null;
+  readonly feishuOpenId: string | null;
   readonly role: string | null;
   readonly banned: boolean;
   readonly admittedVia: AdmittedVia | null;
@@ -92,6 +97,7 @@ export interface AuthQueries {
   readonly users: {
     byId(userId: string): Promise<UserRow | undefined>;
     byIds(userIds: readonly string[]): Promise<readonly UserRow[]>;
+    byFeishu(tenantKey: string, openId: string): Promise<UserRow | undefined>;
     byGithubId(githubId: string): Promise<UserRow | undefined>;
     byLogin(githubLogin: string): Promise<UserRow | undefined>;
     imageOf(userId: string): Promise<string | null>;
@@ -102,6 +108,15 @@ export interface AuthQueries {
     update(
       userId: string,
       patch: {
+        githubConnectionOffered?: boolean;
+        feishuTenantKey?: string;
+        feishuOpenId?: string;
+        githubId?: string;
+        githubLogin?: string;
+        email?: string;
+        emailVerified?: boolean;
+        name?: string;
+        image?: string | null;
         role?: string;
         banned?: boolean;
         banReason?: string | null;
@@ -117,6 +132,7 @@ export interface AuthQueries {
     }): Promise<readonly UserRow[]>;
   };
   readonly accounts: {
+    feishuAccountId(userId: string): Promise<string | undefined>;
     /** account.accessToken for providerId "github"; null when the row is missing. */
     githubAccessToken(userId: string): Promise<string | null>;
   };
@@ -151,6 +167,12 @@ export interface AuthQueries {
     update(clientId: string, patch: ClientPatch): Promise<void>;
     /** Delete clients created before `olderThan` that own no consent and no live refresh token; never the `keep` ids or user-owned rows. */
     deleteIdle(olderThan: Date, keep: readonly string[]): Promise<readonly string[]>;
+  };
+  readonly feishuAllowlist: {
+    has(tenantKey: string, openId: string): Promise<boolean>;
+    list(): Promise<readonly (typeof schema.feishuAllowlist.$inferSelect)[]>;
+    add(tenantKey: string, openId: string, note: string | null, addedBy: string): Promise<boolean>;
+    remove(tenantKey: string, openId: string): Promise<boolean>;
   };
   readonly allowlist: {
     has(githubLogin: string): Promise<boolean>;
@@ -192,7 +214,12 @@ const {
 const USER_COLUMNS = {
   id: user.id,
   name: user.name,
+  email: user.email,
+  emailVerified: user.emailVerified,
+  mergedInto: user.mergedInto,
   image: user.image,
+  feishuTenantKey: user.feishuTenantKey,
+  feishuOpenId: user.feishuOpenId,
   githubId: user.githubId,
   githubLogin: user.githubLogin,
   role: user.role,
@@ -205,9 +232,14 @@ const USER_COLUMNS = {
 function toUserRow(r: {
   id: string;
   name: string;
+  email: string;
+  emailVerified: boolean;
+  mergedInto: string | null;
   image: string | null;
-  githubId: string;
-  githubLogin: string;
+  githubId: string | null;
+  githubLogin: string | null;
+  feishuTenantKey: string | null;
+  feishuOpenId: string | null;
   role: string | null;
   banned: boolean | null;
   admittedVia: string | null;
@@ -232,6 +264,8 @@ function queries(d: Drizzle): AuthQueries {
                 .from(user)
                 .where(inArray(user.id, [...ids]))
             ).map(toUserRow),
+      byFeishu: (tenant, openId) =>
+        oneUser(and(eq(user.feishuTenantKey, tenant), eq(user.feishuOpenId, openId))!),
       byGithubId: (githubId) => oneUser(eq(user.githubId, githubId)),
       byLogin: (login) => oneUser(sql`lower(${user.githubLogin}) = ${login.toLowerCase()}`),
       imageOf: async (id) =>
@@ -290,6 +324,14 @@ function queries(d: Drizzle): AuthQueries {
       },
     },
     accounts: {
+      feishuAccountId: async (userId) =>
+        (
+          await d
+            .select({ id: account.id })
+            .from(account)
+            .where(and(eq(account.userId, userId), eq(account.providerId, "feishu")))
+            .limit(1)
+        )[0]?.id,
       githubAccessToken: async (userId) =>
         (
           await d
@@ -470,6 +512,43 @@ function queries(d: Drizzle): AuthQueries {
           .returning({ clientId: oauthClient.clientId });
         return rows.map((r) => r.clientId);
       },
+    },
+    feishuAllowlist: {
+      has: async (tenantKey, openId) =>
+        (
+          await d
+            .select({ id: schema.feishuAllowlist.openId })
+            .from(schema.feishuAllowlist)
+            .where(
+              and(
+                eq(schema.feishuAllowlist.tenantKey, tenantKey),
+                eq(schema.feishuAllowlist.openId, openId),
+              ),
+            )
+            .limit(1)
+        ).length > 0,
+      list: () =>
+        d.select().from(schema.feishuAllowlist).orderBy(asc(schema.feishuAllowlist.addedAt)),
+      add: async (tenantKey, openId, note, addedBy) =>
+        (
+          await d
+            .insert(schema.feishuAllowlist)
+            .values({ tenantKey, openId, note, addedBy })
+            .onConflictDoNothing()
+            .returning()
+        ).length > 0,
+      remove: async (tenantKey, openId) =>
+        (
+          await d
+            .delete(schema.feishuAllowlist)
+            .where(
+              and(
+                eq(schema.feishuAllowlist.tenantKey, tenantKey),
+                eq(schema.feishuAllowlist.openId, openId),
+              ),
+            )
+            .returning()
+        ).length > 0,
     },
     allowlist: {
       has: async (login) =>
