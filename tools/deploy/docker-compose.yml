@@ -21,6 +21,7 @@ services:
       STATUS_HOST: ${STATUS_HOST:-status.localhost}
       OPS_HOST: ${OPS_HOST:-ops.localhost}
       LARKSTACK_HOST: ${LARKSTACK_HOST:-lark.localhost}
+      LARKAI_HOST: ${LARKAI_HOST:-dashboard.herkules.dev}
     volumes:
       - ${DEPLOY_CONFIG_DIR:-.}/Caddyfile:/etc/caddy/Caddyfile:ro
       - ${DEPLOY_CONFIG_DIR:-.}/caddy/services:/etc/caddy/services:ro

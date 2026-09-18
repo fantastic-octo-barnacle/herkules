@@ -35,3 +35,8 @@ output "dnssec_ds" {
   description = "The DS record Cloudflare expects at the registrar. Compare against the registrar's DNSSEC page after any key change."
   value       = cloudflare_zone_dnssec.this.ds
 }
+
+output "dashboard_access_aud" {
+  description = "LarkAI origin JWT audience (CF_ACCESS_AUD)."
+  value       = cloudflare_zero_trust_access_application.dashboard.aud
+}
