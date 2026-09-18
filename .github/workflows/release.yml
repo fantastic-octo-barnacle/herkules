@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 30
     # Callers gate on CI, the image build and the deploy decision; production scripts must
     # still come from main.
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment:
       name: production
