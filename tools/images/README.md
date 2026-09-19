@@ -1,9 +1,8 @@
 # Application image contract
 
-The root Dockerfile publishes `auth`, `bbs`, `ai` and `platform`. CI builds
-all four in one shared BuildKit graph when image inputs change (or on a manual run),
-alongside the checks, then emits the
-`application` artifact only after every check passes.
+The root Dockerfile publishes `auth`, `bbs`, `ai` and `platform`. After all checks
+pass, CI builds all four in one shared BuildKit graph when image inputs change
+(or on a manual run), then emits the `application` artifact.
 Production promotion is a separate reviewed change in `herkules-infra`.
 
 `platform` is an artifact-only image: `/srv` contains the built frontend and `/caddy`
