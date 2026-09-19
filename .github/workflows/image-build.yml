@@ -1,5 +1,5 @@
 name: Image build
-# Application artifacts only; shared BuildKit graph runs alongside CI checks.
+# Application artifacts only; shared BuildKit graph runs after successful CI checks.
 on:
   workflow_call:
 permissions:

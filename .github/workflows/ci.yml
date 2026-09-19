@@ -34,7 +34,7 @@ jobs:
           fi
 
   images:
-    needs: changes
+    needs: [changes, ready, new-api, secrets]
     if: needs.changes.outputs.images == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     permissions:
       actions: read
