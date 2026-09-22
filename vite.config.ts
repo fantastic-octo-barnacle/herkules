@@ -22,12 +22,13 @@ export default defineConfig({
   run: {
     cache: true,
     tasks: {
-      // The whole local stack without Docker, four processes at once:
+      // The whole local stack without Docker, five processes at once:
       //   :3000  services/web   the PUBLIC origin; its Vite server proxies /auth and /.well-known
       //                         to :3001 and /mcp/bbs to bbs
       //   :3001  services/auth  the authorization server (PGlite, no postgres needed)
       //   :3003  apps/bbs SPA   bbs's APP origin; proxies /api, /login, /callback, /logout,
       //                         /healthz and /mcp to :3103
+      //   :3004  apps/training VitePress course site
       //   :3103  apps/bbs Hono  the API, MCP and SPA host
       //
       // First run, once per checkout: copy each package's .env.example to .env
@@ -36,11 +37,11 @@ export default defineConfig({
       // `vp run @herkules/bbs#import <path>/app.db`. The import is deliberately NOT part of this
       // task: it truncates the corpus, so it must stay something you type on purpose.
       //
-      // Ctrl-C reaches all four: they share the task's process group. `wait` keeps the task
+      // Ctrl-C reaches all five: they share the task's process group. `wait` keeps the task
       // alive until the last one exits, so one crash does not silently take the others with it.
       dev: {
         command:
-          "vp run @herkules/auth#dev & vp run @herkules/web#dev & vp run @herkules/bbs#dev & vp run @herkules/bbs#dev:web & wait",
+          "vp run @herkules/auth#dev & vp run @herkules/web#dev & vp run @herkules/bbs#dev & vp run @herkules/bbs#dev:web & vp run @herkules/training#dev & wait",
         cache: false,
       },
     },

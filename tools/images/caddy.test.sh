@@ -11,6 +11,9 @@ http://platform.test {
 http://bbs.test {
  import /routes/bbs.caddy
 }
+http://training.test {
+ import /routes/training.caddy
+}
 http://ai.test {
  import /routes/ai.caddy
 }
@@ -21,7 +24,7 @@ python3 - "$work/config.json" <<'PY'
 import json, sys
 config = json.load(open(sys.argv[1]))
 encoded = json.dumps(config)
-for value in ['/auth/internal/*', '/auth/*', '/.well-known/*', '/mcp/bbs*', 'auth:3001', 'bbs:3003', 'inference:4010']:
+for value in ['/auth/internal/*', '/auth/*', '/.well-known/*', '/mcp/bbs*', 'auth:3001', 'bbs:3003', 'inference:4010', '/srv/training']:
     assert value in encoded, value
 # The internal route must still reject requests; imports must not lose that guard.
 def visit(value):
@@ -33,3 +36,5 @@ def visit(value):
 assert any(v.get('handler') == 'static_response' and v.get('status_code') == 404 for v in visit(config))
 PY
 echo 'Application Caddy fragments passed'
+
+sh "$root/tools/images/training.test.sh"

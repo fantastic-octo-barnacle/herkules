@@ -33,6 +33,7 @@ export function selectImageTargets(paths, { all = false } = {}) {
     )
       add("ai");
     if (isBuildInput(path, "services/web", ["src", "public"])) add("platform");
+    if (isBuildInput(path, "apps/training", ["docs", "src"])) add("platform");
     if (isBuildInput(path, "apps/bbs", ["src", "drizzle", "web/src", "web/public"])) add("bbs");
     if (isBuildInput(path, "packages/auth-middleware", ["src"])) add("auth", "bbs");
     if (isBuildInput(path, "packages/oauth-client", ["src"])) add("bbs");

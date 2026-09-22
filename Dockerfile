@@ -93,5 +93,6 @@ ENTRYPOINT ["node", "dist/main.mjs"]
 # Static platform artifact consumed by herkules-infra; never run as a service.
 FROM scratch AS platform
 COPY --from=build /app/services/web/dist /srv
+COPY --from=build /app/apps/training/dist /srv/training
 COPY tools/images/caddy /caddy
 CMD ["/artifact-only"]

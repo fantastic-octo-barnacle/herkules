@@ -1,0 +1,225 @@
+:root {
+  --vp-c-brand-1: #147d64;
+  --vp-c-brand-2: #169575;
+  --vp-c-brand-3: #147d64;
+  --vp-c-brand-soft: #147d6414;
+  --vp-font-family-base: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --vp-layout-max-width: 1480px;
+}
+.dark {
+  --vp-c-brand-1: #51d5ae;
+  --vp-c-brand-2: #39bd97;
+  --vp-c-brand-3: #147d64;
+}
+.VPDoc.has-aside .content-container {
+  max-width: 880px !important;
+}
+.lab {
+  margin: 28px 0;
+  padding: 24px;
+  border: 1px solid var(--vp-c-divider);
+  border-top: 3px solid var(--vp-c-brand-1);
+  border-radius: 8px;
+  background: var(--vp-c-bg);
+}
+.lab-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.lab-caption {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--vp-c-text-2);
+}
+.lab-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vp-c-text-1) !important;
+  background: var(--vp-c-bg-soft);
+  font-weight: 500;
+  text-decoration: none !important;
+  cursor: pointer;
+}
+.lab-button:hover {
+  border-color: var(--vp-c-brand-1);
+}
+.lab-button:focus-visible,
+.lab input:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 3px;
+}
+.lab-button.primary {
+  background: var(--vp-c-brand-3);
+  color: white !important;
+  border-color: transparent;
+}
+.lab-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.lab-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 24px;
+}
+.lab-control {
+  font-size: 14px;
+}
+.lab-control span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.lab-control output {
+  font-variant-numeric: tabular-nums;
+  color: var(--vp-c-brand-1);
+  font-weight: 600;
+}
+.lab-control input {
+  width: 100%;
+  accent-color: var(--vp-c-brand-1);
+  margin-top: 10px;
+}
+.lab-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.lab-checkbox input {
+  accent-color: var(--vp-c-brand-1);
+}
+.lab-chart {
+  width: 100%;
+  min-width: 0;
+  margin: 28px 0 12px;
+  min-height: 350px;
+}
+.lab-chart .u-legend {
+  font-size: 14px;
+}
+.lab-chart table {
+  display: table;
+  margin: 0 auto;
+}
+.lab-chart tr {
+  background: transparent !important;
+  border: none !important;
+}
+.lab-chart td,
+.lab-chart th {
+  border: none;
+  padding: 2px 4px;
+}
+.lab-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  border-top: 1px solid var(--vp-c-divider);
+  padding-top: 20px;
+  margin: 20px 0 0;
+}
+.lab-metrics dt {
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+}
+.lab-metrics dd {
+  margin: 6px 0 0;
+  font-size: 25px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+.lab-metrics small {
+  font-size: 14px;
+}
+.lab-note {
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+  line-height: 1.7;
+}
+.lab-actions {
+  margin-top: 20px;
+}
+.lab-actions .lab-note {
+  flex: 1 1 260px;
+}
+.rust-editor {
+  margin-top: 20px;
+  text-align: left;
+}
+.rust-fallback {
+  width: 100%;
+  min-height: 460px;
+  margin-top: 20px;
+  padding: 12px;
+  font: 14px/1.6 var(--vp-font-family-mono);
+  border: 1px solid var(--vp-c-divider);
+}
+.course-lead {
+  font-size: 20px;
+  line-height: 1.7;
+  color: var(--vp-c-text-2);
+  max-width: 650px;
+}
+.course-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 32px 0;
+}
+.course-card {
+  display: block;
+  padding: 24px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  text-decoration: none !important;
+  color: var(--vp-c-text-1) !important;
+}
+.course-card:hover {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+}
+.course-card strong {
+  display: block;
+  margin: 12px 0;
+  font-size: 23px;
+}
+.course-card span {
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+}
+@media (max-width: 640px) {
+  .lab {
+    padding: 16px 12px;
+    margin-inline: -8px;
+  }
+  .lab-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .lab-metrics {
+    gap: 10px;
+  }
+  .lab-metrics dd {
+    font-size: 19px;
+  }
+  .lab-metrics dt {
+    font-size: 14px;
+  }
+  .course-grid {
+    grid-template-columns: 1fr;
+  }
+}
