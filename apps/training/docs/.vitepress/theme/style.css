@@ -223,3 +223,29 @@
     grid-template-columns: 1fr;
   }
 }
+
+.gimbal-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(180px, 1fr);
+  gap: 24px;
+  align-items: center;
+  margin-top: 24px;
+  background: var(--vp-c-bg-soft);
+  border-radius: 8px;
+  padding: 16px;
+}
+.gimbal-view {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.gimbal-controls .lab-control {
+  margin: 14px 0;
+}
+@media (max-width: 640px) {
+  .gimbal-panel {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 12px;
+  }
+}

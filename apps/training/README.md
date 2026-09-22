@@ -36,8 +36,8 @@ The root Vite+ lint/type checks remain enabled.
 ## Current demos
 
 The PID lab uses a deterministic TypeScript reference simulation in a Web Worker:
-5 ms fixed integration, 12 s horizon, second-order plant, actuator limits,
-conditional-integration anti-windup and a load step. Plotting uses uPlot. Values
+5 ms fixed integration, continuous live execution with a bounded 12 s rolling history, independent yaw/pitch dynamics, actuator torque limits,
+conditional-integration anti-windup and continuous pitch gravity (mgl cos θ). Plotting uses uPlot. Values
 are explicitly bounded. The Rust firmware PID crate is not yet imported or
 compiled to WASM; this teaching model is not firmware-equivalent.
 
@@ -64,7 +64,7 @@ user dependency manifests. WASI execution needs explicit resource budgets too.
 Do not point this public UI at an unrestricted shell or a Docker socket.
 
 A future Rust/WASM implementation can replace the simulation worker behind its
-`{ id, parameters }` → `{ id, result | error }` message contract. First add parity
+`parameters` / `running` / `reset` commands and `{ history, current, running }` snapshots. First add parity
 checks against the fixed-step reference and pin the firmware crate revision.
 
 ## Delivery
@@ -77,3 +77,5 @@ database or secrets. Training is served by Caddy, not the platform asset Worker.
 Publish the application artifact, select its immutable manifest in infrastructure,
 then deploy the matching infrastructure change. Older platform artifacts do not
 have the required route fragment; Caddy validation intentionally rejects them.
+
+The PID lab includes a dependency-free SVG isometric gimbal: just two solid rods, a vertical blue yaw post and a green pitch arm extending forward from its top. Actual yaw/pitch angles from separate PID states drive the solid model and degree-valued graph. The payload mass is 1 kg, its center-of-mass offset is 0.3 m, both modeled inertias are 1 kg·m², and damping is 1.2 N·m·s/rad. Gravity acts on pitch from t=0; there is no timed load step or spring. The axes share tuning gains but do not simulate inertia coupling or mechanical stops. A gravity arrow and target marker explain the motion. The simulation starts live. Parameter changes preserve position, velocity, integral state, time, and history. Pause freezes state; reset explicitly clears state/history while retaining tuning. Background timer throttling slows simulation time; catch-up per tick is capped at 100 ms. Current errors and pitch torque replace finite-run summary metrics. History is capped at 601 samples.

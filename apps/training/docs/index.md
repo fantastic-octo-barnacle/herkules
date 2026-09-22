@@ -10,7 +10,7 @@ aside: false
 <p class="course-lead">改变参数，观察响应，再用代码实现它。面向机器人开发的控制与编程实验。</p>
 
 <div class="course-grid">
-<a class="course-card" href="/labs/pid"><span>01 · 控制基础 / 约 10 分钟</span><strong>给系统一点反馈</strong><p>拖动 PID 参数，观察超调、振荡与负载扰动。让曲线解释控制器。</p><span>打开 PID 实验 →</span></a>
+<a class="course-card" href="/labs/pid"><span>01 · 控制基础 / 约 10 分钟</span><strong>给系统一点反馈</strong><p>拖动 PID 参数，观察超调、振荡与重力下垂。让曲线解释控制器。</p><span>打开 PID 实验 →</span></a>
 <a class="course-card" href="/labs/rust"><span>02 · Rust 入门 / 约 10 分钟</span><strong>写下第一个控制器</strong><p>修改比例控制器，用编译器和测试检查你的想法。</p><span>打开 Rust 实验 →</span></a>
 </div>
 
