@@ -249,3 +249,21 @@
     padding: 12px;
   }
 }
+
+.agent-panel {
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  font-size: 14px;
+}
+.agent-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.agent-panel input {
+  padding: 8px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 4px;
+  width: 100%;
+}

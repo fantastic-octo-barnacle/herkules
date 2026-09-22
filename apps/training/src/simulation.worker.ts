@@ -15,10 +15,11 @@ let history: Sample[] = [sampleState(state, parameters)];
 let previous = performance.now();
 let accumulator = 0;
 let steps = 0;
-const publish = () =>
-  self.postMessage({ history, current: sampleState(state, parameters), running });
+const publish = (commandId?: string) =>
+  self.postMessage({ commandId, history, current: sampleState(state, parameters), running });
 self.onmessage = (
   event: MessageEvent<{
+    commandId?: string;
     type: "parameters" | "running" | "reset";
     parameters?: PidParameters;
     running?: boolean;
@@ -39,9 +40,9 @@ self.onmessage = (
       history = [sampleState(state, parameters)];
       previous = performance.now();
     }
-    publish();
+    publish(message.commandId);
   } catch {
-    self.postMessage({ error: "参数无效，请重试。" });
+    self.postMessage({ commandId: event.data.commandId, error: "参数无效，请重试。" });
   }
 };
 setInterval(() => {

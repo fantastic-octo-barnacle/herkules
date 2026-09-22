@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, reactive, ref, watch } from "vue";
-import { defaults, presets, type Sample } from "../../../../src/simulation";
+import { onMounted, onBeforeUnmount, reactive, ref, watch, computed, nextTick } from "vue";
+import {
+  defaults,
+  presets,
+  bounds,
+  validateParameters,
+  type Sample,
+} from "../../../../src/simulation";
+import AgentBridge from "./AgentBridge.vue";
 import GimbalView from "./GimbalView.vue";
 import type uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
@@ -19,14 +26,49 @@ function togglePlayback() {
   worker?.postMessage({ type: "running", running: playing.value });
 }
 const parameters = reactive({ ...defaults });
+const history = ref<Sample[]>([]);
+const agent = ref<InstanceType<typeof AgentBridge>>();
+const snapshot = computed(() => ({
+  parameters: { ...parameters },
+  bounds,
+  current: current.value,
+  history: history.value,
+  running: playing.value,
+}));
+async function agentCommand(id: string, command: unknown) {
+  try {
+    if (!worker) throw new Error("Simulation is not ready");
+    if (!command || typeof command !== "object") throw new Error("Invalid command");
+    const message = command as {
+      type?: string;
+      patch?: Record<string, unknown>;
+      running?: unknown;
+    };
+    if (message.type === "parameters") {
+      if (!message.patch || Object.keys(message.patch).some((key) => !Object.hasOwn(defaults, key)))
+        throw new Error("Invalid parameter patch");
+      const updated = { ...parameters, ...message.patch };
+      validateParameters(updated);
+      Object.assign(parameters, updated);
+      await nextTick();
+      worker.postMessage({ type: "parameters", parameters: { ...parameters }, commandId: id });
+    } else if (message.type === "running" && typeof message.running === "boolean") {
+      playing.value = message.running;
+      worker.postMessage({ type: "running", running: message.running, commandId: id });
+    } else if (message.type === "reset") worker.postMessage({ type: "reset", commandId: id });
+    else throw new Error("Unsupported command");
+  } catch (error) {
+    agent.value?.reply(id, error instanceof Error ? error.message : "Invalid command");
+  }
+}
 const error = ref("");
 const pending = ref(true);
 const chartElement = ref<HTMLDivElement>();
 const controls = [
-  { key: "kp", label: "比例 Kp", max: 40, min: 0, step: 0.5 },
-  { key: "ki", label: "积分 Ki", max: 20, min: 0, step: 0.5 },
-  { key: "kd", label: "微分 Kd", max: 15, min: 0, step: 0.5 },
-  { key: "limit", label: "力矩限幅 / N·m", max: 30, min: 1, step: 1 },
+  { key: "kp", label: "比例 Kp", ...bounds.kp, step: 0.5 },
+  { key: "ki", label: "积分 Ki", ...bounds.ki, step: 0.5 },
+  { key: "kd", label: "微分 Kd", ...bounds.kd, step: 0.5 },
+  { key: "limit", label: "力矩限幅 / N·m", ...bounds.limit, step: 1 },
 ] as const;
 let worker: Worker | undefined;
 let chart: uPlot | undefined;
@@ -70,14 +112,20 @@ onMounted(async () => {
     worker = new Worker(new URL("../../../../src/simulation.worker.ts", import.meta.url), {
       type: "module",
     });
-    worker.onmessage = (
-      event: MessageEvent<{ history?: Sample[]; current?: Sample; error?: string }>,
+    worker.onmessage = async (
+      event: MessageEvent<{
+        history?: Sample[];
+        current?: Sample;
+        error?: string;
+        commandId?: string;
+      }>,
     ) => {
       pending.value = false;
       error.value = event.data.error ?? "";
       if (event.data.current) current.value = event.data.current;
       if (event.data.history) {
         const rows = event.data.history;
+        history.value = rows;
         chart?.setData([
           rows.map((v) => v.time),
           rows.map((v) => v.pitchTarget),
@@ -88,6 +136,10 @@ onMounted(async () => {
         ]);
         const end = Math.max(12, current.value.time);
         chart?.setScale("x", { min: Math.max(0, end - 12), max: end });
+      }
+      if (event.data.commandId) {
+        await nextTick();
+        agent.value?.reply(event.data.commandId, event.data.error);
       }
     };
     worker.onerror = () => {
@@ -143,6 +195,7 @@ onBeforeUnmount(() => {
         ><input v-model="parameters.antiWindup" type="checkbox" /> 抗积分饱和</label
       >
     </div>
+    <AgentBridge ref="agent" :snapshot="snapshot" @command="agentCommand" />
     <p v-if="error" role="alert">{{ error }}</p>
     <div class="gimbal-panel">
       <GimbalView
@@ -157,16 +210,16 @@ onBeforeUnmount(() => {
           >偏航目标 {{ parameters.yaw }}°<input
             v-model.number="parameters.yaw"
             type="range"
-            min="-90"
-            max="90"
+            :min="bounds.yaw.min"
+            :max="bounds.yaw.max"
             step="5"
         /></label>
         <label class="lab-control"
           >俯仰目标 {{ parameters.pitch }}°<input
             v-model.number="parameters.pitch"
             type="range"
-            min="-60"
-            max="60"
+            :min="bounds.pitch.min"
+            :max="bounds.pitch.max"
             step="5"
         /></label>
         <div class="lab-presets">

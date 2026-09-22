@@ -23,6 +23,7 @@ export default defineConfig({
         items: [
           { text: "01 · PID 调参", link: "/labs/pid" },
           { text: "02 · Rust 控制器", link: "/labs/rust" },
+          { text: "Agent 调参", link: "/guide/agent-tuning" },
         ],
       },
     ],

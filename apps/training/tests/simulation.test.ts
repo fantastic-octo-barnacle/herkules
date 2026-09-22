@@ -69,3 +69,13 @@ it("runs beyond the history window without a duration cutoff", () => {
   expect(Number.isFinite(state.pitch.position)).toBe(true);
   expect((state.pitch.position * 180) / Math.PI).toBeCloseTo(defaults.pitch, 1);
 });
+
+it("keeps the expanded gain and torque envelope finite", () => {
+  for (const pitch of [-180, 180]) {
+    const parameters = { ...defaults, kp: 400, ki: 200, kd: 100, limit: 300, yaw: 360, pitch };
+    const result = simulate(parameters);
+    expect(result.position.every(Number.isFinite)).toBe(true);
+    expect(result.yaw.every(Number.isFinite)).toBe(true);
+    expect(result.output.every((value) => Math.abs(value) <= 300)).toBe(true);
+  }
+});

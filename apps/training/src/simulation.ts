@@ -35,23 +35,24 @@ export const presets: Record<string, Pick<PidParameters, "kp" | "ki" | "kd">> = 
 };
 const clamp = (value: number, limit: number) => Math.max(-limit, Math.min(limit, value));
 
+export const bounds = {
+  kp: { min: 0, max: 400 },
+  ki: { min: 0, max: 200 },
+  kd: { min: 0, max: 100 },
+  limit: { min: 1, max: 300 },
+  yaw: { min: -360, max: 360 },
+  pitch: { min: -180, max: 180 },
+} as const;
 export function validateParameters(params: PidParameters): void {
-  for (const key of ["kp", "ki", "kd", "limit", "yaw", "pitch"] as const) {
-    if (!Number.isFinite(params[key])) throw new Error(`Invalid ${key}`);
+  for (const key of Object.keys(bounds) as (keyof typeof bounds)[]) {
+    if (
+      !Number.isFinite(params[key]) ||
+      params[key] < bounds[key].min ||
+      params[key] > bounds[key].max
+    )
+      throw new Error(`Invalid ${key}`);
   }
-  if (
-    params.kp < 0 ||
-    params.kp > 40 ||
-    params.ki < 0 ||
-    params.ki > 20 ||
-    params.kd < 0 ||
-    params.kd > 15 ||
-    params.limit < 1 ||
-    params.limit > 30 ||
-    Math.abs(params.yaw) > 90 ||
-    Math.abs(params.pitch) > 60
-  )
-    throw new Error("Parameters outside lab bounds");
+  if (typeof params.antiWindup !== "boolean") throw new Error("Invalid antiWindup");
 }
 
 export const STEP = 0.005;
