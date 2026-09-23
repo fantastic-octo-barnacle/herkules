@@ -125,6 +125,14 @@ export const configSchema = z.object({
   OPS_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
   /** The `beszel` client's secret (>= 32 chars), stored hashed; pasted into the hub's OIDC provider settings. */
   BESZEL_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
+  /**
+   * The Kellnr crate registry's origin, e.g. https://crates.herkules.dev (infrastructure).
+   * Set: the confidential first-party `kellnr` OIDC client is seeded with Kellnr's fixed
+   * redirect `${CRATES_ORIGIN}/api/v1/oauth2/callback`. Unset: not seeded. Both or neither.
+   */
+  CRATES_ORIGIN: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  /** The `kellnr` client's secret (>= 32 chars), stored hashed; the same value goes in `KELLNR_OAUTH2__CLIENT_SECRET`. */
+  KELLNR_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
 });
 
 function emptyToUndefined(value: unknown): unknown {
@@ -166,6 +174,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if ((parsed.OPS_ORIGIN === undefined) !== (parsed.BESZEL_CLIENT_SECRET === undefined)) {
     throw new TypeError("OPS_ORIGIN and BESZEL_CLIENT_SECRET must be set together or not at all");
   }
+  if ((parsed.CRATES_ORIGIN === undefined) !== (parsed.KELLNR_CLIENT_SECRET === undefined)) {
+    throw new TypeError(
+      "CRATES_ORIGIN and KELLNR_CLIENT_SECRET must be set together or not at all",
+    );
+  }
   if (
     (parsed.CLOUDFLARE_TEAM_NAME === undefined) !==
     (parsed.CLOUDFLARE_CLIENT_SECRET === undefined)
@@ -195,6 +208,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     LARKAI_ORIGIN:
       parsed.LARKAI_ORIGIN === undefined ? undefined : new URL(parsed.LARKAI_ORIGIN).origin,
     OPS_ORIGIN: parsed.OPS_ORIGIN === undefined ? undefined : new URL(parsed.OPS_ORIGIN).origin,
+    CRATES_ORIGIN:
+      parsed.CRATES_ORIGIN === undefined ? undefined : new URL(parsed.CRATES_ORIGIN).origin,
     AI_PORTAL_ORIGIN:
       parsed.AI_PORTAL_ORIGIN === undefined ? undefined : new URL(parsed.AI_PORTAL_ORIGIN).origin,
     issuer: `${origin}/auth`,

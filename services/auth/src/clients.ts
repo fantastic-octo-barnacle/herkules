@@ -208,6 +208,25 @@ export const FIRST_PARTY_CLIENTS = [
     secret: (c) => c.BESZEL_CLIENT_SECRET,
   },
   {
+    /**
+     * The Kellnr crate registry (infrastructure, crates.<domain>). Kellnr's OIDC login
+     * uses PKCE and client_secret_basic and reads everything from the ID token, so the
+     * `roleInIdToken` metadata makes customIdTokenClaims add `role` and
+     * `preferred_username` for this client only. Kellnr's `admin_group_claim=role`
+     * re-syncs its admin flag from that claim on each SSO login (tests/kellnr-client.test.ts).
+     */
+    clientId: "kellnr",
+    name: "Kellnr (crates)",
+    redirectUris: (c) => (c.CRATES_ORIGIN ? [`${c.CRATES_ORIGIN}/api/v1/oauth2/callback`] : []),
+    skipConsent: true,
+    tokenEndpointAuthMethod: "client_secret_basic",
+    applicationType: "web",
+    grantTypes: ["authorization_code"],
+    requirePKCE: true,
+    metadata: { herkules: { roleInIdToken: true } },
+    secret: (c) => c.KELLNR_CLIENT_SECRET,
+  },
+  {
     clientId: "herkules-ai",
     name: "Herkules AI",
     redirectUris: (c) => (c.AI_PORTAL_ORIGIN ? [`${c.AI_PORTAL_ORIGIN}/oauth/herkules`] : []),
@@ -251,6 +270,14 @@ export const FIRST_PARTY_CLIENTS = [
 export function isDevTokenClient(metadata: Record<string, unknown> | undefined): boolean {
   const h = metadata?.herkules;
   return typeof h === "object" && h !== null && (h as { devToken?: unknown }).devToken === true;
+}
+
+/** True for a first-party client whose ID token carries the current role (read from oauthClient.metadata). */
+export function isRoleInIdTokenClient(metadata: Record<string, unknown> | undefined): boolean {
+  const h = metadata?.herkules;
+  return (
+    typeof h === "object" && h !== null && (h as { roleInIdToken?: unknown }).roleInIdToken === true
+  );
 }
 
 export type FirstPartyClientId = (typeof FIRST_PARTY_CLIENTS)[number]["clientId"];

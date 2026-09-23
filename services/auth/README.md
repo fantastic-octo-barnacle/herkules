@@ -82,6 +82,18 @@ with the exact `/oidc/callback` redirect and mandatory PKCE. It requests
 for this client and refuses disabled users. LarkAI checks it on each authenticated
 request, so role changes are not copied into a separate app admin list.
 
+## Kellnr crate registry
+
+`CRATES_ORIGIN` and `KELLNR_CLIENT_SECRET` seed the confidential `kellnr` client
+with Kellnr's fixed `/api/v1/oauth2/callback` redirect and mandatory PKCE. Kellnr
+reads everything from the ID token, so for this client only the ID token adds the
+current `admin | member` `role` and, with `profile`, `preferred_username` (the
+lowercased GitHub login; Feishu-only users fall back to their email's local part in
+Kellnr). Infrastructure sets `KELLNR_OAUTH2__ADMIN_GROUP_CLAIM=role` and
+`KELLNR_OAUTH2__ADMIN_GROUP_VALUE=admin`, so Herkules admins are Kellnr admins.
+Kellnr re-syncs the flag on each SSO login, not per request: a demotion here takes
+effect at that user's next Kellnr sign-in, and their cargo tokens keep working until then.
+
 ## Feishu sign-in and optional GitHub connection
 
 Set `FEISHU_APP_ID`, `FEISHU_APP_SECRET`, and `FEISHU_TENANT_KEY` together in
