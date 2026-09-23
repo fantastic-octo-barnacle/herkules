@@ -1,7 +1,7 @@
 # Deployment
 
-Production infrastructure lives in the private repository [herkules-infra](https://github.com/fantastic-octo-barnacle/herkules-infra).
-The [runbook](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md)
+Production infrastructure lives in the private repository [herkules-infra](https://github.com/trident-rm/herkules-infra).
+The [runbook](https://github.com/trident-rm/herkules-infra/blob/main/tools/deploy/README.md)
 owns Terraform, Compose, routing, monitoring, backups, deployment and rollback.
 These links require infrastructure-repository access; application development and
 tests can run from this public repository alone.

@@ -4,7 +4,7 @@
 #   docker buildx bake -f tools/images/docker-bake.hcl --print auth bbs
 
 variable "REPOSITORY" {
-  default = "fantastic-octo-barnacle/herkules"
+  default = "trident-rm/herkules"
 }
 
 variable "SHORT_SHA" {

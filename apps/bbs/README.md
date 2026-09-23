@@ -17,7 +17,7 @@ vp check
 vp run build
 ```
 
-The config default is port 3003. The checked-in `.env.example` sets Hono to 3103 so the SPA dev server can own port 3003 and proxy through `web/vite.config.ts`. One image, six commands, dispatched in `src/main.ts`: serve (the default), `migrate`, `work [--once]`, `bot`, `rederive`, and `import`, the deprecated cutover tool and dev loader. Deployment, worker startup, bot setup, import, cutover, and backup commands live in [`../../tools/deploy/README.md`](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md).
+The config default is port 3003. The checked-in `.env.example` sets Hono to 3103 so the SPA dev server can own port 3003 and proxy through `web/vite.config.ts`. One image, six commands, dispatched in `src/main.ts`: serve (the default), `migrate`, `work [--once]`, `bot`, `rederive`, and `import`, the deprecated cutover tool and dev loader. Deployment, worker startup, bot setup, import, cutover, and backup commands live in [`../../tools/deploy/README.md`](https://github.com/trident-rm/herkules-infra/blob/main/tools/deploy/README.md).
 
 ## Exporting the public archive
 
@@ -65,7 +65,7 @@ inbound deduplication, payloads, attempts, and retry UUIDs live in Postgres and 
 For local use, create `.env.bot` from the commented block in [`.env.example`](.env.example), make
 sure the normal BBS process has applied migrations, then run `vp run bot`. Production setup and
 the separate `.env.bot` file are documented in
-[`../../tools/deploy/.env.example`](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/.env.example). The announcement chat ID is
+[`../../tools/deploy/.env.example`](https://github.com/trident-rm/herkules-infra/blob/main/tools/deploy/.env.example). The announcement chat ID is
 fixed at first activation; changing the configured ID later makes the bot exit instead of moving
 pending messages to another group.
 
@@ -129,7 +129,7 @@ Do not work around source blocking. If the deployed Hong Kong host cannot fetch 
 
 The SPA is static. Optional Cloudflare delivery serves ordinary documents and
 public client files; API/OAuth and the entire `/articles*` and `/kb*` prefixes stay
-on the origin. See [edge delivery](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/cloudflare/README.md).
+on the origin. See [edge delivery](https://github.com/trident-rm/herkules-infra/blob/main/tools/deploy/cloudflare/README.md).
 The server injects `<title>`, description, canonical and `og:*` for `/articles/:id` and `/kb/:name` (`src/spa/head.ts`, `src/spa/static.ts`, the marker block in `web/index.html`). That is what Feishu and WeChat link cards need; Baidu indexing of article bodies is not a goal.
 
 TanStack Start was evaluated on 2026-08-28 and not adopted. Measured on the repo's toolchain (vite-plus 0.3.0 = Vite 8.2.2/Rolldown, Node 24, TypeScript 7): `@tanstack/react-start@1.168.49` builds and serves without Nitro, with Hono as the outer server, at about 90 MB RSS and 7 ms per server-rendered request; `vp dev` works; none of the open Vite 8 issues reproduced. It is still a release candidate patched every few days and its document handler cannot run under Vitest. Nothing the product lacks justifies that dependency.

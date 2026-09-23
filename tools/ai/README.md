@@ -64,6 +64,6 @@ single-use ticket even on the local Docker network.
 ## Production hosting
 
 Worker setup, systemd units, model presets and production provisioning have moved to
-[herkules-infra/tools/ai](https://github.com/fantastic-octo-barnacle/herkules-infra/tree/main/tools/ai).
+[herkules-infra/tools/ai](https://github.com/trident-rm/herkules-infra/tree/main/tools/ai).
 Application worker and gateway builds remain in `services/inference`; local preview,
 portal customization and benchmark tools remain here.

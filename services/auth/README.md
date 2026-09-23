@@ -15,7 +15,7 @@ vp check
 vp run build
 ```
 
-Development accepts `pglite://` database URLs. Production uses Postgres and applies the checked-in Drizzle migration at boot. See [`../../tools/deploy/README.md`](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md) for the deployed stack.
+Development accepts `pglite://` database URLs. Production uses Postgres and applies the checked-in Drizzle migration at boot. See [`../../tools/deploy/README.md`](https://github.com/trident-rm/herkules-infra/blob/main/tools/deploy/README.md) for the deployed stack.
 
 ## Decisions that bind
 

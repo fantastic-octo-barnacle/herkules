@@ -12,7 +12,7 @@ vp run build
 vp run preview
 ```
 
-The development server runs on `http://localhost:3000` and proxies auth, metadata, and local MCP routes. Copy `.env.example` only when overriding the proxy targets. Production serves the built files through Caddy; see [`../../tools/deploy/README.md`](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md).
+The development server runs on `http://localhost:3000` and proxies auth, metadata, and local MCP routes. Copy `.env.example` only when overriding the proxy targets. Production serves the built files through Caddy; see [`../../tools/deploy/README.md`](https://github.com/trident-rm/herkules-infra/blob/main/tools/deploy/README.md).
 
 ## Decisions that bind
 

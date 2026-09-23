@@ -1,7 +1,7 @@
 # Security reporting
 
 Report suspected vulnerabilities using
-[GitHub's private vulnerability reporting form](https://github.com/fantastic-octo-barnacle/herkules/security/advisories/new).
+[GitHub's private vulnerability reporting form](https://github.com/trident-rm/herkules/security/advisories/new).
 Include the affected component or commit, reproduction steps, and expected impact.
 Do not include live credentials, personal data, or production database exports.
 

@@ -71,12 +71,12 @@ Check a workspace's README and `package.json` before running it. `vp <name>` inv
 - `services/auth/src/registry.ts` owns public resource identifiers and token audiences.
 - [`docs/tokens.md`](docs/tokens.md) owns the verification and challenge contract across languages.
 - Each app or service owns its database and application policy. Identity joins use the issuer's opaque `sub` only.
-- [`tools/deploy/README.md`](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md) owns operational commands. Component READMEs link there instead of duplicating the runbook.
+- [`tools/deploy/README.md`](https://github.com/trident-rm/herkules-infra/blob/main/tools/deploy/README.md) owns operational commands. Component READMEs link there instead of duplicating the runbook.
 
 ## Repository boundary
 
 Application development and image publication live here. Production infrastructure lives
-in the private sibling [herkules-infra](https://github.com/fantastic-octo-barnacle/herkules-infra)
+in the private sibling [herkules-infra](https://github.com/trident-rm/herkules-infra)
 repository. Its links require repository access. See [the deployment contract](docs/deploy.md) for artifact promotion and
 application-owned Caddy fragments. `vp run dev` remains self-contained.
 

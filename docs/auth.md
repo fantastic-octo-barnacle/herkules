@@ -60,4 +60,4 @@ All role, allowlist, disable, session, and client changes go through audited tra
 
 ## Adding a resource
 
-Add the reviewed resource entry in `services/auth/src/registry.ts`, configure the resource server with the derived public audience and issuer, use `@herkules/auth-middleware` or implement [`tokens.md`](tokens.md), and add the deployment route described by [`../tools/deploy/README.md`](https://github.com/fantastic-octo-barnacle/herkules-infra/blob/main/tools/deploy/README.md). The resource server must not serve a second protected-resource metadata document.
+Add the reviewed resource entry in `services/auth/src/registry.ts`, configure the resource server with the derived public audience and issuer, use `@herkules/auth-middleware` or implement [`tokens.md`](tokens.md), and add the deployment route described by [`../tools/deploy/README.md`](https://github.com/trident-rm/herkules-infra/blob/main/tools/deploy/README.md). The resource server must not serve a second protected-resource metadata document.

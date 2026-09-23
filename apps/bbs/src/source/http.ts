@@ -34,7 +34,7 @@ import { SourceError, breakerKind } from "./index.ts";
 export const REQUEST_TIMEOUT_MS = 15_000;
 export const MAX_BODY_BYTES = 5 * 1024 * 1024;
 export const USER_AGENT =
-  "rm-wenku/0.2 (+public article monitoring; rate limited; https://github.com/fantastic-octo-barnacle/rm-wenku)";
+  "rm-wenku/0.2 (+public article monitoring; rate limited; https://github.com/trident-rm/rm-wenku)";
 
 export interface JsonClientDeps {
   readonly fetch: typeof globalThis.fetch;
