@@ -37,7 +37,7 @@ import { signingOptions } from "./signing.ts";
 
 import type { Audit } from "./audit.ts";
 import { auditAfterHook } from "./audit.ts";
-import { isDevTokenClient, registerBeforeHook } from "./clients.ts";
+import { isDevTokenClient, isRoleInIdTokenClient, registerBeforeHook } from "./clients.ts";
 import { clientSecretStore } from "./secrets.ts";
 import type { Config } from "./config.ts";
 import { MergeError, type Merges } from "./db/merges.ts";
@@ -589,9 +589,21 @@ export function authOptions(deps: AuthDeps) {
           if (user.banned) throw new APIError("UNAUTHORIZED", { error: "invalid_token" });
           return { role: roleOf(user) };
         },
-        // Cloudflare reads email from the ID token rather than fetching UserInfo.
-        customIdTokenClaims: async ({ user, scopes }) =>
-          scopes.includes("email") ? { email: user.email, email_verified: user.emailVerified } : {},
+        // Cloudflare and Kellnr read email from the ID token rather than fetching UserInfo.
+        // Kellnr also takes its admin flag and username from it (clients.ts `kellnr`).
+        customIdTokenClaims: async ({ user, scopes, metadata }) => ({
+          ...(scopes.includes("email")
+            ? { email: user.email, email_verified: user.emailVerified }
+            : {}),
+          ...(isRoleInIdTokenClient(metadata)
+            ? {
+                role: roleOf(user),
+                ...(scopes.includes("profile") && typeof user.githubLogin === "string"
+                  ? { preferred_username: user.githubLogin.toLowerCase() }
+                  : {}),
+              }
+            : {}),
+        }),
         /** Role stamp. `user` is the DB row; the admin plugin owns `role`. A row without a valid role never becomes a token. */
         customAccessTokenClaims: async ({ user }) => {
           if (!user) throw new APIError("BAD_REQUEST", { error: "invalid_grant" });
